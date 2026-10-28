@@ -6,6 +6,7 @@ import { AttachmentUnavailable, UniqueViolation } from "../store/repository";
 import { HandoffError } from "./errors";
 import { verifyType } from "./filetypes";
 import { base64url, newAttachmentId, newPacketId, newTicketToken, nowIso, plusMs, sha256Hex } from "./ids";
+import { handleOf, isTeam, qualify, shownRecipient, teamOf, tenantOf } from "./tenant";
 
 export interface SendInput {
   title: string;
@@ -62,23 +63,28 @@ export const describe = (a: AttachmentRow): AttachmentDescriptor => ({
   state: a.state,
 });
 
+/** People see handles; the stored identities may carry a tenant prefix (src/domain/tenant.ts). */
 const summary = (p: PacketRow): PacketSummary => ({
   packet_id: p.id,
-  from: p.owner,
-  to: p.recipient ?? p.owner,
+  from: handleOf(p.owner),
+  to: shownRecipient(p.recipient ?? p.owner),
   title: p.title,
   created_at: p.created_at,
   expires_at: p.expires_at,
 });
 
-/** Empty means the sender; "team", "all" and "*" mean every member; any other name is a member handle (lower case). */
+/**
+ * Empty means the sender; "team", "all" and "*" mean every member of the sender's tenant; any other name is a
+ * member handle (lower case) in that tenant. The result is a stored identity (tenant-qualified where the owner is).
+ */
 export function normalizeRecipient(owner: string, to?: string): string {
   if (!to || !to.trim()) return owner;
   const raw = to.trim();
-  if (raw === owner) return owner;
+  const tenant = tenantOf(owner);
   const lower = raw.toLowerCase();
-  if (raw === "*" || lower === "team" || lower === "all") return "*";
-  return lower;
+  if (raw === "*" || lower === "team" || lower === "all") return teamOf(tenant);
+  const qualified = qualify(tenant, handleOf(lower) === lower ? lower : handleOf(lower));
+  return qualified === owner ? owner : qualified;
 }
 
 export function encodeCursor(row: InboxRow): string {
@@ -257,16 +263,16 @@ export class HandoffService {
   private async recipientFor(owner: string, to?: string): Promise<string> {
     const r = normalizeRecipient(owner, to);
     if (r === owner) return owner;
-    if (r !== "*" && !(await this.repo.isMember(r))) {
+    if (!isTeam(r) && !(await this.repo.isMember(r))) {
       throw new HandoffError("invalid_input", `to: "${to?.trim()}" is not a member of this server; use a member handle, or "team" for every member`);
     }
     return r;
   }
 
-  /** The sender, the named recipient, or for a team packet ("*") every member. */
+  /** The sender, the named recipient, or for a team packet every member of that tenant. */
   private canAccessPacket(subject: string, p: PacketRow): boolean {
     const recipient = p.recipient ?? p.owner;
-    return p.owner === subject || recipient === subject || recipient === "*";
+    return p.owner === subject || recipient === subject || recipient === teamOf(tenantOf(subject));
   }
 
   async inbox(principal: Principal, opts: { limit?: number; cursor?: string }): Promise<{ packets: (PacketSummary & { attachment_count: number })[]; next_cursor: string | null }> {
@@ -278,8 +284,8 @@ export class HandoffService {
     return {
       packets: page.map((r) => ({
         packet_id: r.id,
-        from: r.owner ?? principal.subject,
-        to: r.recipient ?? r.owner ?? principal.subject,
+        from: handleOf(r.owner ?? principal.subject),
+        to: shownRecipient(r.recipient ?? r.owner ?? principal.subject),
         title: r.title,
         created_at: r.created_at,
         expires_at: r.expires_at,
@@ -318,7 +324,7 @@ export class HandoffService {
   async revoke(principal: Principal, packetId: string): Promise<{ packet_id: string; revoked_at: string }> {
     const p = await this.repo.getPacket(packetId);
     if (!p || !this.canAccessPacket(principal.subject, p)) throw new HandoffError("not_found", `packet ${packetId} not found`);
-    if (p.owner !== principal.subject && p.recipient === "*") {
+    if (p.owner !== principal.subject && isTeam(p.recipient)) {
       throw new HandoffError("invalid_input", `packet ${packetId} went to the whole team; only its sender can revoke it`);
     }
     if (p.revoked_at) return { packet_id: p.id, revoked_at: p.revoked_at };
