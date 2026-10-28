@@ -6,9 +6,9 @@ Runs on your own Cloudflare account (Workers, D1, R2). Free tier is enough. MIT.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://handoff.infraworks.net/deploy)
 
-## Install
+## Quick start
 
-Three ways. All end with a `/connect` page that shows each assistant how to connect.
+Three ways.
 
 **Deploy button.** Needs a Cloudflare account and a GitHub or GitLab account (Cloudflare copies the repo into it). The form asks for one secret, `HANDOFF_SETUP_CODE`: pick anything 12 characters or longer. After the deploy, open `/console/setup` on your Worker, enter that code and your handle. You are the admin.
 
