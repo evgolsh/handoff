@@ -84,7 +84,10 @@ describe("connect page", () => {
 
   it("the control center's homepage leads with self-hosting, offers the playground second, and has /use-cases as an alias", async () => {
     const connectHtml = await (await SELF.fetch(`${ORIGIN}/connect`)).text();
-    expect(connectHtml).toContain('href="/#use-cases"');
+    // A private install's "/" is its Connect page: use cases and "About" live on the control center.
+    expect(connectHtml).toContain('href="https://handoff.infraworks.net/#use-cases"');
+    expect(connectHtml).not.toContain('href="/#use-cases"');
+    expect(connectHtml).not.toContain('<a href="/">Home</a>');
 
     const res = await home();
     expect(res.status).toBe(200);
@@ -100,6 +103,9 @@ describe("connect page", () => {
     expect(html).toContain('class="site-button" href="/join">Try the playground');
     expect(html).not.toContain('class="site-button primary" href="/join"');
     expect(html).toContain("MIT licensed · Runs on your Cloudflare account");
+    // The homepage is the brand link: no "Use cases" item in the menu or footer.
+    expect(html).not.toContain(">Use cases</a>");
+    expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Connect</a>');
     expect(html).toContain("Your context. Your files. Your Cloudflare account.");
     expect(html).toContain("30 days by default on your own install, 24 hours on the playground");
     expect(html).toContain('href="/connect">Connect your assistants');
