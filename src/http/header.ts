@@ -69,7 +69,9 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
     </nav></header>`;
   }
   const actions = active && opts.mode === "control"
-    ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect</a><a class="site-button primary" href="/join">Create a team <span aria-hidden="true">↗</span></a>`
+    ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect</a>
+      <a class="site-button nav-secondary" href="/join">Try the playground</a>
+      <a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>`
     : active
     ? `<a class="site-button nav-secondary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span></a>
       <a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>`
@@ -87,6 +89,6 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
 export function pageFooter(opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
   const playground = opts.mode === "control" && active;
-  return `<footer class="site-footer site-width"><p>Handoff · ${playground ? "Try the shared playground. Self-host for private work." : "Your context. Your files. Your Cloudflare account."}</p>
-    <nav aria-label="Footer"><a href="/">Home</a><a href="/#use-cases">Use cases</a>${playground ? '<a href="/join">Create a team</a>' : ""}${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">${playground ? "Team console" : "Console"}</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
+  return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
+    <nav aria-label="Footer"><a href="/">Home</a><a href="/#use-cases">Use cases</a>${playground ? '<a href="/join">Try the playground</a>' : ""}${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">${playground ? "Team console" : "Console"}</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
 }
