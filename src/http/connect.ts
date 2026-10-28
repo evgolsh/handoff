@@ -38,8 +38,8 @@ interface Host {
   tag: string;
   status: string;
   steps: Step[];
-  /** A step people miss, shown in orange, with a value to copy. */
-  warn?: { text: string; copy: string; label: string };
+  /** A step people miss, in orange text. */
+  warn?: string;
   note?: string;
   source: { label: string; url: string };
 }
@@ -89,11 +89,7 @@ function hosts(url: string, control = false): Host[] {
         { text: "Keep the recommended sign-in settings and select **Add**." },
         { text: `Select **Connect**, sign in with ${signIn}, and approve access.` },
       ],
-      warn: {
-        text: "**To attach files**, add this address to the allowed domains in Claude's **Settings > Capabilities**. Without it, uploads fail with a 403 error.",
-        copy: host,
-        label: "Copy the address to allow in Claude",
-      },
+      warn: `To attach files, add \`${host}\` to the allowed domains in Claude's Settings > Capabilities. Without it, uploads fail with a 403 error.`,
       note: "On a Team or Enterprise plan, an owner first adds the connector in Organization settings > Connectors. Free plans allow one custom connector.",
       source: { label: "Claude help: custom connectors", url: "https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" },
     },
@@ -173,8 +169,8 @@ function hostPanel(h: Host, first: boolean, url: string): string {
       <ol class="steps">
         ${steps}
       </ol>
-      ${h.warn ? `<div class="warn-note" role="note"><p>${inline(h.warn.text)}</p><div class="cmd"><code>${esc(h.warn.copy).replace(/\./g, ".<wbr>")}</code>${copyButton(h.warn.copy, h.warn.label)}</div></div>` : ""}
       <div class="foot">
+        ${h.warn ? `<p class="warn">${inline(h.warn)}</p>` : ""}
         ${h.note ? `<p>${inline(h.note)}</p>` : ""}
         <p>Source: <a href="${esc(h.source.url)}" target="_blank" rel="noopener">${esc(h.source.label)}</a></p>
       </div>
@@ -251,9 +247,7 @@ const PAGE_CSS = `
   .cmd { display:flex; align-items:stretch; margin-top:10px; border:1px solid var(--line); border-radius:6px; background:var(--ground); overflow:hidden; }
   .cmd code { flex:1; min-width:0; padding:10px 14px; font:12.5px/1.6 var(--mono); white-space:pre-wrap; overflow-wrap:anywhere; align-self:center; }
   .cmd .btn { min-height:0; border:0; border-left:1px solid var(--line); border-radius:0; }
-  .warn-note { margin:4px 0 14px; padding:12px 14px; border:1px solid var(--warn); border-color:color-mix(in srgb, var(--warn) 40%, var(--line)); border-radius:6px; background:var(--panel); background:color-mix(in srgb, var(--warn) 9%, var(--panel)); }
-  .warn-note p { font-size:14px; line-height:1.55; }
-  .warn-note .cmd { background:var(--panel); }
+  .foot .warn { color:var(--warn); }
   .cmd .btn:focus-visible { outline-offset:-3px; }
   .foot { padding-top:16px; border-top:1px solid var(--line-soft); font-size:12px; color:var(--muted); }
   .foot p + p { margin-top:6px; }
