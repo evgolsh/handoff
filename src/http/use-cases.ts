@@ -151,7 +151,7 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): stri
     : `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a></div></section>`;
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Handoff — Keep the work moving</title>
+<title>Handoff</title>
 <meta name="description" content="Pass a prepared brief and original files to your next AI assistant, a teammate, or your family. Private handoffs on your own Cloudflare account.">
 <link rel="canonical" href="${esc(cfg.publicUrl)}/">
 ${FAVICON_LINK}${FONT_PRELOAD}
