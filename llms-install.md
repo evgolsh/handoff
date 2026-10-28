@@ -1,4 +1,4 @@
-# Handoff — Agent Installation & Deployment Guide (`llms-install.md`)
+# Handoff: install and deploy (guide for AI agents)
 
 Use these exact steps when a user asks you (Claude Code, Hermes Agent, Codex, Cursor, or Cline) to deploy **Handoff** to their Cloudflare account and connect their assistants.
 
