@@ -20,9 +20,7 @@ One deployment profile (Cloudflare Workers, D1, R2). The Worker is also its own 
 sign in with a handle and an access code that the operator issues; there is no outside identity provider.
 Five MCP tools, an operators' console at `/console`, and plugin/extension manifests for OpenAI Codex, Claude Code, Cursor, Gemini CLI, and Hermes Agent. Deployed at `https://handoff.evgolsh.workers.dev`;
 the home page at `/` introduces the use cases, and `/connect` has the setup steps for each assistant.
-`/use-cases` remains an alias for the home page. Host tests: `docs/ACCEPTANCE.md`. The
-product and evaluation briefs are private notes outside this repository; `docs/COMMITTEE_REVIEW.md` is the
-latest outside review.
+`/use-cases` remains an alias for the home page. Which assistants are tested, and how far, is on `/connect`.
 
 ## Quick start (self-host on Cloudflare Free Tier)
 
@@ -76,5 +74,6 @@ HTTP: `POST /v1/uploads`, `PUT /v1/uploads/:id` (bearer or `?ticket=`), `GET /v1
 - `docs/DEVELOPMENT.md`: run the tests and a local server.
 - `docs/CONSOLE.md`: the operators' console at `/console`: who can open it, what each page shows, and what add, reset, remove and disconnect do.
 - `docs/DEPLOY.md`: Cloudflare, the OAuth provider, the plugin install.
+- `CONTRIBUTING.md` and `SECURITY.md`: how to report a bug, a host that does not connect, or a security issue.
 - `llms-install.md`: machine-readable installation and deployment guide for AI coding agents.
 - `plugin/`: the OpenAI / Codex plugin package (manifest, MCP config, skill), alongside root `.claude-plugin/`, `.cursor-plugin/`, `gemini-extension.json`, and `server.json`.
