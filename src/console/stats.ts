@@ -11,6 +11,11 @@ const scope = (col: string, tenant: string): { sql: string; binds: string[] } =>
   const w = tenantWhere(col, tenant);
   return { sql: ` AND ${w.sql}`, binds: w.binds };
 };
+/** The accounts a viewer manages: a team admin their team's, the operator only those without a team. */
+const realm = (col: string, tenant: string): { sql: string; binds: string[] } => {
+  const w = tenantWhere(col, tenant);
+  return { sql: ` AND ${w.sql}`, binds: w.binds };
+};
 /** Names as the viewer sees them: a tenant admin sees handles; the operator sees stored identities. */
 const shownBy = (tenant: string) => (s: string | null): string | null => (s === null ? null : tenant ? handleOf(s) : s);
 
@@ -93,6 +98,33 @@ export function detailOf(row: { detail: string | null }): Record<string, unknown
 }
 
 // ---- overview -----------------------------------------------------------------------------------------------
+
+export interface TeamOverviewData {
+  members: number;
+  connected: number;
+  packetsLive: number;
+}
+
+/** Team home needs only its own counts, not deployment health or operator records. */
+export async function teamOverview(db: D1Database, tenant: string, now = Date.now()): Promise<TeamOverviewData> {
+  const mem = tenantWhere("handle", tenant);
+  const ev = tenantWhere("subject", tenant);
+  const own = tenantWhere("owner", tenant);
+  const at = new Date(now).toISOString();
+  const counts = await one<TeamOverviewData>(
+    db,
+    `SELECT (SELECT COUNT(*) FROM members WHERE ${mem.sql}) AS members,
+      (SELECT COUNT(*) FROM (SELECT DISTINCT subject, client_id FROM oauth_refresh_tokens
+        WHERE revoked_at IS NULL AND expires_at > ? AND ${ev.sql})) AS connected,
+      (SELECT COUNT(*) FROM packets WHERE revoked_at IS NULL AND expires_at > ? AND ${own.sql}) AS packetsLive`,
+    ...mem.binds,
+    at,
+    ...ev.binds,
+    at,
+    ...own.binds,
+  );
+  return counts ?? { members: 0, connected: 0, packetsLive: 0 };
+}
 
 export interface LatencyRow {
   tool: string;
@@ -291,7 +323,7 @@ export interface MemberRow {
 export async function members(db: D1Database, tenant = "", now = Date.now()): Promise<{ rows: MemberRow[]; teamPackets: number }> {
   const nowIso = new Date(now).toISOString();
   const week = isoAgo(now, WINDOW_DAYS * DAY);
-  const mh = scope("m.handle", tenant);
+  const mh = realm("m.handle", tenant);
   const show = shownBy(tenant);
   const base = await all<{ handle: string; created_at: string; admin: number }>(
     db,
@@ -361,7 +393,8 @@ export async function assistants(db: D1Database, tenant = "", now = Date.now()):
   const week = isoAgo(now, WINDOW_DAYS * DAY);
   const clients = await clientsById(db);
   const ev = scope("subject", tenant);
-  const mh = scope("handle", tenant);
+  const own = realm("subject", tenant);
+  const mh = realm("handle", tenant);
   const show = shownBy(tenant);
   const memberList = (await all<{ handle: string }>(db, `SELECT handle FROM members WHERE 1 = 1${mh.sql} ORDER BY handle`, ...mh.binds)).map((r) => show(r.handle) ?? r.handle);
   const rows = new Map<string, AssistantRow>();
@@ -377,9 +410,9 @@ export async function assistants(db: D1Database, tenant = "", now = Date.now()):
 
   for (const t of await all<{ subject: string; client_id: string; until: string }>(
     db,
-    `SELECT subject, client_id, MAX(expires_at) AS until FROM oauth_refresh_tokens WHERE revoked_at IS NULL AND expires_at > ?${ev.sql} GROUP BY subject, client_id`,
+    `SELECT subject, client_id, MAX(expires_at) AS until FROM oauth_refresh_tokens WHERE revoked_at IS NULL AND expires_at > ?${own.sql} GROUP BY subject, client_id`,
     nowIso,
-    ...ev.binds,
+    ...own.binds,
   )) {
     const r = row(t.subject, t.client_id);
     r.connected = true;
@@ -388,8 +421,8 @@ export async function assistants(db: D1Database, tenant = "", now = Date.now()):
   for (const e of await all<{ subject: string; client_id: string; first: string; last: string }>(
     db,
     `SELECT subject, client_id, MIN(ts) AS first, MAX(ts) AS last FROM events
-     WHERE kind IN ${SEEN} AND subject IS NOT NULL AND client_id IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
-    ...ev.binds,
+     WHERE kind IN ${SEEN} AND subject IS NOT NULL AND client_id IS NOT NULL${own.sql} GROUP BY subject, client_id`,
+    ...own.binds,
   )) {
     const r = row(e.subject, e.client_id);
     r.first_seen = e.first;
@@ -398,9 +431,9 @@ export async function assistants(db: D1Database, tenant = "", now = Date.now()):
   for (const c of await all<{ subject: string; client_id: string; n: number; failed: number }>(
     db,
     `SELECT subject, client_id, COUNT(*) AS n, SUM(outcome != 'ok') AS failed FROM events
-     WHERE kind = 'tool' AND ts >= ? AND subject IS NOT NULL AND client_id IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
+     WHERE kind = 'tool' AND ts >= ? AND subject IS NOT NULL AND client_id IS NOT NULL${own.sql} GROUP BY subject, client_id`,
     week,
-    ...ev.binds,
+    ...own.binds,
   )) {
     const r = row(c.subject, c.client_id);
     r.calls = c.n;
@@ -410,8 +443,8 @@ export async function assistants(db: D1Database, tenant = "", now = Date.now()):
   for (const a of await all<{ subject: string; client_id: string; name: string | null; detail: string | null; at: string }>(
     db,
     `SELECT subject, client_id, name, detail, MAX(ts) AS at FROM events
-     WHERE kind = 'initialize' AND subject IS NOT NULL AND client_id IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
-    ...ev.binds,
+     WHERE kind = 'initialize' AND subject IS NOT NULL AND client_id IS NOT NULL${own.sql} GROUP BY subject, client_id`,
+    ...own.binds,
   )) {
     const version = detailOf(a).version;
     row(a.subject, a.client_id).announced = { name: a.name ?? "unnamed", version: typeof version === "string" ? version : null };
@@ -425,9 +458,9 @@ export async function assistants(db: D1Database, tenant = "", now = Date.now()):
   );
   for (const t of await all<{ subject: string; client_id: string; at: string }>(
     db,
-    `SELECT subject, client_id, MAX(ts) AS at FROM events WHERE kind = 'token' AND ts >= ? AND subject IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
+    `SELECT subject, client_id, MAX(ts) AS at FROM events WHERE kind = 'token' AND ts >= ? AND subject IS NOT NULL${own.sql} GROUP BY subject, client_id`,
     isoAgo(now, ACCESS_TOKEN_MS),
-    ...ev.binds,
+    ...own.binds,
   )) {
     const r = rows.get(pair(t.subject, t.client_id));
     if (!r || r.connected) continue;

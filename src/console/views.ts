@@ -29,6 +29,7 @@ import {
   type ControlCenterData,
   type OpsData,
   type OverviewData,
+  type TeamOverviewData,
 } from "./stats";
 
 const flash = (text: string | null, ok = true): Html => (text ? `<div class="flash${ok ? " ok" : ""}" role="status">${esc(text)}</div>` : "");
@@ -65,6 +66,26 @@ function clientCell(clients: Map<string, ClientInfo>, id: string | null): Html {
 }
 
 // ---- overview -----------------------------------------------------------------------------------------------
+
+export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): Html {
+  return shell(
+    "overview",
+    v,
+    "Your team",
+    `${head(v.tenant, "Your team on the Handoff playground")}
+<section class="cards" aria-label="Your team">
+  <a class="card" href="/console/members"><div class="t">Members</div><div class="big">${num(d.members)}</div><div class="small muted">Manage your teammates</div></a>
+  <a class="card" href="/console/assistants"><div class="t">Connected assistants</div><div class="big">${num(d.connected)}</div><div class="small muted">Manage your team's connections</div></a>
+  <div class="card"><div class="t">Active handoffs</div><div class="big">${num(d.packetsLive)}</div><div class="small muted">Available to their recipients</div></div>
+</section>
+<section class="grid3" aria-label="Get started">
+  <div class="panel"><div class="t">1. Connect an assistant</div><p>Choose your assistant and sign in with team <strong>${esc(v.tenant)}</strong>, your handle and access code.</p><div><a class="btn primary" href="/connect">Connect an assistant</a></div></div>
+  <div class="panel"><div class="t">2. Add teammates</div><p>Add a handle for each teammate, then share their team name, handle and access code in private. You can also try Handoff on your own.</p><div><a class="btn" href="/console/members">Add teammates</a></div></div>
+  <div class="panel"><div class="t">3. Try your first handoff</div><p>In one assistant, say <strong>“Hand this off.”</strong> In another, signed in as the same member, say <strong>“Continue my handoff.”</strong></p><div><a class="btn" href="/connect#next-title">First handoff guide</a></div></div>
+</section>
+<section class="panel"><div class="t">Shared playground</div><div class="small muted">Handoffs expire after ${plural(cfg.defaultExpiryHours, "hour")} by default. Files can be up to ${bytes(cfg.maxAttachmentBytes)} each. Use a <a class="u" href="/deploy" target="_blank" rel="noopener">private install</a> for private files.</div></section>`,
+  );
+}
 
 export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {
   const now = d.now;
@@ -239,7 +260,7 @@ ${note ? flash(note.text, note.ok) : ""}
 <section class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
   <form method="post" action="/console/members" class="panel" autocomplete="off">
     <div class="t">Add a member</div>
-    <div class="small muted">The access code is shown once, on the next page. Give it to the person in private; they sign in to each assistant with their handle and that code.</div>
+    <div class="small muted">The access code is shown once, on the next page. Share the sign-in details in private; they sign in to each assistant with ${v.tenant ? "the team name, " : ""}their handle and that code.</div>
     ${csrfField(v)}
     <div class="row">
       <div style="flex:1 1 200px"><label class="lbl" for="handle">handle</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tom"></div>
@@ -249,9 +270,10 @@ ${note ? flash(note.text, note.ok) : ""}
   </form>
   <div class="panel">
     <div class="t">Admins</div>
+    ${v.tenant ? `<div class="small">The person who created this team is its admin. Adding a member lets them use Handoff with their assistants; it does not grant console access.</div>` : `
     <div class="small">Admins can open this console. The operator grants it in a terminal, so the console cannot make new admins:</div>
 <pre class="code">npm run admin -- &lt;handle&gt;
-npm run admin -- &lt;handle&gt; --revoke</pre>
+npm run admin -- &lt;handle&gt; --revoke</pre>`}
     <div class="small muted">Reset code gives a new code and signs out every assistant of that member at once. Remove also revokes the packets they sent or received.</div>
   </div>
 </section>`,
@@ -259,7 +281,7 @@ npm run admin -- &lt;handle&gt; --revoke</pre>
 }
 
 /** The new access code, shown once. */
-export function codePage(v: Viewer, handle: string, code: string, kind: "added" | "reset"): Html {
+export function codePage(v: Viewer, handle: string, code: string, kind: "added" | "reset", publicUrl: string): Html {
   const self = handle === v.handle;
   return shell(
     "members",
@@ -267,9 +289,10 @@ export function codePage(v: Viewer, handle: string, code: string, kind: "added" 
     "Access code",
     `${head(kind === "added" ? `Added ${handle}` : `New code for ${handle}`, "shown once · Handoff keeps only a hash")}
 <section class="panel" style="max-width:680px">
+  <dl class="kv"><dt>Server</dt><dd class="mono">${esc(publicUrl)}/mcp</dd>${v.tenant ? `<dt>Team</dt><dd class="mono">${esc(v.tenant)}</dd>` : ""}<dt>Handle</dt><dd class="mono">${esc(handle)}</dd></dl>
   <div class="small muted">access code for <strong>${esc(handle)}</strong></div>
   <div class="secret" aria-label="access code">${esc(code)}</div>
-  <div class="small">Copy it now: this page will not show it again. Give it to ${self ? "yourself" : esc(handle)} in person or in a private message. In each assistant, sign in with handle <span class="mono">${esc(handle)}</span> and this code.</div>
+  <div class="small">Save these sign-in details now. The code will not be shown again.${self ? "" : ` Share the server address, ${v.tenant ? "team name, " : ""}handle and code with ${esc(handle)} in private.`} In each assistant, sign in with ${v.tenant ? `team <span class="mono">${esc(v.tenant)}</span>, ` : ""}handle <span class="mono">${esc(handle)}</span> and this code. <a class="u" href="${esc(publicUrl)}/connect">Assistant setup instructions</a>.</div>
   ${
     kind === "reset"
       ? `<div class="small warn">Every assistant of ${esc(handle)} was signed out. Each one asks to sign in again at its next call.${self ? " Your console session ended too: sign in again with the new code." : ""}</div>`
@@ -384,7 +407,7 @@ ${flash(note)}
   <div class="panel scroll"><div class="t">Tokens refused <span class="muted small">· ${WINDOW_DAYS} days</span></div>${rejected}<div class="small muted">Expired tokens are normal: the assistant refreshes and retries. Many of anything else is worth a look.</div></div>
   <div class="panel scroll"><div class="t">Wrong sign-in codes <span class="muted small">· ${WINDOW_DAYS} days</span></div>${bad}</div>
 </section>
-<section class="panel scroll"><div class="t">Registrations never used</div>${unused}<div class="small muted">An assistant registers before its first sign-in. Registrations that never led to a sign-in are removed by cleanup after 7 days.</div></section>`,
+${v.tenant ? "" : `<section class="panel scroll"><div class="t">Registrations never used</div>${unused}<div class="small muted">An assistant registers before its first sign-in. Registrations that never led to a sign-in are removed by cleanup after 7 days.</div></section>`}`,
   );
 }
 

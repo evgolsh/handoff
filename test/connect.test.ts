@@ -76,7 +76,7 @@ describe("connect page", () => {
     expect(html).toContain("prefers-color-scheme: dark");
   });
 
-  it("the home page presents the 5 use cases, with Connect as its CTA and /use-cases as an alias", async () => {
+  it("the playground homepage leads to team signup, keeps Connect and self-hosting available, and has /use-cases as an alias", async () => {
     const connectHtml = await (await SELF.fetch(`${ORIGIN}/connect`)).text();
     expect(connectHtml).toContain('href="/#use-cases"');
 
@@ -90,6 +90,9 @@ describe("connect page", () => {
 
     const html = await res.text();
     expect(html).toContain("Your next chat.");
+    expect(html).toContain('class="site-button primary" href="/join">Try the playground');
+    expect(html).not.toContain("Runs on your Cloudflare account");
+    expect(html).not.toContain("Your context. Your files. Your Cloudflare account.");
     expect(html).toContain('href="/connect">Connect your assistants');
     expect(html).toContain(`href="${GITHUB_URL}"`);
     expect(html).toContain(`href="${DEPLOY_PATH}"`);

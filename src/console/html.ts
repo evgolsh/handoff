@@ -220,10 +220,10 @@ ${body}
 export function shell(page: Page, v: Viewer, title: string, body: Html): Html {
   const allowed = new Set(pagesFor(v));
   const links = NAV.filter(([p]) => allowed.has(p))
-    .map(([p, label]) => `<a href="/console/${p}"${p === page ? ' class="on" aria-current="page"' : ""}>${label}</a>`)
+    .map(([p, label]) => `<a href="/console/${p}"${p === page ? ' class="on" aria-current="page"' : ""}>${p === "overview" && v.tenant ? "Your team" : label}</a>`)
     .join("\n    ");
   return document(
-    title,
+    v.control ? `${title} · ${v.tenant || "operator"}` : title,
     `<div class="shell">
   <nav class="side" aria-label="Console">
     <a class="brand" href="/console/overview">${BRAND_ICON}<span>Handoff</span></a>
@@ -233,26 +233,26 @@ export function shell(page: Page, v: Viewer, title: string, body: Html): Html {
     <div class="grow"></div>
     <div class="who">
       <div><span class="dot live"></span> ${v.tenant ? `<span class="muted">${esc(v.tenant)} ·</span> ` : ""}<strong>${esc(v.handle)}</strong> <span class="chip">${v.tenant || !v.control ? "admin" : "operator"}</span></div>
-      <div class="small muted"><form method="post" action="/console/logout">${csrfField(v)}<button type="submit">sign out</button></form></div>
+      <div class="small muted"><form method="post" action="/console/logout">${csrfField(v)}<button type="submit">${v.control ? "Sign out / switch account" : "sign out"}</button></form></div>
     </div>
   </nav>
   <main>
-${body}
+${v.control ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Playground operator"}</div>\n` : ""}${body}
   </main>
 </div>`,
   );
 }
 
-export function loginPage(error?: string, opts: { needsSetup?: boolean; control?: boolean } = {}): Html {
+export function loginPage(error?: string, opts: { needsSetup?: boolean; control?: boolean; team?: string } = {}): Html {
   return document(
     "Sign in",
     `<div class="login">
   <div class="brand" style="font-size:18px">${BRAND_ICON}<span>Handoff console</span></div>
   <form method="post" action="/console/login" class="panel" autocomplete="off">
     <div class="t">Sign in</div>
-    <div class="small muted">${opts.control ? "With your team, handle and access code. Open to the admin of each team (whoever created it, and the admins they add)." : "With your member handle and access code. The console is open to members the operator made admins (<span class=\"mono\">npm run admin -- &lt;handle&gt;</span>)."} The session lasts 12 hours, and ends when your code is reset.</div>
+    <div class="small muted">${opts.control ? "Sign in to your team's console with its team name, your handle and access code. The person who created the team is its admin. Other members connect their assistants from the Connect page." : "With your member handle and access code. The console is open to members the operator made admins (<span class=\"mono\">npm run admin -- &lt;handle&gt;</span>)."} The session lasts 12 hours, and ends when your code is reset.</div>
     ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
-    ${opts.control ? `<div><label class="lbl" for="team">team</label><input id="team" name="team" class="field" autofocus autocapitalize="none" spellcheck="false" placeholder="your team's name from sign-up (operator: leave empty)"></div>` : ""}
+    ${opts.control ? `<div><label class="lbl" for="team">team</label><input id="team" name="team" class="field" autofocus autocapitalize="none" spellcheck="false" placeholder="acme" value="${esc(opts.team ?? "")}"></div>` : ""}
     <div><label class="lbl" for="handle">handle</label><input id="handle" name="handle" class="field" required${opts.control ? "" : " autofocus"} autocapitalize="none" spellcheck="false"></div>
     <div><label class="lbl" for="code">access code</label><input id="code" name="access_code" type="password" class="field" required></div>
     <div><button type="submit" class="btn primary">Sign in</button></div>

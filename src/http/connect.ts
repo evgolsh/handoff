@@ -427,7 +427,7 @@ ${pageHeader("connect", { active, mode: cfg.mode })}
 <main id="main" class="site-width">
   ${mainBody}
 </main>
-${pageFooter({ active })}
+${pageFooter({ active, mode: cfg.mode })}
 <script nonce="${nonce}">
 (function () {
   var list = document.querySelector("[role=tablist]");

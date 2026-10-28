@@ -3,6 +3,7 @@ import { SELF, createExecutionContext, env } from "cloudflare:test";
 import worker from "../src/index";
 import { upsertMember } from "../src/auth/builtin";
 import { base64url } from "../src/domain/ids";
+import { teamOverview } from "../src/console/stats";
 import { ORIGIN } from "./helpers";
 
 /**
@@ -20,10 +21,10 @@ const form = (fields: Record<string, string>, extra: Record<string, string> = {}
   body: new URLSearchParams(fields),
 });
 
-async function join(team: string, handle: string): Promise<{ status: number; code: string | null; text: string }> {
-  const res = await fetchAs(ctl, "/join", form({ team, handle }));
+async function join(team: string, handle: string, oldCookie = "") {
+  const res = await fetchAs(ctl, "/join", form({ team, handle }, { cookie: oldCookie }));
   const text = await res.text();
-  return { status: res.status, code: /hf-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text };
+  return { status: res.status, code: /hf-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text, cookie: res.headers.get("set-cookie") };
 }
 
 interface Session {
@@ -36,6 +37,10 @@ async function consoleSession(e: typeof env, fields: Record<string, string>): Pr
   const res = await fetchAs(e, "/console/login", form(fields));
   expect(res.status, await res.clone().text()).toBe(303);
   const cookie = (res.headers.get("set-cookie") ?? "").split(";")[0]!;
+  return withCookie(e, cookie);
+}
+
+function withCookie(e: typeof env, cookie: string): Session {
   const page = async (path: string) => {
     const r = await fetchAs(e, path, { headers: { cookie } });
     return { status: r.status, text: await r.text(), location: r.headers.get("location") };
@@ -107,9 +112,23 @@ describe("the control center", () => {
     expect(members.text).toContain("<strong>ann</strong>");
     expect(members.text).not.toContain(other);
     expect(members.text).toContain(`${team} ·`);
+    expect(members.text).not.toContain("npm run admin");
+    const overview = (await s.page("/console/overview")).text;
+    expect(overview).toContain(`Team administration · <strong>${team}</strong>`);
+    expect(overview).not.toContain(other);
+    for (const operatorContent of [">Worker<", ">Database<", ">Storage<", ">Cleanup<", "signing key", 'href="/console/ops"', 'href="/console/tenants"']) {
+      expect(overview).not.toContain(operatorContent);
+    }
+    expect((await s.page("/console/assistants")).text).not.toContain("Registrations never used");
 
     const added = await s.submit("/console/members", { handle: "bob" });
     expect(added.status).toBe(200);
+    const invitation = await added.text();
+    expect(invitation).toContain(`<dt>Team</dt><dd class="mono">${team}</dd>`);
+    expect(invitation).toContain(`<dt>Server</dt><dd class="mono">${ORIGIN}/mcp</dd>`);
+    expect(invitation).toContain(`href="${ORIGIN}/connect"`);
+    const memberCode = /hf-[A-Za-z0-9_-]{16}/.exec(invitation)![0];
+    expect((await fetchAs(ctl, "/console/login", form({ team, handle: "bob", access_code: memberCode }))).status).toBe(401);
     expect(await env.DB.prepare("SELECT handle FROM members WHERE handle = ?").bind(`${team}/bob`).first()).toEqual({ handle: `${team}/bob` });
     expect((await s.page("/console/members")).text).toContain("<strong>bob</strong>");
 
@@ -125,6 +144,87 @@ describe("the control center", () => {
     expect((await s.submit(`/console/members/bob/reset`)).status).toBe(200);
     expect((await s.submit(`/console/members/bob/remove`)).status).toBe(303);
     expect(await env.DB.prepare("SELECT handle FROM members WHERE handle = ?").bind(`${team}/bob`).first()).toBeNull();
+  });
+
+  it.each(["visitor", "team admin", "operator"])("sign-up switches a %s to only the new team's console", async (previous) => {
+    let oldCookie = "";
+    const oldTeam = `old-${uid()}`;
+    if (previous === "team admin") oldCookie = (await join(oldTeam, "tim")).cookie!.split(";")[0]!;
+    if (previous === "operator") {
+      const handle = `op-${uid()}`;
+      await upsertMember(env.DB, handle, "synthetic-operator-code");
+      await env.DB.prepare("INSERT INTO admin_members (handle) VALUES (?)").bind(handle).run();
+      oldCookie = (await consoleSession(ctl, { handle, access_code: "synthetic-operator-code" })).cookie;
+    }
+    const team = `new-${uid()}`;
+    const created = await join(team, "tim", oldCookie);
+    expect(created.status).toBe(200);
+    expect(created.cookie).toMatch(/^__Host-handoff-console=/);
+    for (const flag of ["Secure", "HttpOnly", "SameSite=Strict", "Path=/"]) expect(created.cookie).toContain(flag);
+    const cookie = created.cookie!.split(";")[0]!;
+    expect(cookie).not.toBe(oldCookie);
+    expect(created.text).toContain(`href="/console/login?team=${team}"`);
+    const s = withCookie(ctl, cookie);
+    expect((await s.page(`/console/login?team=${team}`)).location).toBe("/console/overview");
+    const overview = await s.page("/console/overview");
+    expect(overview.status).toBe(200);
+    expect(overview.text).toContain(`Team administration · <strong>${team}</strong>`);
+    expect(overview.text).not.toContain(oldTeam);
+    for (const path of ["/console/ops", "/console/tenants"]) expect((await s.page(path)).location).toBe("/console/overview");
+
+    // A stale success page must not silently open whichever account happens to be signed in now.
+    const mismatch = await s.page(`/console/login?team=${oldTeam}`);
+    expect(mismatch.status).toBe(200);
+    expect(mismatch.text).toContain(`value="${oldTeam}"`);
+    expect((await join(team, "bob", cookie)).cookie).toBeNull();
+    expect((await s.page("/console/overview")).status).toBe(200);
+    expect((await s.submit("/console/logout")).status).toBe(303);
+    expect((await s.page("/console/overview")).location).toBe("/console/login");
+  });
+
+  it("keeps the one-time code available if the team is saved but its browser session cannot be created", async () => {
+    const oldTeam = `old-${uid()}`;
+    const old = await join(oldTeam, "tim");
+    const team = `retry-${uid()}`;
+    await env.DB.exec(`CREATE TRIGGER fail_join_session BEFORE INSERT ON admin_sessions WHEN NEW.handle = '${team}/tim' BEGIN SELECT RAISE(FAIL, 'test session failure'); END;`);
+    let created;
+    try {
+      created = await join(team, "tim", old.cookie!.split(";")[0]!);
+      expect(created.status).toBe(200);
+      expect(created.code).toMatch(/^hf-/);
+      expect(created.cookie).toBeNull();
+      expect(created.text).toContain("Save the code above");
+      const target = await withCookie(ctl, old.cookie!.split(";")[0]!).page(`/console/login?team=${team}`);
+      expect(target.status).toBe(200);
+      expect(target.text).toContain(`value="${team}"`);
+    } finally {
+      await env.DB.exec("DROP TRIGGER fail_join_session");
+    }
+    const s = await consoleSession(ctl, { team, handle: "tim", access_code: created!.code! });
+    expect((await s.page("/console/overview")).text).toContain(`Team administration · <strong>${team}</strong>`);
+  });
+
+  it("team home counts only this team's members, distinct live connections and unexpired handoffs", async () => {
+    const team = `count-${uid()}`;
+    const other = `${team}-other`;
+    await join(team, "tim");
+    await join(other, "tim");
+    await upsertMember(env.DB, `${other}/tom`, "synthetic-member-code");
+    const now = Date.now();
+    const future = new Date(now + 60_000).toISOString();
+    const past = new Date(now - 60_000).toISOString();
+    for (const [subject, client, expires, revoked] of [
+      [`${team}/tim`, "same-client", future, null], [`${team}/tim`, "same-client", future, null],
+      [`${other}/tim`, "other-client", future, null], [`${team}/tim`, "expired", past, null], [`${team}/tim`, "revoked", future, past],
+    ]) {
+      await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at, revoked_at) VALUES (?, ?, ?, 'handoff', ?, ?)").bind(uid(), client, subject, expires, revoked).run();
+    }
+    for (const [owner, expires, revoked] of [[`${team}/tim`, future, null], [`${other}/tim`, future, null], [`${team}/tim`, past, null], [`${team}/tim`, future, past]]) {
+      const id = uid();
+      await env.DB.prepare("INSERT INTO packets (id, owner, title, brief, created_at, expires_at, revoked_at, idempotency_key, request_hash) VALUES (?, ?, 'private title', 'private brief', ?, ?, ?, ?, 'hash')").bind(id, owner, past, expires, revoked, id).run();
+    }
+    expect(await teamOverview(env.DB, team, now)).toEqual({ members: 1, connected: 1, packetsLive: 1 });
+    expect(await teamOverview(env.DB, other, now)).toEqual({ members: 2, connected: 1, packetsLive: 1 });
   });
 
   it("the wrong team with the right handle and code is refused, at the console and at the OAuth sign-in", async () => {
@@ -168,6 +268,11 @@ describe("the control center", () => {
     expect(tenants.text).toContain("users, 28 days");
     expect((await s.page("/console/ops")).status).toBe(200);
     expect((await s.page("/console/overview")).text).toContain("operator");
+    // A team's members are its admin's to manage: the operator's Members and Assistants list only accounts without a team.
+    const members = (await s.page("/console/members")).text;
+    expect(members).toContain(`<strong>${op.handle}</strong>`);
+    expect(members).not.toContain(`${team}/lee`);
+    expect((await s.page("/console/assistants")).text).not.toContain(`${team}/lee`);
     // Sign-up cannot make a bare handle, so nobody else gets in through an empty team.
     expect((await join("", "nobody")).status).toBe(400);
   });
