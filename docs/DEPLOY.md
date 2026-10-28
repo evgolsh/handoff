@@ -122,6 +122,9 @@ deploy, and send again.
   version and two size buckets go to the project's hosted instance, which answers with the latest version
   for the Ops page. `HANDOFF_UPDATE_CHECK=off` turns it off. `UPDATE_CHECK_URL` points it elsewhere;
   `UPDATE_CHECK_RECEIVER=1` makes a deployment the receiving end (the project's hosted instance only).
+- `HANDOFF_MODE=control` is set only on the project's control center (README, "Two modes"). It adds `/join`,
+  `/stats`, a team field on the sign-in pages, per-team consoles and the operator's Tenants page, and makes the
+  deployment the update-check receiver. A private install never sets it.
 - Logs are structured JSON through Workers observability. Signed URLs and file bytes are never logged.
 - Limits in the Worker: 25 MiB per file, 10 files per packet, 50 files per account outside packets
   (429 `quota_exceeded` beyond that). There is no per-request rate limit in the Worker: put a
