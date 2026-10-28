@@ -37,8 +37,8 @@ interface Host {
   source: { label: string; url: string };
 }
 
-function hosts(url: string): Host[] {
-  const signIn = "your handle and access code";
+function hosts(url: string, control = false): Host[] {
+  const signIn = control ? "your team, handle and access code" : "your handle and access code";
   return [
     {
       id: "claude-code",
@@ -316,7 +316,8 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   const active = !opts.needsSetup;
   const url = cfg.mcpResource;
   const shownUrl = showAddress(url);
-  const list = hosts(url);
+  const control = cfg.mode === "control";
+  const list = hosts(url, control);
   const tabs = list
     .map(
       (h, i) =>
@@ -362,7 +363,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
         <div class="addr-row"><code>${shownUrl}</code>${copyButton(url, "Copy the server address", true)}</div>
       </div>
       <ol class="overview" aria-label="Setup overview">
-        <li><span class="num" aria-hidden="true">01</span><div><strong>Get your handle and access code</strong><p>The person who runs this server adds members in the <a href="/console">console</a>.</p></div></li>
+        <li><span class="num" aria-hidden="true">01</span><div><strong>Get your ${control ? "team, " : ""}handle and access code</strong><p>${control ? `<a href="/join">Create a team</a> and you get them at once; a teammate gets theirs from the team's admin in the <a href="/console">console</a>.` : `The person who runs this server adds members in the <a href="/console">console</a>.`}</p></div></li>
         <li><span class="num" aria-hidden="true">02</span><div><strong>Add this address to your assistant</strong><p>Choose your assistant below for its exact steps.</p></div></li>
         <li><span class="num" aria-hidden="true">03</span><div><strong>Sign in and approve access</strong><p>Then say “Hand this off” in any chat.</p></div></li>
       </ol>
@@ -422,7 +423,7 @@ ${PAGE_CSS}
 </style>
 </head>
 <body>
-${pageHeader("connect", { active })}
+${pageHeader("connect", { active, mode: cfg.mode })}
 <main id="main" class="site-width">
   ${mainBody}
 </main>

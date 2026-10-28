@@ -26,6 +26,7 @@ import {
   type ClientInfo,
   type EventRow,
   type MemberRow,
+  type ControlCenterData,
   type OpsData,
   type OverviewData,
 } from "./stats";
@@ -534,4 +535,48 @@ ${flash(note)}
 ${problems}
 ${audit}`,
   );
+}
+
+/** The control center's operator page: every tenant, the users KPI, instances in the wild, Deploy clicks. */
+export function tenantsPage(v: Viewer, d: ControlCenterData): Html {
+  const now = d.now;
+  const tile = (label: string, value: string, sub = "") => `<div class="panel"><div class="small muted">${esc(label)}</div><div style="font-size:26px;font-weight:600;letter-spacing:-.02em">${value}</div>${sub ? `<div class="small muted">${sub}</div>` : ""}</div>`;
+  const tiles = `<section class="grid3">
+    ${tile("users, 28 days", num(d.users.d28), `${num(d.users.d7)} in 7 days · a user read a handoff`)}
+    ${tile("teams", num(d.totals.tenants), `${plural(d.totals.members, "member")} in all`)}
+    ${tile("private instances alive", num(d.instances.d28), `${num(d.instances.d7)} checked in within 7 days`)}
+    ${tile("Deploy clicks, 30 days", num(d.deployClicks30d), `${plural(d.activity.round_trips_7d, "person")} completed a round trip this week`)}
+  </section>`;
+  const maxDay = Math.max(1, ...d.days.map((x) => Math.max(x.sends, x.reads)));
+  const strip = `<div class="panel">
+    <div class="t">Sends and reads, ${STRIP_DAYS} days</div>
+    <div style="display:flex;gap:4px;align-items:flex-end;height:80px">${d.days
+      .map((x) => `<div title="${x.date}: ${x.sends} sent, ${x.reads} read" style="flex:1;display:flex;gap:1px;align-items:flex-end;height:100%"><div style="flex:1;background:var(--muted);height:${Math.round((x.sends / maxDay) * 100)}%"></div><div style="flex:1;background:var(--accent);height:${Math.round((x.reads / maxDay) * 100)}%"></div></div>`)
+      .join("")}</div>
+    <div class="small muted">grey: sent · orange: read · ${num(d.activity.sends_7d)} sent and ${num(d.activity.reads_7d)} read in 7 days</div>
+  </div>`;
+  const tenants = `<section class="panel flush scroll">
+    <table>
+      <thead><tr><th>team</th><th>created</th><th class="r">members</th><th class="r">live packets</th><th class="r">reads 7d</th><th>last seen</th></tr></thead>
+      <tbody>${
+        d.tenants.length
+          ? d.tenants
+              .map((t) => `<tr><td><strong>${esc(t.slug)}</strong>${t.name !== t.slug ? ` <span class="muted">${esc(t.name)}</span>` : ""}</td><td class="nowrap">${when(t.created_at, now)}</td><td class="r">${num(t.members)}</td><td class="r">${num(t.packets_live)}</td><td class="r">${num(t.reads_7d)}</td><td class="nowrap">${when(t.last_seen, now)}</td></tr>`)
+              .join("")
+          : `<tr><td colspan="6" class="muted">No teams yet. They sign up at <a href="/join">/join</a>.</td></tr>`
+      }</tbody>
+    </table>
+  </section>`;
+  const list = (rows: Array<{ k: string; n: number }>, empty: string) =>
+    rows.length ? rows.map((r) => `<div class="small" style="display:flex;justify-content:space-between"><span class="mono">${esc(r.k)}</span><span>${num(r.n)}</span></div>`).join("") : `<div class="small muted">${empty}</div>`;
+  const side = `<section class="grid2">
+    <div class="panel"><div class="t">Private instances by version, 28 days</div>${list(d.instances.byVersion.map((r) => ({ k: r.version, n: r.n })), "No update check received yet.")}
+      <div class="t" style="margin-top:12px">By members</div>${list(d.instances.byMembers.map((r) => ({ k: r.members, n: r.n })), "—")}</div>
+    <div class="panel"><div class="t">Assistants seen, 28 days</div>${list(d.assistants.map((r) => ({ k: r.name, n: r.n })), "No assistant has connected yet.")}<div class="small muted" style="margin-top:8px">distinct identities per assistant name announced at connect</div></div>
+  </section>`;
+  return shell("tenants", v, "Tenants", `${head("Control center", "every team on this deployment, the users KPI, private instances that check in, Deploy clicks")}
+${tiles}
+${strip}
+${tenants}
+${side}`);
 }

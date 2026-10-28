@@ -28,6 +28,9 @@ import { base64url } from "./domain/ids";
 import { recordEvent } from "./store/events";
 import { receiveUpdateCheck } from "./update-check";
 import { DEPLOY_PATH, DEPLOY_URL } from "./http/header";
+import { handleJoin, joinHeaders, joinPage } from "./http/join";
+import { publicStats } from "./console/stats";
+import { CONSOLE_HEADERS, document as consoleDocument, esc } from "./console/html";
 
 export type Variables = AppVariables & { service: HandoffService };
 
@@ -97,10 +100,37 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
     const active = await isActive(c);
     return new Response(connectPage(c.get("cfg"), nonce, { needsSetup: !active }), { headers: connectHeaders(nonce) });
   };
-  app.get("/", (c) => home(c));
+  // A private install serves its console and Connect page; the homepage lives on the control center.
+  const control = (c: { get: (k: "cfg") => Variables["cfg"] }) => c.get("cfg").mode === "control";
+  const homeOrConnect = (c: Parameters<typeof home>[0] & { redirect: (to: string, status: 303) => Response }) => (control(c) ? home(c) : c.redirect("/connect", 303));
+  app.get("/", (c) => homeOrConnect(c));
+  app.get("/use-cases", (c) => homeOrConnect(c));
   app.get("/connect", (c) => connect(c));
-  app.get("/use-cases", (c) => home(c));
   app.get("/healthz", (c) => c.json({ ok: true }));
+
+  // Sign-up and public counters, on the control center only.
+  app.get("/join", (c) => (control(c) ? new Response(joinPage(c.get("cfg")), { headers: joinHeaders() }) : c.notFound()));
+  app.post("/join", async (c) => {
+    if (!control(c)) return c.notFound();
+    const origin = c.req.header("origin");
+    if (!origin || origin !== new URL(c.get("cfg").publicUrl).origin) {
+      return new Response(joinPage(c.get("cfg"), { error: "The form must be sent from this site's own page." }), { status: 403, headers: joinHeaders() });
+    }
+    const body = await readFormOrJson(c.req.raw);
+    const r = await handleJoin(c.env.DB, c.get("cfg"), body, c.req.header("cf-connecting-ip"));
+    return new Response(r.body, { status: r.status, headers: joinHeaders() });
+  });
+  app.get("/stats.json", async (c) => (control(c) ? c.json(await publicStats(c.env.DB), 200, { "cache-control": "public, max-age=300" }) : c.notFound()));
+  app.get("/stats", async (c) => {
+    if (!control(c)) return c.notFound();
+    const s = await publicStats(c.env.DB);
+    const rows = Object.entries(s)
+      .filter(([k]) => k !== "as_of")
+      .map(([k, v]) => `<dt>${esc(k.replace(/_/g, " "))}</dt><dd>${esc(String(v))}</dd>`)
+      .join("");
+    const page = consoleDocument("Stats", `<div class="login"><div class="panel"><div class="t">Handoff in numbers</div><div class="small muted">Counts only, no names. As of ${esc(String(s.as_of))}. Also at <a class="u" href="/stats.json">/stats.json</a>.</div><dl class="kv">${rows}</dl></div></div>`);
+    return new Response(page, { headers: { ...CONSOLE_HEADERS, "cache-control": "public, max-age=300" } });
+  });
   // The pages' Deploy button: counts the click (nothing about who), then sends the browser to Cloudflare.
   app.get(DEPLOY_PATH, async (c) => {
     await recordEvent(c.env.DB, { kind: "visit", name: "deploy", outcome: "ok" }, { unauthenticated: true });

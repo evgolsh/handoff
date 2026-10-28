@@ -171,23 +171,35 @@ export const outcome = (o: string): Html => (o === "ok" ? `<span class="ok">ok</
 
 // ---- layout -------------------------------------------------------------------------------------------------
 
-export type Page = "overview" | "members" | "assistants" | "ops";
+export type Page = "overview" | "members" | "assistants" | "ops" | "tenants";
 const NAV: Array<[Page, string]> = [
   ["overview", "Overview"],
   ["members", "Members"],
   ["assistants", "Assistants"],
   ["ops", "Ops"],
+  ["tenants", "Tenants"],
 ];
 
 export interface Viewer {
+  /** The handle people see. */
   handle: string;
+  /** The stored identity (`tenant/handle` on the control center). */
+  identity: string;
+  /** "" for the operator of this deployment (a private install's admins, or the control center's operator). */
+  tenant: string;
+  /** True on the control center. With tenant "", the viewer is its operator and gets Ops and Tenants. */
+  control: boolean;
   csrf: string;
 }
+
+/** Which pages this viewer gets: Ops for the deployment's operator only; Tenants for the control center's operator. */
+export const pagesFor = (v: Viewer): Page[] =>
+  NAV.map(([p]) => p).filter((p) => (p === "ops" ? v.tenant === "" : p === "tenants" ? v.tenant === "" && v.control : true));
 
 /** A hidden form field with the session's CSRF value. Every console form that changes something carries it. */
 export const csrfField = (v: Viewer): Html => `<input type="hidden" name="csrf" value="${esc(v.csrf)}">`;
 
-function document(title: string, body: Html): Html {
+export function document(title: string, body: Html): Html {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -206,7 +218,10 @@ ${body}
 }
 
 export function shell(page: Page, v: Viewer, title: string, body: Html): Html {
-  const links = NAV.map(([p, label]) => `<a href="/console/${p}"${p === page ? ' class="on" aria-current="page"' : ""}>${label}</a>`).join("\n    ");
+  const allowed = new Set(pagesFor(v));
+  const links = NAV.filter(([p]) => allowed.has(p))
+    .map(([p, label]) => `<a href="/console/${p}"${p === page ? ' class="on" aria-current="page"' : ""}>${label}</a>`)
+    .join("\n    ");
   return document(
     title,
     `<div class="shell">
@@ -217,7 +232,7 @@ export function shell(page: Page, v: Viewer, title: string, body: Html): Html {
     <a href="/connect">Connect page</a>
     <div class="grow"></div>
     <div class="who">
-      <div><span class="dot live"></span> <strong>${esc(v.handle)}</strong> <span class="chip">admin</span></div>
+      <div><span class="dot live"></span> ${v.tenant ? `<span class="muted">${esc(v.tenant)} ·</span> ` : ""}<strong>${esc(v.handle)}</strong> <span class="chip">${v.tenant || !v.control ? "admin" : "operator"}</span></div>
       <div class="small muted"><form method="post" action="/console/logout">${csrfField(v)}<button type="submit">sign out</button></form></div>
     </div>
   </nav>
@@ -228,20 +243,22 @@ ${body}
   );
 }
 
-export function loginPage(error?: string, opts: { needsSetup?: boolean } = {}): Html {
+export function loginPage(error?: string, opts: { needsSetup?: boolean; control?: boolean } = {}): Html {
   return document(
     "Sign in",
     `<div class="login">
   <div class="brand" style="font-size:18px">${BRAND_ICON}<span>Handoff console</span></div>
   <form method="post" action="/console/login" class="panel" autocomplete="off">
     <div class="t">Sign in</div>
-    <div class="small muted">With your member handle and access code. The console is open to members the operator made admins (<span class="mono">npm run admin -- &lt;handle&gt;</span>). The session lasts 12 hours, and ends when your code is reset.</div>
+    <div class="small muted">${opts.control ? "With your team, handle and access code. Open to the admin of each team (whoever created it, and the admins they add)." : "With your member handle and access code. The console is open to members the operator made admins (<span class=\"mono\">npm run admin -- &lt;handle&gt;</span>)."} The session lasts 12 hours, and ends when your code is reset.</div>
     ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
-    <div><label class="lbl" for="handle">handle</label><input id="handle" name="handle" class="field" required autofocus autocapitalize="none" spellcheck="false"></div>
+    ${opts.control ? `<div><label class="lbl" for="team">team</label><input id="team" name="team" class="field" autofocus autocapitalize="none" spellcheck="false" placeholder="your team's name from sign-up (operator: leave empty)"></div>` : ""}
+    <div><label class="lbl" for="handle">handle</label><input id="handle" name="handle" class="field" required${opts.control ? "" : " autofocus"} autocapitalize="none" spellcheck="false"></div>
     <div><label class="lbl" for="code">access code</label><input id="code" name="access_code" type="password" class="field" required></div>
     <div><button type="submit" class="btn primary">Sign in</button></div>
   </form>
   ${opts.needsSetup ? `<div class="small">This server has no admin yet. If you deployed it, <a class="u" href="/console/setup">set it up</a>.</div>` : ""}
+  ${opts.control ? `<div class="small">No team yet? <a class="u" href="/join">Create one</a>: it takes a name and a handle.</div>` : ""}
   <div class="small muted"><a class="u" href="/connect">Connect page</a></div>
 </div>`,
   );

@@ -82,8 +82,8 @@ export const sameOrigin = (origin: string | undefined, publicUrl: string): boole
  * Counts a sign-in attempt from this address: at most 10 in 10 minutes. Cloudflare sets CF-Connecting-IP;
  * only its hash is stored. Returns false when the limit is reached.
  */
-export async function loginAllowed(db: D1Database, ip: string | undefined): Promise<boolean> {
-  const bucket = await sha256Hex(`console-login:${ip ?? "local"}`);
+export async function loginAllowed(db: D1Database, ip: string | undefined, purpose = "console-login"): Promise<boolean> {
+  const bucket = await sha256Hex(`${purpose}:${ip ?? "local"}`);
   const now = nowIso();
   await db.prepare("DELETE FROM admin_login_limits WHERE expires_at <= ?").bind(now).run();
   const row = await db
