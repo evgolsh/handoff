@@ -1,5 +1,6 @@
 import type { AttachmentRow, AttachmentState, InboxRow, PacketRow, Repository, TicketRow } from "./repository";
 import { AttachmentUnavailable, UniqueViolation } from "./repository";
+import { teamOf, tenantOf } from "../domain/tenant";
 
 export class D1Repository implements Repository {
   constructor(private readonly db: D1Database) {}
@@ -57,12 +58,13 @@ export class D1Repository implements Repository {
     const base = `SELECT p.id, p.owner, p.recipient, p.title, p.created_at, p.expires_at,
         (SELECT COUNT(*) FROM packet_attachments pa WHERE pa.packet_id = p.id) AS attachment_count
       FROM packets p
-      WHERE (p.owner = ? OR p.recipient = ? OR p.recipient = '*') AND p.expires_at > ? AND p.revoked_at IS NULL`;
+      WHERE (p.owner = ? OR p.recipient = ? OR p.recipient = ?) AND p.expires_at > ? AND p.revoked_at IS NULL`;
+    const team = teamOf(tenantOf(owner));
     const stmt = cursor
       ? this.db
           .prepare(`${base} AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?)) ORDER BY p.created_at DESC, p.id DESC LIMIT ?`)
-          .bind(owner, owner, nowIso, cursor.created_at, cursor.created_at, cursor.id, limit)
-      : this.db.prepare(`${base} ORDER BY p.created_at DESC, p.id DESC LIMIT ?`).bind(owner, owner, nowIso, limit);
+          .bind(owner, owner, team, nowIso, cursor.created_at, cursor.created_at, cursor.id, limit)
+      : this.db.prepare(`${base} ORDER BY p.created_at DESC, p.id DESC LIMIT ?`).bind(owner, owner, team, nowIso, limit);
     const { results } = await stmt.all<InboxRow>();
     return results;
   }
@@ -98,10 +100,10 @@ export class D1Repository implements Repository {
     const row = await this.db
       .prepare(
         `SELECT p.id FROM packets p JOIN packet_attachments pa ON pa.packet_id = p.id
-         WHERE pa.attachment_id = ? AND (p.owner = ? OR p.recipient = ? OR p.recipient = '*') AND p.revoked_at IS NULL AND p.expires_at > ?
+         WHERE pa.attachment_id = ? AND (p.owner = ? OR p.recipient = ? OR p.recipient = ?) AND p.revoked_at IS NULL AND p.expires_at > ?
          LIMIT 1`,
       )
-      .bind(attachmentId, owner, owner, nowIso)
+      .bind(attachmentId, owner, owner, teamOf(tenantOf(owner)), nowIso)
       .first<{ id: string }>();
     return row?.id ?? null;
   }
