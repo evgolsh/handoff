@@ -34,6 +34,10 @@
     "MAX_ATTACHMENT_BYTES": "26214400",
     // Comma-separated hostnames allowed for server-side imports of host file URLs (OpenAI `files`); "*.x.com"
     // matches subdomains. Empty = imports off. The refusal names the host, so the first ChatGPT test shows what to add.
-    "IMPORT_HOST_ALLOWLIST": ""
+    "IMPORT_HOST_ALLOWLIST": "",
+    // Once a day the hourly cron asks the project's hosted instance for the latest version and the console's Ops
+    // page shows the answer. The request carries a random id made once for this deployment, the version and two
+    // size buckets (members; packets in 30 days), nothing else. "off" turns it off. README: "Update check".
+    "HANDOFF_UPDATE_CHECK": ""
   }
 }

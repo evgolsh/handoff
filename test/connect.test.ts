@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { env, SELF } from "cloudflare:test";
 import { ORIGIN } from "./helpers";
 import { FONT_FILES } from "../src/http/style";
-import { DEPLOY_URL, GITHUB_URL } from "../src/http/header";
+import { DEPLOY_PATH, GITHUB_URL } from "../src/http/header";
 
 describe("connect page", () => {
   beforeEach(async () => {
@@ -87,7 +87,7 @@ describe("connect page", () => {
     expect(html).toContain("Your next chat.");
     expect(html).toContain('href="/connect">Connect your assistants');
     expect(html).toContain(`href="${GITHUB_URL}"`);
-    expect(html).toContain(`href="${DEPLOY_URL}"`);
+    expect(html).toContain(`href="${DEPLOY_PATH}"`);
     expect(html).toBe(await (await SELF.fetch(`${ORIGIN}/use-cases`)).text());
     expect(html).toContain('src="/demo/handoff-demo.mp4"');
     expect(html).toContain('id="household-last-mile"');
@@ -108,7 +108,7 @@ describe("connect page", () => {
 
     const homeHtml = await (await SELF.fetch(`${ORIGIN}/`)).text();
     expect(homeHtml).not.toContain('href="/connect"');
-    expect(homeHtml).toContain(`href="${DEPLOY_URL}"`);
+    expect(homeHtml).toContain(`href="${DEPLOY_PATH}"`);
     expect(homeHtml).toContain(`href="${GITHUB_URL}"`);
     expect(homeHtml).toContain('href="/console/setup"');
 
@@ -117,7 +117,7 @@ describe("connect page", () => {
     expect(connectHtml).not.toContain(`data-copy="${ORIGIN}/mcp"`);
     expect(connectHtml).not.toContain('role="tablist"');
     expect(connectHtml).toContain('href="/console/setup">Set up this server');
-    expect(connectHtml).toContain(`href="${DEPLOY_URL}"`);
+    expect(connectHtml).toContain(`href="${DEPLOY_PATH}"`);
     expect(connectHtml).toContain(`href="${GITHUB_URL}"`);
   });
 });

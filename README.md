@@ -69,6 +69,15 @@ HTTP: `POST /v1/uploads`, `PUT /v1/uploads/:id` (bearer or `?ticket=`), `GET /v1
 - Each account can hold at most 50 files that are not in a packet (uploading or uploaded); more uploads are refused with 429.
 - The token signing key is generated on first use and kept in D1 (`oauth_keys`), or set as the `OAUTH_SIGNING_JWK` secret. The local-only `DEV_TOKENS` work only with `HANDOFF_ENV=dev`.
 
+## Update check
+
+Once a day, the hourly cron asks the project's hosted instance for the latest version, and the console's Ops page
+shows the answer. The request carries a random id made once for this deployment, the version, and two size buckets
+(members: 0, 1, 2-5, 6+; packets created in the last 30 days: 0, 1-9, 10-49, 50+). No handles, titles, file names,
+addresses, or counts beyond those buckets; the receiving end keeps one row per id for 90 days. It is how the
+project counts deployments in use. To turn it off, set `HANDOFF_UPDATE_CHECK` to `off` in `wrangler.jsonc`; the
+Ops page then says "update check off". `src/update-check.ts` is the whole of it, both ends.
+
 ## Docs
 
 - `docs/DEVELOPMENT.md`: run the tests and a local server.

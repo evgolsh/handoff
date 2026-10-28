@@ -24,6 +24,8 @@ export default defineConfig(async () => {
             MAX_ATTACHMENT_BYTES: String(1024 * 1024),
             // The import tests' stand-in host. An empty list turns imports off (test/import.test.ts checks that too).
             IMPORT_HOST_ALLOWLIST: "files.host-example.com",
+            // The suite must not reach the network: the daily update check is off unless a test turns it on.
+            HANDOFF_UPDATE_CHECK: "off",
           },
         },
       }),

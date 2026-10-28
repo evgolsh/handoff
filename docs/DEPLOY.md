@@ -115,6 +115,10 @@ deploy, and send again.
   One run removes at most 5 batches of 200 rows of each kind; if it stops early, its log line has
   `"backlog": true` and level `warn`, and the next run continues. A failed run logs a `cleanup` error
   line and is recorded as failed.
+- The update check runs from the same cron once a day (README, "Update check"): a random instance id, the
+  version and two size buckets go to the project's hosted instance, which answers with the latest version
+  for the Ops page. `HANDOFF_UPDATE_CHECK=off` turns it off. `UPDATE_CHECK_URL` points it elsewhere;
+  `UPDATE_CHECK_RECEIVER=1` makes a deployment the receiving end (the project's hosted instance only).
 - Logs are structured JSON through Workers observability. Signed URLs and file bytes are never logged.
 - Limits in the Worker: 25 MiB per file, 10 files per packet, 50 files per account outside packets
   (429 `quota_exceeded` beyond that). There is no per-request rate limit in the Worker: put a

@@ -1,4 +1,6 @@
 import type { Config } from "../env";
+import { RELEASES_URL, type UpdateState } from "../update-check";
+import { isNewer } from "../version";
 import {
   LIVENESS_LEGEND,
   bytes,
@@ -416,6 +418,17 @@ const AUDIT: Record<string, string> = {
   cleanup: "ran cleanup",
 };
 
+/** This version and what the daily update check learned (src/update-check.ts). */
+function updateRow(u: UpdateState, now: number): Html {
+  const version = `v<span class="mono">${esc(u.version)}</span>`;
+  if (!u.enabled) return `${version} · <span class="muted">update check off</span>`;
+  if (u.latest && isNewer(u.latest, u.version)) {
+    return `${version} · <span class="chip warn">${esc(u.latest)} available</span> <a href="${RELEASES_URL}" rel="noopener">releases</a>`;
+  }
+  const checked = u.checkedAt ? `checked ${when(u.checkedAt, now)}` : "not checked yet (daily, from the hourly cron)";
+  return `${version} · ${u.latest ? "up to date" : "no answer yet"} · <span class="muted">${checked}</span>`;
+}
+
 export function opsPage(v: Viewer, cfg: Config, d: OpsData, note: string | null): Html {
   const now = d.now;
   const c = d.counts;
@@ -427,6 +440,7 @@ export function opsPage(v: Viewer, cfg: Config, d: OpsData, note: string | null)
     ${kv([
       ["version", d.version ? `<span class="mono">${esc(d.version.id)}</span>${d.version.tag ? ` <span class="chip">${esc(d.version.tag)}</span>` : ""}` : `<span class="faint">not reported (no version_metadata binding)</span>`],
       ["deployed", d.version?.timestamp ? `${when(d.version.timestamp, now)} <span class="muted">· ${esc(utc(d.version.timestamp))}</span>` : `<span class="faint">—</span>`],
+      ["handoff", updateRow(d.update, now)],
       ["address", `<span class="mono">${esc(cfg.mcpResource)}</span>`],
       ["sign-in", `built in · issuer <span class="mono">${esc(cfg.issuer)}</span>`],
       [

@@ -25,6 +25,9 @@ import { useCasesHeaders, useCasesPage } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
 import { mcpCallsIn, recordMcpCalls } from "./store/telemetry";
 import { base64url } from "./domain/ids";
+import { recordEvent } from "./store/events";
+import { receiveUpdateCheck } from "./update-check";
+import { DEPLOY_PATH, DEPLOY_URL } from "./http/header";
 
 export type Variables = AppVariables & { service: HandoffService };
 
@@ -98,6 +101,13 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   app.get("/connect", (c) => connect(c));
   app.get("/use-cases", (c) => home(c));
   app.get("/healthz", (c) => c.json({ ok: true }));
+  // The pages' Deploy button: counts the click (nothing about who), then sends the browser to Cloudflare.
+  app.get(DEPLOY_PATH, async (c) => {
+    await recordEvent(c.env.DB, { kind: "visit", name: "deploy", outcome: "ok" }, { unauthenticated: true });
+    return c.redirect(DEPLOY_URL, 302);
+  });
+  // The update check's receiving end (src/update-check.ts): 404 unless UPDATE_CHECK_RECEIVER=1.
+  app.get("/v1/update-check", (c) => receiveUpdateCheck(c.env, new URL(c.req.url)));
   app.route("/", consoleRoutes());
 
   // This Worker is its own OAuth 2.1 authorization server (src/auth/builtin.ts): RFC 8414 metadata, RFC 7591
