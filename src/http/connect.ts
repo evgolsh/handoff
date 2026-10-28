@@ -1,4 +1,4 @@
-import type { Config } from "../env";
+import { CONTROL_CENTER_URL, type Config } from "../env";
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "./style";
 import { DEPLOY_PATH, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
 import { CLAUDE_ICON, CLOUDFLARE_ICON, GITHUB_ICON, HERMES_MASK, OPENAI_ICON } from "./assistant-icons";
@@ -400,7 +400,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
     <div class="section-head"><div><p class="eyebrow">Your first handoff</p><h2 id="next-title">Send in one chat, continue in another.</h2></div></div>
     <ol class="say">
       <li class="panel"><p class="eyebrow">01 · Send from any chat</p><p class="say-quote">“Hand this off to tom”</p><p class="say-text">Use your teammate’s handle, say “to the team” for everyone, or leave the recipient out to send to yourself. Your assistant prepares the brief, attaches the files you name, and gives you a packet ID.</p></li>
-      <li class="panel"><p class="eyebrow">02 · Pick up in another</p><p class="say-quote">“Continue my handoff”</p><p class="say-text">The recipient asks their assistant to open the inbox, read the brief and original files, and take the next step. <a href="/#use-cases">Explore the use cases <span aria-hidden="true">↗</span></a></p></li>
+      <li class="panel"><p class="eyebrow">02 · Pick up in another</p><p class="say-quote">“Continue my handoff”</p><p class="say-text">The recipient asks their assistant to open the inbox, read the brief and original files, and take the next step. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>Explore the use cases <span aria-hidden="true">↗</span></a></p></li>
     </ol>
   </section>
 

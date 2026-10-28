@@ -68,27 +68,25 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
       ${active ? `<a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>` : ""}
     </nav></header>`;
   }
-  const actions = active && opts.mode === "control"
-    ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect</a>
-      <a class="site-button nav-secondary" href="/join">Try the playground</a>
-      <a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>`
-    : active
-    ? `<a class="site-button nav-secondary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span></a>
-      <a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>`
-    : `<a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>`;
+  // The control center: the homepage is the brand link; Connect and the playground only once it has an admin.
   return `<a href="#main" class="skip-link">Skip to content</a>
   <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff home">${BRAND_ICON}<span>Handoff</span></a>
     <nav class="page-nav" aria-label="Handoff">
-      <a class="nav-link nav-secondary" href="/#use-cases">Use cases</a>
+      ${active ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect</a>` : ""}
       <a class="nav-link nav-secondary" href="/console">Team console</a>
       <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
-      ${actions}
+      ${active ? `<a class="site-button nav-secondary" href="/join">Try the playground</a>` : ""}
+      <a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>
     </nav></header>`;
 }
 
 export function pageFooter(opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
-  const playground = opts.mode === "control" && active;
+  // A private install's "/" is its Connect page, so it links to the control center for the rest.
+  const links =
+    opts.mode === "private"
+      ? `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">Console</a>`
+      : `<a href="/">Home</a>${active ? '<a href="/join">Try the playground</a><a href="/connect">Connect</a>' : ""}<a href="/console">Team console</a>`;
   return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
-    <nav aria-label="Footer"><a href="/">Home</a><a href="/#use-cases">Use cases</a>${playground ? '<a href="/join">Try the playground</a>' : ""}${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">${playground ? "Team console" : "Console"}</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
+    <nav aria-label="Footer">${links}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
 }
