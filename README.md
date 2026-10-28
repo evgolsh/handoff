@@ -29,10 +29,10 @@ the home page at `/` introduces the use cases, and `/connect` has the setup step
 git clone https://github.com/evgolsh/handoff.git
 cd handoff
 npm install
-npm run setup
+npm run setup -- --members=tim,tom      # your handle first, then your teammates'
 ```
 
-`npm run setup` checks your Cloudflare login, uses the D1 database named in `wrangler.jsonc` if it is in your account (otherwise yours named `handoff`, created if needed, with its id written into `wrangler.jsonc`), creates the R2 bucket (`handoff-attachments`), applies the D1 migrations, deploys the Worker, seeds initial member handles (`owner`, `teammate`) with access codes, grants the first member operator access to `/console`, and prints your live `/connect` and `/console` URLs. Later deploys: `npm run deploy` (migrations, then the Worker).
+`npm run setup` checks your Cloudflare login, uses the D1 database named in `wrangler.jsonc` if it is in your account (otherwise yours named `handoff`, created if needed, with its id written into `wrangler.jsonc`), creates the R2 bucket (`handoff-attachments`), applies the D1 migrations, deploys the Worker, seeds the member handles from `--members` (without it: `owner`, `teammate`) with access codes shown once, grants the first member admin access to `/console`, and prints your live `/connect` and `/console` URLs. Later deploys: `npm run deploy` (migrations, then the Worker).
 
 ## Common workflows
 
