@@ -40,7 +40,8 @@ describe("connect page", () => {
     expect(html).toContain("Add it once: the connector follows your Claude account to every computer.");
     expect(html).toContain("Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below).");
     expect(html).toContain("Add it once: the connection follows your ChatGPT account to chatgpt.com and the Codex app, on every computer.");
-    expect(html).toContain(`To attach files, add ${new URL(ORIGIN).host} to the allowed domains`);
+    expect(html).toContain('<div class="warn-note" role="note"><p><strong>To attach files</strong>, add this address to the allowed domains');
+    expect(html).toContain(`data-copy="${new URL(ORIGIN).host}" aria-label="Copy the address to allow in Claude"`);
     expect(html).not.toContain("not yet tested");
     // Codex names the routes that were tested; download links are said to be bearer links.
     expect(html).toContain("Tested with Handoff in the Codex app on macOS and Windows: sign-in, send, read and files.");
