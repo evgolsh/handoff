@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { env, SELF } from "cloudflare:test";
+import { createExecutionContext, env, SELF } from "cloudflare:test";
+import worker from "../src/index";
 import { ORIGIN } from "./helpers";
+
+/** The homepage is served by the control center (HANDOFF_MODE=control); a private install sends / to /connect. */
+const control = { ...env, HANDOFF_MODE: "control" };
+const home = (path = "/") => worker.fetch(new Request(`${ORIGIN}${path}`), control, createExecutionContext());
 import { FONT_FILES } from "../src/http/style";
 import { DEPLOY_PATH, GITHUB_URL } from "../src/http/header";
 
@@ -75,7 +80,7 @@ describe("connect page", () => {
     const connectHtml = await (await SELF.fetch(`${ORIGIN}/connect`)).text();
     expect(connectHtml).toContain('href="/#use-cases"');
 
-    const res = await SELF.fetch(`${ORIGIN}/`);
+    const res = await home();
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const csp = res.headers.get("content-security-policy") ?? "";
@@ -88,7 +93,7 @@ describe("connect page", () => {
     expect(html).toContain('href="/connect">Connect your assistants');
     expect(html).toContain(`href="${GITHUB_URL}"`);
     expect(html).toContain(`href="${DEPLOY_PATH}"`);
-    expect(html).toBe(await (await SELF.fetch(`${ORIGIN}/use-cases`)).text());
+    expect(html).toBe(await (await home("/use-cases")).text());
     expect(html).toContain('src="/demo/handoff-demo.mp4"');
     expect(html).toContain('id="household-last-mile"');
     expect(html).toContain('id="micro-team-relay"');
@@ -106,7 +111,7 @@ describe("connect page", () => {
   it("hides Connect on the home page and sends /connect to setup or Deploy when the instance is not active", async () => {
     await env.DB.prepare("DELETE FROM admin_members").run();
 
-    const homeHtml = await (await SELF.fetch(`${ORIGIN}/`)).text();
+    const homeHtml = await (await home()).text();
     expect(homeHtml).not.toContain('href="/connect"');
     expect(homeHtml).toContain(`href="${DEPLOY_PATH}"`);
     expect(homeHtml).toContain(`href="${GITHUB_URL}"`);

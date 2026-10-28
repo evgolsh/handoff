@@ -4,6 +4,7 @@ import { base64url, newTicketToken, nowIso, plusMs, sha256Hex } from "../domain/
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "../http/style";
 import { markClientUsed, recordEvent } from "../store/events";
 import { isAllowedRedirectUri, registeredClient, type KnownClient } from "./clients";
+import { handleOf, isValidTenant, qualify, tenantOf } from "../domain/tenant";
 
 export { isAllowedRedirectUri, registeredClient };
 
@@ -54,6 +55,25 @@ export function isValidHandle(handle: string): boolean {
   return /^[a-z0-9][a-z0-9._-]{0,62}$/.test(handle) && !RESERVED_HANDLES.has(handle);
 }
 
+/** A stored identity: a bare handle, or `tenant/handle` with a valid tenant slug (src/domain/tenant.ts). */
+export function isValidIdentity(identity: string): boolean {
+  const tenant = tenantOf(identity);
+  return (tenant === "" || isValidTenant(tenant)) && isValidHandle(handleOf(identity));
+}
+
+/**
+ * The identity a sign-in form names. On the control center a team gives `team/handle`; an empty team is the
+ * bare handle, which only the deployment's operator has (sign-up always makes a team, so nobody else can get
+ * one). On a private install the handle alone. Null when a given part is not valid.
+ */
+export function identityFrom(cfg: Config, team: string | undefined, handle: string | undefined): string | null {
+  const h = normalizeHandle(handle ?? "");
+  if (!isValidHandle(h)) return null;
+  const t = normalizeHandle(team ?? "");
+  if (cfg.mode !== "control" || !t) return h;
+  return isValidTenant(t) ? qualify(t, h) : null;
+}
+
 /** A new access code: "hf-" and 96 random bits, short enough to type on a phone. */
 export function newAccessCode(): string {
   return `hf-${base64url(crypto.getRandomValues(new Uint8Array(12)))}`;
@@ -61,7 +81,7 @@ export function newAccessCode(): string {
 
 export async function upsertMember(db: D1Database, rawHandle: string, accessCode: string): Promise<string> {
   const handle = normalizeHandle(rawHandle);
-  if (!isValidHandle(handle)) throw new Error("handle must be 1..63 lowercase alphanumeric, dot, underscore or hyphen characters");
+  if (!isValidIdentity(handle)) throw new Error("handle must be 1..63 lowercase alphanumeric, dot, underscore or hyphen characters (optionally tenant/handle)");
   if (!accessCode || accessCode.length < 6) throw new Error("access code must be at least 6 characters");
   const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
   const hash = await hashAccessCode(accessCode, salt);
@@ -78,7 +98,7 @@ export async function upsertMember(db: D1Database, rawHandle: string, accessCode
 
 export async function verifyMemberCode(db: D1Database, rawHandle: string, code: string): Promise<string | null> {
   const handle = normalizeHandle(rawHandle);
-  if (!isValidHandle(handle) || !code) return null;
+  if (!isValidIdentity(handle) || !code) return null;
   const row = await db
     .prepare("SELECT handle, code_salt, code_hash FROM members WHERE handle = ?")
     .bind(handle)
@@ -248,9 +268,17 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
       : `<p class="meta"><strong>${esc(client.name)}</strong>${client.publisher ? ` <span title="who publishes this assistant's sign-in details">(${esc(client.publisher)})</span>` : ""} asks to use Handoff as you. After you sign in it returns to <code>${esc(returnsTo)}</code>.</p>
     <form method="post" action="/authorize">
       ${hidden}
+      ${
+        cfg.mode === "control"
+          ? `<div class="field">
+        <label for="team">Team</label>
+        <input id="team" name="team" type="text" autocomplete="organization" autocapitalize="none" spellcheck="false" autofocus placeholder="the team name from your sign-up">
+      </div>`
+          : ""
+      }
       <div class="field">
         <label for="handle">Handle</label>
-        <input id="handle" name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+        <input id="handle" name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required${cfg.mode === "control" ? "" : " autofocus"}>
       </div>
       <div class="field">
         <label for="access_code">Access code</label>
@@ -258,7 +286,7 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
       </div>
       <button type="submit" class="btn">Sign in and allow</button>
     </form>
-    <p class="meta foot">Your access code comes from the person who runs this Handoff server. Use the same handle in each of your assistants.</p>`;
+    <p class="meta foot">${cfg.mode === "control" ? `Your team, handle and access code come from your team's sign-up or its admin. No team yet? <a href="/join">Create one</a>.` : "Your access code comes from the person who runs this Handoff server."} Use the same handle in each of your assistants.</p>`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -316,15 +344,11 @@ export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, for
   }
   if (!client) return new Response(builtinAuthorizePage(cfg, params, null), { status: 400, headers: authorizeHeaders() });
 
-  const handle = await verifyMemberCode(db, form.handle ?? "", form.access_code ?? "");
+  const identity = identityFrom(cfg, form.team, form.handle);
+  const handle = identity ? await verifyMemberCode(db, identity, form.access_code ?? "") : null;
   if (!handle) {
-    const tried = normalizeHandle(form.handle ?? "");
-    await recordEvent(
-      db,
-      { kind: "sign_in", subject: isValidHandle(tried) ? tried : null, client_id: params.client_id, outcome: "bad_code" },
-      { unauthenticated: true },
-    );
-    return bad("That handle and access code do not match.", 401);
+    await recordEvent(db, { kind: "sign_in", subject: identity, client_id: params.client_id, outcome: "bad_code" }, { unauthenticated: true });
+    return bad(cfg.mode === "control" ? "That team, handle and access code do not match." : "That handle and access code do not match.", 401);
   }
   await recordEvent(db, { kind: "sign_in", subject: handle, client_id: params.client_id, outcome: "ok" });
 

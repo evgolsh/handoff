@@ -2,14 +2,15 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Variables } from "../app";
 import type { Env } from "../env";
-import { constantTimeEqual, hashAccessCode, isValidHandle, newAccessCode, normalizeHandle, verifyMemberCode } from "../auth/builtin";
+import { constantTimeEqual, hashAccessCode, identityFrom, isValidHandle, isValidIdentity, newAccessCode, normalizeHandle, verifyMemberCode } from "../auth/builtin";
+import { handleOf, qualify, tenantOf } from "../domain/tenant";
 import { runCleanup } from "../cleanup";
 import { nowIso, sha256Hex } from "../domain/ids";
 import { recordEvent, revokeAccess } from "../store/events";
 import { CONSOLE_HEADERS, SETUP_CODE_MIN, esc, loginPage, problemPage, setupDonePage, setupPage, type Html, type Viewer } from "./html";
 import { cookieToken, csrfOk, endSession, loginAllowed, sameOrigin, sessionCookie, sessionFrom, startSession, type Session } from "./session";
-import { assistants, members, ops, overview } from "./stats";
-import { assistantsPage, codePage, confirmPage, membersPage, opsPage, overviewPage } from "./views";
+import { assistants, controlCenter, members, ops, overview } from "./stats";
+import { assistantsPage, codePage, confirmPage, membersPage, opsPage, overviewPage, tenantsPage } from "./views";
 
 type ConsoleVariables = Variables & { session: Session; form: Record<string, string> };
 
@@ -35,8 +36,8 @@ const setupCodeOf = (env: Env): string | null => {
   return v.length >= SETUP_CODE_MIN ? v : null;
 };
 
-async function memberExists(db: D1Database, handle: string): Promise<boolean> {
-  return isValidHandle(handle) && (await db.prepare("SELECT 1 AS ok FROM members WHERE handle = ?").bind(handle).first()) !== null;
+async function memberExists(db: D1Database, identity: string): Promise<boolean> {
+  return isValidIdentity(identity) && (await db.prepare("SELECT 1 AS ok FROM members WHERE handle = ?").bind(identity).first()) !== null;
 }
 
 /**
@@ -54,7 +55,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
 
   app.get("/console/login", async (c) => {
     if (await sessionFrom(c.env.DB, cookieToken(c.req.header("cookie")))) return redirect("/console/overview");
-    return html(loginPage(undefined, { needsSetup: !(await hasAdmin(c.env.DB)) }));
+    return html(loginPage(undefined, { needsSetup: !(await hasAdmin(c.env.DB)), control: c.get("cfg").mode === "control" }));
   });
 
   // First admin, for a server deployed without a terminal (the Deploy to Cloudflare button). Open only while no
@@ -123,17 +124,18 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     if (!sameOrigin(c.req.header("origin"), c.get("cfg").publicUrl)) {
       return html(problemPage("Sign-in refused", "The sign-in form must be sent from this console's own page."), 403);
     }
+    const control = c.get("cfg").mode === "control";
     if (!(await loginAllowed(db, c.req.header("cf-connecting-ip")))) {
-      return html(loginPage("Too many attempts. Try again in 10 minutes."), 429, { "retry-after": "600" });
+      return html(loginPage("Too many attempts. Try again in 10 minutes.", { control }), 429, { "retry-after": "600" });
     }
     const form = formOf(await c.req.parseBody());
-    const handle = normalizeHandle(form.handle ?? "");
+    const handle = identityFrom(c.get("cfg"), form.team, form.handle);
     const code = form.access_code ?? "";
-    const valid = isValidHandle(handle) && code.length > 0 && code.length <= 256 && (await verifyMemberCode(db, handle, code)) === handle;
-    const cookie = valid ? await startSession(db, handle) : null;
+    const valid = handle !== null && code.length > 0 && code.length <= 256 && (await verifyMemberCode(db, handle, code)) === handle;
+    const cookie = valid && handle ? await startSession(db, handle) : null;
     if (!cookie) {
-      await recordEvent(db, { kind: "console", name: "login", subject: isValidHandle(handle) ? handle : null, outcome: "refused" }, { unauthenticated: true });
-      return html(loginPage("That handle and code do not match an admin of this console."), 401);
+      await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "refused" }, { unauthenticated: true });
+      return html(loginPage(control ? "That team, handle and code do not match an admin of that team." : "That handle and code do not match an admin of this console.", { control }), 401);
     }
     await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "ok" });
     return redirect("/console/overview", { "set-cookie": cookie });
@@ -155,7 +157,9 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     await next();
   });
 
-  const viewer = (s: Session): Viewer => ({ handle: s.handle, csrf: s.csrf });
+  // The session holds the stored identity; pages show the handle and scope everything to the tenant.
+  const viewer = (s: Session, control: boolean): Viewer => ({ handle: handleOf(s.handle), identity: s.handle, tenant: tenantOf(s.handle), control, csrf: s.csrf });
+  const tenantOfSession = (s: Session) => tenantOf(s.handle);
   const audit = (db: D1Database, s: Session, name: string, extra: { client_id?: string; member?: string } = {}) =>
     recordEvent(db, { kind: "console", name, subject: s.handle, client_id: extra.client_id ?? null, outcome: "ok", detail: extra.member ? { member: extra.member } : null });
 
@@ -166,7 +170,16 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     return redirect("/console/login", { "set-cookie": sessionCookie("", 0) });
   });
 
-  app.get("/console/overview", async (c) => html(overviewPage(viewer(c.get("session")), c.get("cfg"), await overview(c.env, c.get("cfg")))));
+  const vw = (c: { get: (k: "session") => Session } & { get(k: "cfg"): Variables["cfg"] }) => viewer(c.get("session"), c.get("cfg").mode === "control");
+
+  app.get("/console/overview", async (c) => html(overviewPage(vw(c), c.get("cfg"), await overview(c.env, c.get("cfg"), tenantOfSession(c.get("session"))))));
+
+  // The control center's operator: every tenant, and the project's tracking.
+  app.get("/console/tenants", async (c) => {
+    const v = vw(c);
+    if (!v.control || v.tenant !== "") return redirect("/console/overview");
+    return html(tenantsPage(v, await controlCenter(c.env.DB)));
+  });
 
   // ---- members ----
 
@@ -177,34 +190,42 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
       did === "removed" && isValidHandle(who)
         ? { text: `Removed ${who}. Their assistants were signed out and the packets they sent or received were revoked.`, ok: true }
         : null;
-    return html(membersPage(viewer(c.get("session")), await members(c.env.DB), Date.now(), note));
+    return html(membersPage(vw(c), await members(c.env.DB, tenantOfSession(c.get("session"))), Date.now(), note));
   });
 
   app.post("/console/members", async (c) => {
     const db = c.env.DB;
     const s = c.get("session");
+    const tenant = tenantOfSession(s);
     const handle = normalizeHandle(c.get("form").handle ?? "");
-    const refuse = async (text: string, status: number) => html(membersPage(viewer(s), await members(db), Date.now(), { text, ok: false }), status);
+    const refuse = async (text: string, status: number) => html(membersPage(vw(c), await members(db, tenant), Date.now(), { text, ok: false }), status);
     if (!isValidHandle(handle)) {
       return refuse("Use 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. The handles team and all are reserved.", 400);
     }
+    const cap = c.get("cfg").tenantMembersCap;
+    if (tenant && cap > 0) {
+      const n = await db.prepare("SELECT COUNT(*) AS n FROM members WHERE handle >= ? AND handle < ?").bind(`${tenant}/`, `${tenant}0`).first<{ n: number }>();
+      if ((n?.n ?? 0) >= cap) return refuse(`This team has ${cap} members, the most the shared control center allows. Run your own private Handoff for a larger team.`, 409);
+    }
+    const identity = qualify(tenant, handle);
     const code = newAccessCode();
     const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
     const added = await db
       .prepare("INSERT INTO members (handle, code_salt, code_hash, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(handle) DO NOTHING")
-      .bind(handle, salt, await hashAccessCode(code, salt), nowIso())
+      .bind(identity, salt, await hashAccessCode(code, salt), nowIso())
       .run();
     if (added.meta.changes !== 1) return refuse(`${handle} is already a member. Use Reset code to give them a new code.`, 409);
     await audit(db, s, "member_add", { member: handle });
-    return html(codePage(viewer(s), handle, code, "added"));
+    return html(codePage(vw(c), handle, code, "added"));
   });
 
   app.get("/console/members/:handle/reset", async (c) => {
     const handle = c.req.param("handle");
-    if (!(await memberExists(c.env.DB, handle))) return notFound();
-    const self = handle === c.get("session").handle;
+    const identity = qualify(tenantOfSession(c.get("session")), handle);
+    if (!(await memberExists(c.env.DB, identity))) return notFound();
+    const self = identity === c.get("session").handle;
     return html(
-      confirmPage(viewer(c.get("session")), "members", {
+      confirmPage(vw(c), "members", {
         title: `Reset the code of ${handle}?`,
         text: `${esc(handle)} gets a new access code, shown once on the next page. The old code stops working, and every assistant signed in as ${esc(handle)} is signed out at once.${self ? " This ends your console session too." : ""}`,
         action: `/console/members/${handle}/reset`,
@@ -219,21 +240,23 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const db = c.env.DB;
     const s = c.get("session");
     const handle = c.req.param("handle");
-    if (!(await memberExists(db, handle))) return notFound();
+    const identity = qualify(tenantOfSession(s), handle);
+    if (!(await memberExists(db, identity))) return notFound();
     const code = newAccessCode();
     const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
-    await db.prepare("UPDATE members SET code_salt = ?, code_hash = ? WHERE handle = ?").bind(salt, await hashAccessCode(code, salt), handle).run();
-    await revokeAccess(db, handle, "*");
+    await db.prepare("UPDATE members SET code_salt = ?, code_hash = ? WHERE handle = ?").bind(salt, await hashAccessCode(code, salt), identity).run();
+    await revokeAccess(db, identity, "*");
     await audit(db, s, "member_reset", { member: handle });
-    return html(codePage(viewer(s), handle, code, "reset"));
+    return html(codePage(vw(c), handle, code, "reset"));
   });
 
   app.get("/console/members/:handle/remove", async (c) => {
     const handle = c.req.param("handle");
-    if (!(await memberExists(c.env.DB, handle))) return notFound();
-    if (handle === c.get("session").handle) return html(problemPage("Not allowed", "You cannot remove yourself. Another admin can."), 400);
+    const identity = qualify(tenantOfSession(c.get("session")), handle);
+    if (!(await memberExists(c.env.DB, identity))) return notFound();
+    if (identity === c.get("session").handle) return html(problemPage("Not allowed", "You cannot remove yourself. Another admin can."), 400);
     return html(
-      confirmPage(viewer(c.get("session")), "members", {
+      confirmPage(vw(c), "members", {
         title: `Remove ${handle}?`,
         text: `${esc(handle)} can no longer sign in, and every assistant signed in as ${esc(handle)} is signed out at once. The packets ${esc(handle)} sent, and the packets sent to ${esc(handle)}, are revoked, so a member added later with the same handle cannot read them. Packets to the whole team stay.`,
         action: `/console/members/${handle}/remove`,
@@ -248,16 +271,17 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const db = c.env.DB;
     const s = c.get("session");
     const handle = c.req.param("handle");
-    if (!(await memberExists(db, handle))) return notFound();
-    if (handle === s.handle) return html(problemPage("Not allowed", "You cannot remove yourself. Another admin can."), 400);
+    const identity = qualify(tenantOfSession(s), handle);
+    if (!(await memberExists(db, identity))) return notFound();
+    if (identity === s.handle) return html(problemPage("Not allowed", "You cannot remove yourself. Another admin can."), 400);
     const at = nowIso();
     await db.batch([
-      db.prepare("UPDATE packets SET revoked_at = ? WHERE (owner = ? OR recipient = ?) AND revoked_at IS NULL").bind(at, handle, handle),
-      db.prepare("DELETE FROM admin_sessions WHERE handle = ?").bind(handle),
-      db.prepare("DELETE FROM admin_members WHERE handle = ?").bind(handle),
-      db.prepare("DELETE FROM members WHERE handle = ?").bind(handle),
+      db.prepare("UPDATE packets SET revoked_at = ? WHERE (owner = ? OR recipient = ?) AND revoked_at IS NULL").bind(at, identity, identity),
+      db.prepare("DELETE FROM admin_sessions WHERE handle = ?").bind(identity),
+      db.prepare("DELETE FROM admin_members WHERE handle = ?").bind(identity),
+      db.prepare("DELETE FROM members WHERE handle = ?").bind(identity),
     ]);
-    await revokeAccess(db, handle, "*");
+    await revokeAccess(db, identity, "*");
     await audit(db, s, "member_remove", { member: handle });
     return redirect(`/console/members?did=removed&member=${encodeURIComponent(handle)}`);
   });
@@ -266,22 +290,23 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
 
   app.get("/console/assistants", async (c) => {
     const note = c.req.query("did") === "disconnected" ? "Disconnected. That assistant asks to sign in again at its next call." : null;
-    return html(assistantsPage(viewer(c.get("session")), await assistants(c.env.DB), Date.now(), note));
+    return html(assistantsPage(vw(c), await assistants(c.env.DB, tenantOfSession(c.get("session"))), Date.now(), note));
   });
 
-  const pairFrom = (member: string | undefined, client: string | undefined) => {
+  // `member` in the page is the handle; the stored identity carries the session's tenant.
+  const pairFrom = (s: Session, member: string | undefined, client: string | undefined) => {
     const m = normalizeHandle(member ?? "");
     const cl = client ?? "";
-    return isValidHandle(m) && cl.length > 0 && cl.length <= 128 ? { member: m, client: cl } : null;
+    return isValidHandle(m) && cl.length > 0 && cl.length <= 128 ? { member: m, identity: qualify(tenantOfSession(s), m), client: cl } : null;
   };
 
   app.get("/console/assistants/disconnect", async (c) => {
-    const p = pairFrom(c.req.query("member"), c.req.query("client"));
+    const p = pairFrom(c.get("session"), c.req.query("member"), c.req.query("client"));
     if (!p) return notFound();
     const row = await c.env.DB.prepare("SELECT client_name FROM oauth_clients WHERE client_id = ?").bind(p.client).first<{ client_name: string | null }>();
     const name = row?.client_name ?? p.client;
     return html(
-      confirmPage(viewer(c.get("session")), "assistants", {
+      confirmPage(vw(c), "assistants", {
         title: `Disconnect ${name}?`,
         text: `<strong>${esc(name)}</strong>, signed in as <strong>${esc(p.member)}</strong>, is signed out at once: its refresh token stops working and its current access token is refused. ${esc(p.member)} can sign it in again with their code. Their other assistants stay connected.`,
         action: "/console/assistants/disconnect",
@@ -295,19 +320,22 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
 
   app.post("/console/assistants/disconnect", async (c) => {
     const form = c.get("form");
-    const p = pairFrom(form.member, form.client);
+    const p = pairFrom(c.get("session"), form.member, form.client);
     if (!p) return notFound();
-    await revokeAccess(c.env.DB, p.member, p.client);
+    await revokeAccess(c.env.DB, p.identity, p.client);
     await audit(c.env.DB, c.get("session"), "disconnect", { member: p.member, client_id: p.client });
     return redirect("/console/assistants?did=disconnected");
   });
 
   // ---- ops ----
 
+  // Ops belongs to the deployment's operator (tenant ""); a tenant admin is sent to their overview.
+  app.use("/console/ops", async (c, next) => (tenantOfSession(c.get("session")) ? redirect("/console/overview") : next()));
+  app.use("/console/ops/*", async (c, next) => (tenantOfSession(c.get("session")) ? redirect("/console/overview") : next()));
   app.get("/console/ops", async (c) => {
     const did = c.req.query("did");
     const note = did === "cleanup" ? "Cleanup ran. Its result is the first row under Cleanup." : did === "cleanup_failed" ? "Cleanup failed. The error is the first row under Cleanup." : null;
-    return html(opsPage(viewer(c.get("session")), c.get("cfg"), await ops(c.env, c.get("cfg")), note));
+    return html(opsPage(vw(c), c.get("cfg"), await ops(c.env, c.get("cfg")), note));
   });
 
   app.post("/console/ops/cleanup", async (c) => {

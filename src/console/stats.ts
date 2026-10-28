@@ -1,5 +1,18 @@
 import type { Config, Env } from "../env";
 import { updateState, type UpdateState } from "../update-check";
+import { handleOf, teamOf, tenantWhere } from "../domain/tenant";
+
+/**
+ * A tenant admin sees their tenant only: `scope` adds the tenant predicate for an identity column. The
+ * deployment's operator (tenant "") sees everything, which on a private install is the whole instance anyway.
+ */
+const scope = (col: string, tenant: string): { sql: string; binds: string[] } => {
+  if (!tenant) return { sql: "", binds: [] };
+  const w = tenantWhere(col, tenant);
+  return { sql: ` AND ${w.sql}`, binds: w.binds };
+};
+/** Names as the viewer sees them: a tenant admin sees handles; the operator sees stored identities. */
+const shownBy = (tenant: string) => (s: string | null): string | null => (s === null ? null : tenant ? handleOf(s) : s);
 
 /**
  * What the console shows, read from D1. Activity comes from the `events` table (names, members, clients,
@@ -153,30 +166,39 @@ export async function signingKey(db: D1Database, cfg: Config): Promise<OverviewD
   return k ? { from: "database", kid: k.kid, created_at: k.created_at } : { from: "none", kid: null, created_at: null };
 }
 
-export async function overview(env: Env, cfg: Config, now = Date.now()): Promise<OverviewData> {
+export async function overview(env: Env, cfg: Config, tenant = "", now = Date.now()): Promise<OverviewData> {
   const db = env.DB;
   const nowIso = new Date(now).toISOString();
   const week = isoAgo(now, WINDOW_DAYS * DAY);
   const stripStart = new Date(now - (STRIP_DAYS - 1) * DAY).toISOString().slice(0, 10);
+  const ev = scope("subject", tenant);
+  const own = scope("owner", tenant);
+  const mem = scope("handle", tenant);
+  const show = shownBy(tenant);
 
   const database = await timed(() => db.prepare("SELECT 1 AS ok").first());
   const r2 = await timed(() => env.BLOBS.list({ limit: 1 }));
-  const files = await one<{ n: number; b: number }>(db, "SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS b FROM attachments WHERE state = 'ready'");
+  const files = await one<{ n: number; b: number }>(db, `SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS b FROM attachments WHERE state = 'ready'${own.sql}`, ...own.binds);
   const counts = await one<{ packets: number; members: number; admins: number; connected: number }>(
     db,
-    `SELECT (SELECT COUNT(*) FROM packets WHERE revoked_at IS NULL AND expires_at > ?) AS packets,
-            (SELECT COUNT(*) FROM members) AS members,
-            (SELECT COUNT(*) FROM admin_members) AS admins,
-            (SELECT COUNT(*) FROM (SELECT DISTINCT subject, client_id FROM oauth_refresh_tokens WHERE revoked_at IS NULL AND expires_at > ?)) AS connected`,
+    `SELECT (SELECT COUNT(*) FROM packets WHERE revoked_at IS NULL AND expires_at > ?${own.sql}) AS packets,
+            (SELECT COUNT(*) FROM members WHERE 1 = 1${mem.sql}) AS members,
+            (SELECT COUNT(*) FROM admin_members WHERE 1 = 1${mem.sql}) AS admins,
+            (SELECT COUNT(*) FROM (SELECT DISTINCT subject, client_id FROM oauth_refresh_tokens WHERE revoked_at IS NULL AND expires_at > ?${ev.sql})) AS connected`,
     nowIso,
+    ...own.binds,
+    ...mem.binds,
+    ...mem.binds,
     nowIso,
+    ...ev.binds,
   );
   const lastCleanup = await one<EventRow>(db, "SELECT * FROM events WHERE kind = 'cleanup' ORDER BY id DESC LIMIT 1");
 
   const perDay = await all<{ d: string; n: number }>(
     db,
-    "SELECT substr(ts, 1, 10) AS d, COUNT(*) AS n FROM events WHERE kind = 'tool' AND name = 'handoff_send' AND outcome = 'ok' AND ts >= ? GROUP BY d",
+    `SELECT substr(ts, 1, 10) AS d, COUNT(*) AS n FROM events WHERE kind = 'tool' AND name = 'handoff_send' AND outcome = 'ok' AND ts >= ?${ev.sql} GROUP BY d`,
     stripStart,
+    ...ev.binds,
   );
   const sendsOn = new Map(perDay.map((r) => [r.d, r.n]));
   const days = Array.from({ length: STRIP_DAYS }, (_, i) => {
@@ -187,37 +209,47 @@ export async function overview(env: Env, cfg: Config, now = Date.now()): Promise
     (
       await all<{ name: string; n: number }>(
         db,
-        "SELECT name, COUNT(*) AS n FROM events WHERE kind = 'tool' AND outcome = 'ok' AND ts >= ? GROUP BY name",
+        `SELECT name, COUNT(*) AS n FROM events WHERE kind = 'tool' AND outcome = 'ok' AND ts >= ?${ev.sql} GROUP BY name`,
         stripStart,
+        ...ev.binds,
       )
     ).map((r) => [r.name, r.n]),
   );
 
   const latency = latencyByTool(
-    await all<{ name: string | null; ms: number }>(db, "SELECT name, ms FROM events WHERE kind = 'tool' AND ms IS NOT NULL AND ts >= ? LIMIT 20000", week),
+    await all<{ name: string | null; ms: number }>(db, `SELECT name, ms FROM events WHERE kind = 'tool' AND ms IS NOT NULL AND ts >= ?${ev.sql} LIMIT 20000`, week, ...ev.binds),
   );
   const calls = await one<{ ok: number | null; failed: number | null }>(
     db,
-    "SELECT SUM(outcome = 'ok') AS ok, SUM(outcome != 'ok') AS failed FROM events WHERE kind = 'tool' AND ts >= ?",
+    `SELECT SUM(outcome = 'ok') AS ok, SUM(outcome != 'ok') AS failed FROM events WHERE kind = 'tool' AND ts >= ?${ev.sql}`,
     week,
+    ...ev.binds,
   );
-  const rejected = await one<{ n: number; last: string | null }>(db, "SELECT COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'auth' AND ts >= ?", week);
+  const rejected = await one<{ n: number; last: string | null }>(db, `SELECT COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'auth' AND ts >= ?${ev.sql}`, week, ...ev.binds);
   const badSignIns = await one<{ n: number; last: string | null }>(
     db,
-    "SELECT COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'sign_in' AND outcome != 'ok' AND ts >= ?",
+    `SELECT COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'sign_in' AND outcome != 'ok' AND ts >= ?${ev.sql}`,
     week,
+    ...ev.binds,
   );
-  const perMember = await all<{ handle: string; calls: number }>(
-    db,
-    `SELECT m.handle AS handle, COUNT(e.id) AS calls FROM members m
+  const mh = scope("m.handle", tenant);
+  const perMember = (
+    await all<{ handle: string; calls: number }>(
+      db,
+      `SELECT m.handle AS handle, COUNT(e.id) AS calls FROM members m
        LEFT JOIN events e ON e.subject = m.handle AND e.kind = 'tool' AND e.ts >= ?
-     GROUP BY m.handle ORDER BY calls DESC, m.handle`,
-    week,
-  );
-  const recent = await all<EventRow>(
-    db,
-    "SELECT * FROM events WHERE kind IN ('tool', 'initialize', 'sign_in', 'auth', 'client_metadata') ORDER BY id DESC LIMIT 25",
-  );
+     WHERE 1 = 1${mh.sql} GROUP BY m.handle ORDER BY calls DESC, m.handle`,
+      week,
+      ...mh.binds,
+    )
+  ).map((r) => ({ handle: show(r.handle) ?? r.handle, calls: r.calls }));
+  const recent = (
+    await all<EventRow>(
+      db,
+      `SELECT * FROM events WHERE kind IN ('tool', 'initialize', 'sign_in', 'auth', 'client_metadata')${ev.sql} ORDER BY id DESC LIMIT 25`,
+      ...ev.binds,
+    )
+  ).map((e) => ({ ...e, subject: show(e.subject) }));
 
   return {
     now,
@@ -256,12 +288,15 @@ export interface MemberRow {
   received: number;
 }
 
-export async function members(db: D1Database, now = Date.now()): Promise<{ rows: MemberRow[]; teamPackets: number }> {
+export async function members(db: D1Database, tenant = "", now = Date.now()): Promise<{ rows: MemberRow[]; teamPackets: number }> {
   const nowIso = new Date(now).toISOString();
   const week = isoAgo(now, WINDOW_DAYS * DAY);
+  const mh = scope("m.handle", tenant);
+  const show = shownBy(tenant);
   const base = await all<{ handle: string; created_at: string; admin: number }>(
     db,
-    "SELECT m.handle, m.created_at, a.handle IS NOT NULL AS admin FROM members m LEFT JOIN admin_members a ON a.handle = m.handle ORDER BY m.handle",
+    `SELECT m.handle, m.created_at, a.handle IS NOT NULL AS admin FROM members m LEFT JOIN admin_members a ON a.handle = m.handle WHERE 1 = 1${mh.sql} ORDER BY m.handle`,
+    ...mh.binds,
   );
   const map = async (sql: string, ...binds: unknown[]) => new Map((await all<{ k: string; v: string | number }>(db, sql, ...binds)).map((r) => [r.k, r.v]));
   const lastSeen = await map(`SELECT subject AS k, MAX(ts) AS v FROM events WHERE kind IN ${SEEN} AND subject IS NOT NULL GROUP BY subject`);
@@ -277,12 +312,12 @@ export async function members(db: D1Database, now = Date.now()): Promise<{ rows:
      WHERE revoked_at IS NULL AND expires_at > ? AND recipient IS NOT NULL AND recipient != owner AND recipient != '*' GROUP BY recipient`,
     nowIso,
   );
-  const team = await one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM packets WHERE recipient = '*' AND revoked_at IS NULL AND expires_at > ?", nowIso);
+  const team = await one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM packets WHERE recipient = ? AND revoked_at IS NULL AND expires_at > ?", teamOf(tenant), nowIso);
   const n = (m: Map<string, string | number>, k: string) => Number(m.get(k) ?? 0);
   const s = (m: Map<string, string | number>, k: string) => (m.get(k) as string | undefined) ?? null;
   return {
     rows: base.map((b) => ({
-      handle: b.handle,
+      handle: show(b.handle) ?? b.handle,
       created_at: b.created_at,
       admin: !!b.admin,
       last_seen: s(lastSeen, b.handle),
@@ -321,11 +356,14 @@ export interface AssistantsData {
   clients: Map<string, ClientInfo>;
 }
 
-export async function assistants(db: D1Database, now = Date.now()): Promise<AssistantsData> {
+export async function assistants(db: D1Database, tenant = "", now = Date.now()): Promise<AssistantsData> {
   const nowIso = new Date(now).toISOString();
   const week = isoAgo(now, WINDOW_DAYS * DAY);
   const clients = await clientsById(db);
-  const memberList = (await all<{ handle: string }>(db, "SELECT handle FROM members ORDER BY handle")).map((r) => r.handle);
+  const ev = scope("subject", tenant);
+  const mh = scope("handle", tenant);
+  const show = shownBy(tenant);
+  const memberList = (await all<{ handle: string }>(db, `SELECT handle FROM members WHERE 1 = 1${mh.sql} ORDER BY handle`, ...mh.binds)).map((r) => show(r.handle) ?? r.handle);
   const rows = new Map<string, AssistantRow>();
   const row = (subject: string, client_id: string): AssistantRow => {
     const k = pair(subject, client_id);
@@ -339,8 +377,9 @@ export async function assistants(db: D1Database, now = Date.now()): Promise<Assi
 
   for (const t of await all<{ subject: string; client_id: string; until: string }>(
     db,
-    "SELECT subject, client_id, MAX(expires_at) AS until FROM oauth_refresh_tokens WHERE revoked_at IS NULL AND expires_at > ? GROUP BY subject, client_id",
+    `SELECT subject, client_id, MAX(expires_at) AS until FROM oauth_refresh_tokens WHERE revoked_at IS NULL AND expires_at > ?${ev.sql} GROUP BY subject, client_id`,
     nowIso,
+    ...ev.binds,
   )) {
     const r = row(t.subject, t.client_id);
     r.connected = true;
@@ -349,7 +388,8 @@ export async function assistants(db: D1Database, now = Date.now()): Promise<Assi
   for (const e of await all<{ subject: string; client_id: string; first: string; last: string }>(
     db,
     `SELECT subject, client_id, MIN(ts) AS first, MAX(ts) AS last FROM events
-     WHERE kind IN ${SEEN} AND subject IS NOT NULL AND client_id IS NOT NULL GROUP BY subject, client_id`,
+     WHERE kind IN ${SEEN} AND subject IS NOT NULL AND client_id IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
+    ...ev.binds,
   )) {
     const r = row(e.subject, e.client_id);
     r.first_seen = e.first;
@@ -358,8 +398,9 @@ export async function assistants(db: D1Database, now = Date.now()): Promise<Assi
   for (const c of await all<{ subject: string; client_id: string; n: number; failed: number }>(
     db,
     `SELECT subject, client_id, COUNT(*) AS n, SUM(outcome != 'ok') AS failed FROM events
-     WHERE kind = 'tool' AND ts >= ? AND subject IS NOT NULL AND client_id IS NOT NULL GROUP BY subject, client_id`,
+     WHERE kind = 'tool' AND ts >= ? AND subject IS NOT NULL AND client_id IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
     week,
+    ...ev.binds,
   )) {
     const r = row(c.subject, c.client_id);
     r.calls = c.n;
@@ -369,7 +410,8 @@ export async function assistants(db: D1Database, now = Date.now()): Promise<Assi
   for (const a of await all<{ subject: string; client_id: string; name: string | null; detail: string | null; at: string }>(
     db,
     `SELECT subject, client_id, name, detail, MAX(ts) AS at FROM events
-     WHERE kind = 'initialize' AND subject IS NOT NULL AND client_id IS NOT NULL GROUP BY subject, client_id`,
+     WHERE kind = 'initialize' AND subject IS NOT NULL AND client_id IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
+    ...ev.binds,
   )) {
     const version = detailOf(a).version;
     row(a.subject, a.client_id).announced = { name: a.name ?? "unnamed", version: typeof version === "string" ? version : null };
@@ -383,8 +425,9 @@ export async function assistants(db: D1Database, now = Date.now()): Promise<Assi
   );
   for (const t of await all<{ subject: string; client_id: string; at: string }>(
     db,
-    "SELECT subject, client_id, MAX(ts) AS at FROM events WHERE kind = 'token' AND ts >= ? AND subject IS NOT NULL GROUP BY subject, client_id",
+    `SELECT subject, client_id, MAX(ts) AS at FROM events WHERE kind = 'token' AND ts >= ? AND subject IS NOT NULL${ev.sql} GROUP BY subject, client_id`,
     isoAgo(now, ACCESS_TOKEN_MS),
+    ...ev.binds,
   )) {
     const r = rows.get(pair(t.subject, t.client_id));
     if (!r || r.connected) continue;
@@ -392,20 +435,25 @@ export async function assistants(db: D1Database, now = Date.now()): Promise<Assi
     if (!cut || t.at > cut) r.connected = true;
   }
 
-  const unused = [...clients.values()].filter((c) => !c.last_used_at).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  // Registrations nobody used are the operator's concern; a tenant admin does not see other tenants' clients.
+  const unused = tenant ? [] : [...clients.values()].filter((c) => !c.last_used_at).sort((a, b) => b.created_at.localeCompare(a.created_at));
   const rejected = await all<{ reason: string; n: number; last: string }>(
     db,
-    "SELECT name AS reason, COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'auth' AND ts >= ? GROUP BY name ORDER BY n DESC LIMIT 20",
+    `SELECT name AS reason, COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'auth' AND ts >= ?${ev.sql} GROUP BY name ORDER BY n DESC LIMIT 20`,
     week,
+    ...ev.binds,
   );
-  const badSignIns = await all<{ subject: string | null; n: number; last: string }>(
-    db,
-    "SELECT subject, COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'sign_in' AND outcome != 'ok' AND ts >= ? GROUP BY subject ORDER BY n DESC LIMIT 20",
-    week,
-  );
-  const sorted = [...rows.values()].sort(
-    (a, b) => a.subject.localeCompare(b.subject) || Number(b.connected) - Number(a.connected) || (b.last_seen ?? "").localeCompare(a.last_seen ?? ""),
-  );
+  const badSignIns = (
+    await all<{ subject: string | null; n: number; last: string }>(
+      db,
+      `SELECT subject, COUNT(*) AS n, MAX(ts) AS last FROM events WHERE kind = 'sign_in' AND outcome != 'ok' AND ts >= ?${ev.sql} GROUP BY subject ORDER BY n DESC LIMIT 20`,
+      week,
+      ...ev.binds,
+    )
+  ).map((r) => ({ ...r, subject: show(r.subject) }));
+  const sorted = [...rows.values()]
+    .map((r) => ({ ...r, subject: show(r.subject) ?? r.subject }))
+    .sort((a, b) => a.subject.localeCompare(b.subject) || Number(b.connected) - Number(a.connected) || (b.last_seen ?? "").localeCompare(a.last_seen ?? ""));
   return { members: memberList, rows: sorted, unused, rejected, badSignIns, clients };
 }
 
@@ -466,5 +514,122 @@ export async function ops(env: Env, cfg: Config, now = Date.now()): Promise<OpsD
     audit: await all<EventRow>(db, "SELECT * FROM events WHERE kind = 'console' ORDER BY id DESC LIMIT 20"),
     signingKey: await signingKey(db, cfg),
     clients: await clientsById(db),
+  };
+}
+
+// ---- control center ---------------------------------------------------------------------------------------
+
+export interface TenantRow {
+  slug: string;
+  name: string;
+  created_at: string;
+  members: number;
+  packets_live: number;
+  reads_7d: number;
+  last_seen: string | null;
+}
+
+export interface ControlCenterData {
+  now: number;
+  tenants: TenantRow[];
+  totals: { tenants: number; members: number };
+  /** The KPI: distinct identities that read a packet (handoff_read ok). */
+  users: { d7: number; d28: number };
+  activity: { sends_7d: number; reads_7d: number; round_trips_7d: number };
+  instances: { d7: number; d28: number; byVersion: Array<{ version: string; n: number }>; byMembers: Array<{ members: string; n: number }> };
+  deployClicks30d: number;
+  assistants: Array<{ name: string; n: number }>;
+  days: Array<{ date: string; sends: number; reads: number }>;
+}
+
+/** The operator's view of the whole project: every tenant, the users KPI, instances in the wild, Deploy clicks. */
+export async function controlCenter(db: D1Database, now = Date.now()): Promise<ControlCenterData> {
+  const nowIso = new Date(now).toISOString();
+  const d7 = isoAgo(now, 7 * DAY);
+  const d28 = isoAgo(now, 28 * DAY);
+  const d30 = isoAgo(now, 30 * DAY);
+  const stripStart = new Date(now - (STRIP_DAYS - 1) * DAY).toISOString().slice(0, 10);
+  const tenants = await all<TenantRow>(
+    db,
+    `SELECT t.slug, t.name, t.created_at,
+       (SELECT COUNT(*) FROM members m WHERE m.handle >= t.slug || '/' AND m.handle < t.slug || '0') AS members,
+       (SELECT COUNT(*) FROM packets p WHERE p.owner >= t.slug || '/' AND p.owner < t.slug || '0' AND p.revoked_at IS NULL AND p.expires_at > ?) AS packets_live,
+       (SELECT COUNT(*) FROM events e WHERE e.kind = 'tool' AND e.name = 'handoff_read' AND e.outcome = 'ok' AND e.ts >= ? AND e.subject >= t.slug || '/' AND e.subject < t.slug || '0') AS reads_7d,
+       (SELECT MAX(e.ts) FROM events e WHERE e.subject >= t.slug || '/' AND e.subject < t.slug || '0') AS last_seen
+     FROM tenants t ORDER BY last_seen DESC, t.created_at DESC`,
+    nowIso,
+    d7,
+  );
+  const totals = await one<{ tenants: number; members: number }>(db, "SELECT (SELECT COUNT(*) FROM tenants) AS tenants, (SELECT COUNT(*) FROM members WHERE instr(handle, '/') > 0) AS members");
+  const users = await one<{ d7: number; d28: number }>(
+    db,
+    `SELECT (SELECT COUNT(DISTINCT subject) FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?) AS d7,
+            (SELECT COUNT(DISTINCT subject) FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?) AS d28`,
+    d7,
+    d28,
+  );
+  const activity = await one<{ sends_7d: number; reads_7d: number; round_trips_7d: number }>(
+    db,
+    `SELECT (SELECT COUNT(*) FROM events WHERE kind = 'tool' AND name = 'handoff_send' AND outcome = 'ok' AND ts >= ?) AS sends_7d,
+            (SELECT COUNT(*) FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?) AS reads_7d,
+            (SELECT COUNT(*) FROM (SELECT DISTINCT subject FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?
+                                   AND subject IN (SELECT subject FROM events WHERE kind = 'tool' AND name = 'handoff_send' AND outcome = 'ok' AND ts >= ?))) AS round_trips_7d`,
+    d7,
+    d7,
+    d7,
+    d7,
+  );
+  const inst = await one<{ d7: number; d28: number }>(
+    db,
+    "SELECT (SELECT COUNT(*) FROM instances_seen WHERE last_seen >= ?) AS d7, (SELECT COUNT(*) FROM instances_seen WHERE last_seen >= ?) AS d28",
+    d7,
+    d28,
+  );
+  const byVersion = await all<{ version: string; n: number }>(db, "SELECT version, COUNT(*) AS n FROM instances_seen WHERE last_seen >= ? GROUP BY version ORDER BY n DESC", d28);
+  const byMembers = await all<{ members: string; n: number }>(db, "SELECT members, COUNT(*) AS n FROM instances_seen WHERE last_seen >= ? GROUP BY members ORDER BY members", d28);
+  const clicks = await one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM events WHERE kind = 'visit' AND name = 'deploy' AND ts >= ?", d30);
+  const assistantsSeen = await all<{ name: string; n: number }>(
+    db,
+    "SELECT name, COUNT(DISTINCT subject) AS n FROM events WHERE kind = 'initialize' AND ts >= ? AND name IS NOT NULL GROUP BY name ORDER BY n DESC LIMIT 12",
+    d28,
+  );
+  const perDay = await all<{ d: string; name: string; n: number }>(
+    db,
+    "SELECT substr(ts, 1, 10) AS d, name, COUNT(*) AS n FROM events WHERE kind = 'tool' AND name IN ('handoff_send', 'handoff_read') AND outcome = 'ok' AND ts >= ? GROUP BY d, name",
+    stripStart,
+  );
+  const days = Array.from({ length: STRIP_DAYS }, (_, i) => {
+    const date = new Date(now - (STRIP_DAYS - 1 - i) * DAY).toISOString().slice(0, 10);
+    const on = (name: string) => perDay.find((r) => r.d === date && r.name === name)?.n ?? 0;
+    return { date, sends: on("handoff_send"), reads: on("handoff_read") };
+  });
+  return {
+    now,
+    tenants,
+    totals: { tenants: totals?.tenants ?? 0, members: totals?.members ?? 0 },
+    users: { d7: users?.d7 ?? 0, d28: users?.d28 ?? 0 },
+    activity: { sends_7d: activity?.sends_7d ?? 0, reads_7d: activity?.reads_7d ?? 0, round_trips_7d: activity?.round_trips_7d ?? 0 },
+    instances: { d7: inst?.d7 ?? 0, d28: inst?.d28 ?? 0, byVersion, byMembers },
+    deployClicks30d: clicks?.n ?? 0,
+    assistants: assistantsSeen,
+    days,
+  };
+}
+
+/** The public counters at /stats: numbers only, no tenant or member names. */
+export async function publicStats(db: D1Database, now = Date.now()): Promise<Record<string, number | string>> {
+  const c = await controlCenter(db, now);
+  return {
+    as_of: new Date(now).toISOString(),
+    teams: c.totals.tenants,
+    members: c.totals.members,
+    users_7d: c.users.d7,
+    users_28d: c.users.d28,
+    handoffs_sent_7d: c.activity.sends_7d,
+    handoffs_read_7d: c.activity.reads_7d,
+    people_with_round_trip_7d: c.activity.round_trips_7d,
+    private_instances_7d: c.instances.d7,
+    private_instances_28d: c.instances.d28,
+    deploy_clicks_30d: c.deployClicks30d,
   };
 }

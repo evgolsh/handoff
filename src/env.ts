@@ -15,6 +15,12 @@ export interface Env {
   HANDOFF_SETUP_CODE?: string;
   MAX_ATTACHMENT_BYTES?: string;
   IMPORT_HOST_ALLOWLIST?: string;
+  /**
+   * "control" only on the project's control center (handoff.infraworks.net): the homepage, /join, a console per
+   * tenant, the operator's tracking dashboard. Anything else: a private install, which serves its console and
+   * Connect page and sends "/" to /connect.
+   */
+  HANDOFF_MODE?: string;
   /** "off" turns off the daily update check (src/update-check.ts). Anything else: on. */
   HANDOFF_UPDATE_CHECK?: string;
   /** Where the update check asks. Empty: the project's hosted instance. */
@@ -29,7 +35,14 @@ export interface Env {
 /** Scopes this server offers. A token's scope is informational: every signed-in member may use every tool. */
 export const SCOPES = ["handoff", "offline_access"];
 
+export type Mode = "private" | "control";
+/** Where a private install's pages point for "what is Handoff". */
+export const CONTROL_CENTER_URL = "https://handoff.infraworks.net";
+
 export interface Config {
+  mode: Mode;
+  /** Members one tenant may have on the control center; 0 = no cap (private installs). */
+  tenantMembersCap: number;
   publicUrl: string;
   /** The MCP endpoint, PUBLIC_URL + "/mcp": the audience of every access token. */
   mcpResource: string;
@@ -93,13 +106,18 @@ export function configFrom(env: Env, requestOrigin = ""): Config {
     }
   }
   const hour = 3_600_000;
+  const control = (env.HANDOFF_MODE ?? "").trim().toLowerCase() === "control";
+  const attachmentBound = Number(env.MAX_ATTACHMENT_BYTES) || 25 * 1024 * 1024;
   return {
+    mode: control ? "control" : "private",
+    tenantMembersCap: control ? 10 : 0,
     publicUrl,
     mcpResource,
     issuer: publicUrl,
     oauthSigningJwk: env.OAUTH_SIGNING_JWK?.trim() || null,
     devTokens,
-    maxAttachmentBytes: Number(env.MAX_ATTACHMENT_BYTES) || 25 * 1024 * 1024,
+    // The control center is a shared playground: smaller files, shorter lives.
+    maxAttachmentBytes: control ? Math.min(attachmentBound, 5 * 1024 * 1024) : attachmentBound,
     importHostAllowlist: list(env.IMPORT_HOST_ALLOWLIST).map((h) => h.toLowerCase()),
     maxInlineImageBytes: 3 * 1024 * 1024,
     maxInlineTextChars: 100_000,
@@ -109,8 +127,8 @@ export function configFrom(env: Env, requestOrigin = ""): Config {
     maxUnsentFilesPerOwner: 50,
     cleanupBatch: 200,
     cleanupRounds: 5,
-    defaultExpiryHours: 24 * 30,
-    maxExpiryHours: 24 * 90,
+    defaultExpiryHours: control ? 24 : 24 * 30,
+    maxExpiryHours: control ? 24 * 7 : 24 * 90,
     uploadTicketTtlMs: 15 * 60_000,
     downloadTicketTtlMs: 10 * 60_000,
     stagingTtlMs: 24 * hour,

@@ -26,7 +26,8 @@ export function updateCheckEnabled(env: Env): boolean {
   return !["off", "0", "false", "no"].includes(v);
 }
 
-export const receiverEnabled = (env: Env): boolean => (env.UPDATE_CHECK_RECEIVER ?? "").trim() === "1";
+export const receiverEnabled = (env: Env): boolean =>
+  (env.UPDATE_CHECK_RECEIVER ?? "").trim() === "1" || (env.HANDOFF_MODE ?? "").trim().toLowerCase() === "control";
 
 async function setting(db: D1Database, key: string): Promise<string | null> {
   try {

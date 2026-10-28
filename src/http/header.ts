@@ -1,4 +1,5 @@
 import { BRAND_ICON } from "./style";
+import { CONTROL_CENTER_URL } from "../env";
 import { CLOUDFLARE_ICON, GITHUB_ICON } from "./assistant-icons";
 
 export const GITHUB_URL = "https://github.com/evgolsh/handoff";
@@ -54,8 +55,19 @@ export const PAGE_HEADER_CSS = `
   @media(prefers-reduced-motion:no-preference) { .site-button { transition:background .15s,color .15s,border-color .15s; } }
 `;
 
-export function pageHeader(current: "connect" | "use-cases" = "connect", opts: { active?: boolean } = {}): string {
+export function pageHeader(current: "connect" | "use-cases" = "connect", opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
+  if (opts.mode === "private") {
+    // A private install: its own Connect page and console, and where to read about Handoff.
+    return `<a href="#main" class="skip-link">Skip to content</a>
+  <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff">${BRAND_ICON}<span>Handoff</span></a>
+    <nav class="page-nav" aria-label="Handoff">
+      <a class="nav-link nav-secondary" href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>
+      <a class="nav-link nav-secondary" href="/console">Console</a>
+      <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
+      ${active ? `<a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>` : ""}
+    </nav></header>`;
+  }
   const actions = active
     ? `<a class="site-button nav-secondary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span></a>
       <a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>`
