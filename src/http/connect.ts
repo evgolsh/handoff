@@ -341,7 +341,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <article class="panel gate-card">
         <p class="eyebrow">01 · Operator of this server</p>
         <h2>Set up this instance</h2>
-        <p>If you deployed this server, enter your <code>HANDOFF_SETUP_CODE</code> secret to create the first admin handle and unlock assistant connections.</p>
+        <p>If you deployed this server, enter your <code>HANDOFF_SETUP_CODE</code> secret to create the first admin. Then this page shows how to connect each assistant.</p>
         <a class="site-button primary" href="/console/setup">Set up this server <span aria-hidden="true">↗</span></a>
       </article>
       <article class="panel gate-card">

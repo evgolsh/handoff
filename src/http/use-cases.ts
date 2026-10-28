@@ -10,7 +10,7 @@ const USE_CASES = [
     description:"Work through the details in your assistant, then give your partner the brief and files to finish on their own computer.",
     send:"Hand this off to tom with the Q3 summary. He needs to check two invoices and draft the client reply.",
     receive:"Pick up the handoff from tim.", files:["vat-q3-summary.pdf", "flagged-invoices.md"] },
-  { id:"micro-team-relay", label:"Small teams", title:"Pass the decisions, not just the task.",
+  { id:"micro-team-relay", label:"Small teams", title:"Pass on the decisions with the task.",
     description:"Give a teammate the architecture, diagrams, and reasons behind the choices. Their coding assistant starts with the context you prepared.",
     send:"Hand this off to tom with auth-flow.png. Include the approaches we rejected and why.",
     receive:"Continue the handoff from tim.", files:["auth-flow.png", "decisions.md"] },
@@ -149,7 +149,7 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): stri
     ? `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · <a href="#use-cases">Explore the use cases ↓</a></p>`
     : `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
   const examplesLink = active
-    ? `<a href="/connect">See setup instructions and tested connections ↗</a>`
+    ? `<a href="/connect">Setup for each assistant ↗</a>`
     : `<a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy your own on Cloudflare ↗</a>`;
   const closing = playground
     ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
@@ -173,7 +173,7 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
       ${heroNote}
     </div>
     <div class="handoff-example" aria-label="Example of a handoff from one assistant to another">
-      <div class="example-top"><span class="example-mark">${BRAND_ICON} A HANDOFF</span><span>ILLUSTRATIVE EXAMPLE</span></div>
+      <div class="example-top"><span class="example-mark">${BRAND_ICON} A HANDOFF</span></div>
       <div class="packet"><div class="packet-person"><span class="avatar" aria-hidden="true">T</span><div>tim <small>acme · Prepared in <b class="app">${CLAUDE_ICON}Claude Code</b></small></div></div>
         <h2>Q3 review, ready for the next step.</h2>
         <dl><dt>Goal</dt><dd>Finish the client’s quarterly review.</dd><dt>Decided</dt><dd>Keep the two flagged invoices separate.</dd><dt>Next step</dt><dd>Check the dates and draft the reply.</dd></dl>
@@ -189,18 +189,18 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
     <article><h2>Your own place to keep it.</h2><p>Run Handoff on your Cloudflare account. You choose who joins your team.</p></article>
   </section>
   <section id="use-cases" class="section" aria-labelledby="cases-title">
-    <div class="section-head"><div><p class="eyebrow">Built for the way you work</p><h2 id="cases-title">A better place to pick up.</h2></div><p>For your next assistant, your partner, or the people building alongside you.</p></div>
+    <div class="section-head"><div><p class="eyebrow">Use cases</p><h2 id="cases-title">A better place to pick up.</h2></div><p>For your next assistant, your partner, or the people building alongside you.</p></div>
     <div class="cases">${USE_CASES.map(renderCase).join("\n")}</div>
-    <p class="examples-note">These are example workflows. Available features depend on the assistant you connect. ${examplesLink}</p>
+    <p class="examples-note">${examplesLink}</p>
   </section>
   <section class="watch" id="walkthrough" aria-labelledby="watch-title">
     <div class="watch-copy"><p class="eyebrow">The idea in 38 seconds</p><h2 id="watch-title">See the work change hands.</h2><p>Prepare the context, send the brief and files, then continue in another assistant.</p></div>
     <figure class="video-frame"><video controls playsinline preload="metadata" src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
       Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
-      </video><figcaption><span>HANDOFF / WALKTHROUGH</span><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
+      </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
   </section>
-  <section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">Small team. Clear boundaries.</p><h2 id="ownership-title">Share the work you choose.</h2></div>
-    <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>A useful lifetime</dt><dd>Handoffs expire after ${PRIVATE_DEFAULT_EXPIRY_HOURS / 24} days by default on your own install${cfg.mode === "control" ? `, ${cfg.defaultExpiryHours} hours on the playground` : ""}. You can revoke a handoff before then.</dd></div></dl>
+  <section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What gets shared</p><h2 id="ownership-title">Share the work you choose.</h2></div>
+    <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>Expiry</dt><dd>Handoffs expire after ${PRIVATE_DEFAULT_EXPIRY_HOURS / 24} days by default on your own install${cfg.mode === "control" ? `, ${cfg.defaultExpiryHours} hours on the playground` : ""}. You can revoke a handoff before then.</dd></div></dl>
   </section>
   ${closing}
 </main>${pageFooter({ active, mode: cfg.mode })}</body></html>`;
