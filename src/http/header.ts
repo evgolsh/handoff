@@ -68,7 +68,9 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
       ${active ? `<a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>` : ""}
     </nav></header>`;
   }
-  const actions = active
+  const actions = active && opts.mode === "control"
+    ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect</a><a class="site-button primary" href="/join">Create a team <span aria-hidden="true">↗</span></a>`
+    : active
     ? `<a class="site-button nav-secondary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span></a>
       <a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>`
     : `<a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>`;
@@ -76,14 +78,15 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
   <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff home">${BRAND_ICON}<span>Handoff</span></a>
     <nav class="page-nav" aria-label="Handoff">
       <a class="nav-link nav-secondary" href="/#use-cases">Use cases</a>
-      <a class="nav-link nav-secondary" href="/console">Console</a>
+      <a class="nav-link nav-secondary" href="/console">Team console</a>
       <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
       ${actions}
     </nav></header>`;
 }
 
-export function pageFooter(opts: { active?: boolean } = {}): string {
+export function pageFooter(opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
-  return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
-    <nav aria-label="Footer"><a href="/">Home</a><a href="/#use-cases">Use cases</a>${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">Console</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
+  const playground = opts.mode === "control" && active;
+  return `<footer class="site-footer site-width"><p>Handoff · ${playground ? "Try the shared playground. Self-host for private work." : "Your context. Your files. Your Cloudflare account."}</p>
+    <nav aria-label="Footer"><a href="/">Home</a><a href="/#use-cases">Use cases</a>${playground ? '<a href="/join">Create a team</a>' : ""}${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">${playground ? "Team console" : "Console"}</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
 }

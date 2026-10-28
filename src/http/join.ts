@@ -3,7 +3,7 @@ import { hashAccessCode, isValidHandle, newAccessCode, normalizeHandle } from ".
 import { nowIso, sha256Hex } from "../domain/ids";
 import { isValidTenant, qualify } from "../domain/tenant";
 import { CONSOLE_HEADERS, document, esc, type Html } from "../console/html";
-import { loginAllowed } from "../console/session";
+import { loginAllowed, startSession } from "../console/session";
 import { recordEvent } from "../store/events";
 import { BRAND_ICON } from "./style";
 
@@ -27,14 +27,14 @@ export function joinPage(cfg: Config, opts: { error?: string; team?: string; han
     <div class="small muted">3 to 32 lower-case letters, digits or hyphens. Your teammates type it when they sign in.</div>
     <div><label class="lbl" for="handle">your handle</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tim" value="${esc(opts.handle ?? "")}"></div>
     <div><button type="submit" class="btn primary">Create the team</button></div>
-    <div class="small muted">You become the team's admin and get an access code on the next page, shown once.</div>
+    <div class="small muted">You become the team's admin and get an access code on the next page, shown once. Creating a team switches this browser to its console.</div>
   </form>
   <div class="small muted">Already have a team? Sign in to its <a class="u" href="/console/login">console</a>, or <a class="u" href="/connect">connect an assistant</a>.</div>
 </div>`,
   );
 }
 
-export function joinedPage(team: string, handle: string, code: string): Html {
+export function joinedPage(team: string, handle: string, code: string, signedIn: boolean): Html {
   return document(
     "Team created",
     `<div class="login">
@@ -43,7 +43,9 @@ export function joinedPage(team: string, handle: string, code: string): Html {
     <div class="t">Team ${esc(team)} is ready</div>
     <div class="small">Your sign-in, for every assistant and for the console. The code is shown once; keep it somewhere safe.</div>
     <dl class="kv"><dt>team</dt><dd class="mono">${esc(team)}</dd><dt>handle</dt><dd class="mono">${esc(handle)}</dd><dt>access code</dt><dd class="mono">${esc(code)}</dd></dl>
-    <div class="small">Next: <a class="u" href="/connect">connect an assistant</a> (it asks for the team, handle and code), or open the <a class="u" href="/console/login">console</a> to add teammates.</div>
+    <div class="small">${signedIn ? `You are signed in as ${esc(handle)}, admin of ${esc(team)}.` : "Your team was created. Save the code above, then sign in to open its console."}</div>
+    <div><a class="btn primary" href="/console/login?team=${encodeURIComponent(team)}">Open your team console</a></div>
+    <div class="small">Or <a class="u" href="/connect">connect an assistant</a> with your team, handle and code.</div>
   </div>
 </div>`,
   );
@@ -52,7 +54,7 @@ export function joinedPage(team: string, handle: string, code: string): Html {
 export const joinHeaders = (): Record<string, string> => ({ ...CONSOLE_HEADERS });
 
 /** Handles the sign-up form. Returns the page to show and its status. */
-export async function handleJoin(db: D1Database, cfg: Config, form: Record<string, string>, ip: string | undefined): Promise<{ status: number; body: Html }> {
+export async function handleJoin(db: D1Database, cfg: Config, form: Record<string, string>, ip: string | undefined): Promise<{ status: number; body: Html; cookie?: string }> {
   const team = normalizeHandle(form.team ?? "");
   const handle = normalizeHandle(form.handle ?? "");
   const again = (error: string, status: number) => ({ status, body: joinPage(cfg, { error, team, handle }) });
@@ -78,5 +80,12 @@ export async function handleJoin(db: D1Database, cfg: Config, form: Record<strin
     return again(`The team name ${team} is taken. Choose another, or ask that team's admin to add you.`, 409);
   }
   await recordEvent(db, { kind: "console", name: "join", subject: identity, outcome: "ok" });
-  return { status: 200, body: joinedPage(team, handle, code) };
+  // The team is already saved. A session failure must not hide its one-time access code.
+  let cookie: string | null = null;
+  try {
+    cookie = await startSession(db, identity);
+  } catch {
+    // The team-specific login link also works when the browser still has an older session.
+  }
+  return { status: 200, body: joinedPage(team, handle, code, cookie !== null), ...(cookie ? { cookie } : {}) };
 }

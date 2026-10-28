@@ -118,7 +118,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
     }
     const body = await readFormOrJson(c.req.raw);
     const r = await handleJoin(c.env.DB, c.get("cfg"), body, c.req.header("cf-connecting-ip"));
-    return new Response(r.body, { status: r.status, headers: joinHeaders() });
+    return new Response(r.body, { status: r.status, headers: { ...joinHeaders(), ...(r.cookie ? { "set-cookie": r.cookie } : {}) } });
   });
   app.get("/stats.json", async (c) => (control(c) ? c.json(await publicStats(c.env.DB), 200, { "cache-control": "public, max-age=300" }) : c.notFound()));
   app.get("/stats", async (c) => {
