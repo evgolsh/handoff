@@ -3,7 +3,7 @@
   "mcpServers": {
     "handoff": {
       "type": "streamable-http",
-      "url": "https://handoff.evgolsh.workers.dev/mcp"
+      "url": "https://handoff.infraworks.net/mcp"
     }
   }
 }

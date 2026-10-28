@@ -2,7 +2,7 @@
 
 Plan in one AI. Build in another. **Tell something — with original files attached — to a teammate's or family member's agent.**
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/evgolsh/handoff)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://handoff.infraworks.net/deploy)
 
 Three ways in. **The button** needs a Cloudflare account and a GitHub or GitLab account: it copies this repository
 into yours, creates the D1 database and R2 bucket, asks for one secret, `HANDOFF_SETUP_CODE` (a code you choose,
@@ -19,7 +19,7 @@ brief is stored verbatim. Attachments are stored as original bytes with a sha256
 
 One deployment profile (Cloudflare Workers, D1, R2). The Worker is also its own OAuth 2.1 server: members
 sign in with a handle and an access code that the operator issues; there is no outside identity provider.
-Five MCP tools, an operators' console at `/console`, and plugin/extension manifests for OpenAI Codex, Claude Code, Cursor, Gemini CLI, and Hermes Agent. Deployed at `https://handoff.evgolsh.workers.dev`;
+Five MCP tools, an operators' console at `/console`, and plugin/extension manifests for OpenAI Codex, Claude Code, Cursor, Gemini CLI, and Hermes Agent. The project's own deployment, the control center, is `https://handoff.infraworks.net`;
 the home page at `/` introduces the use cases, and `/connect` has the setup steps for each assistant.
 `/use-cases` remains an alias for the home page. Which assistants are tested, and how far, is on `/connect`.
 

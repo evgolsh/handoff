@@ -4,7 +4,7 @@
   "description": "Tell something to a teammate's agent. Plan in one AI, build in another — sends a prepared brief with original attachments across assistants and computers.",
   "mcpServers": {
     "handoff": {
-      "httpUrl": "https://handoff.evgolsh.workers.dev/mcp"
+      "httpUrl": "https://handoff.infraworks.net/mcp"
     }
   }
 }
