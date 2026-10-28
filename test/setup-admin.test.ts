@@ -40,7 +40,8 @@ describe("first admin at /console/setup (servers deployed without a terminal)", 
   it("without a setup code, explains how to set one and accepts nothing", async () => {
     for (const code of [undefined, "", "too-short"]) {
       const page = await (await fetchWith(code, "/console/setup")).text();
-      expect(page).toContain("no setup code is set");
+      // A short secret (the Deploy button cannot check its length) is named as such, so the fix is clear.
+      expect(page).toContain(code === "too-short" ? "shorter than 12 characters" : "no setup code is set");
       expect(page).toContain("HANDOFF_SETUP_CODE");
       expect(page).not.toContain("<form");
       const res = await submit({ setup_code: code ?? "", handle: "owner" }, { setupCode: code });

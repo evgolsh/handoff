@@ -75,8 +75,8 @@ Once a day, the hourly cron asks the project's hosted instance for the latest ve
 shows the answer. The request carries a random id made once for this deployment, the version, and two size buckets
 (members: 0, 1, 2-5, 6+; packets created in the last 30 days: 0, 1-9, 10-49, 50+). No handles, titles, file names,
 addresses, or counts beyond those buckets; the receiving end keeps one row per id for 90 days. It is how the
-project counts deployments in use. To turn it off, set `HANDOFF_UPDATE_CHECK` to `off` in `wrangler.jsonc`; the
-Ops page then says "update check off". `src/update-check.ts` is the whole of it, both ends.
+project counts deployments in use. To turn it off, set the variable `HANDOFF_UPDATE_CHECK` to `off` (under `vars` in `wrangler.jsonc`, or in the
+dashboard); the Ops page then says "update check off". `src/update-check.ts` is the whole of it, both ends.
 
 ## Docs
 

@@ -59,9 +59,13 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
 
   // First admin, for a server deployed without a terminal (the Deploy to Cloudflare button). Open only while no
   // member is an admin, and only with the HANDOFF_SETUP_CODE secret the deployer chose.
+  const tooShort = (env: Env) => {
+    const n = env.HANDOFF_SETUP_CODE?.trim().length ?? 0;
+    return n > 0 && n < SETUP_CODE_MIN;
+  };
   app.get("/console/setup", async (c) => {
     if (await hasAdmin(c.env.DB)) return redirect("/console/login");
-    return html(setupPage(setupCodeOf(c.env) !== null));
+    return html(setupPage(setupCodeOf(c.env) !== null, undefined, { tooShort: tooShort(c.env) }));
   });
 
   app.post("/console/setup", async (c) => {
@@ -71,7 +75,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     }
     if (await hasAdmin(db)) return redirect("/console/login");
     const secret = setupCodeOf(c.env);
-    if (!secret) return html(setupPage(false), 403);
+    if (!secret) return html(setupPage(false, undefined, { tooShort: tooShort(c.env) }), 403);
     if (!(await loginAllowed(db, c.req.header("cf-connecting-ip")))) {
       return html(setupPage(true, "Too many attempts. Try again in 10 minutes."), 429, { "retry-after": "600" });
     }

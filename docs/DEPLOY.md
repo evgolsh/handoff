@@ -39,9 +39,12 @@ npx wrangler r2 bucket create handoff-attachments
 npm run deploy                            # migrations, then the Worker
 ```
 
-`PUBLIC_URL` is empty in `wrangler.jsonc`: the Worker uses the origin each request came to (the workers.dev
-address or a custom domain), so a copy works without editing. Set it only to pin one origin. The MCP endpoint
-is that origin + `/mcp`. `HANDOFF_ENV` stays `production`; dev tokens also need a request to localhost.
+`PUBLIC_URL` is not set: the Worker uses the origin each request came to (the workers.dev address, or a custom
+domain), and that origin is the OAuth issuer. `wrangler.jsonc` has no `vars` at all, so the Deploy to Cloudflare
+button asks for nothing but the `HANDOFF_SETUP_CODE` secret. The optional variables (set under `vars`, or in the
+dashboard): `PUBLIC_URL` to pin one origin when the Worker has several (no trailing slash; changing it signs every
+assistant out), `HANDOFF_ENV=dev` for local development only, `MAX_ATTACHMENT_BYTES` (default 25 MiB),
+`IMPORT_HOST_ALLOWLIST` (section 4), and `HANDOFF_UPDATE_CHECK=off` (README, "Update check").
 
 ## 2. Sign-in and members
 
