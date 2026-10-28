@@ -39,6 +39,9 @@ export type Mode = "private" | "control";
 /** Where a private install's pages point for "what is Handoff". */
 export const CONTROL_CENTER_URL = "https://handoff.infraworks.net";
 
+/** How long a packet lives by default on a private install. The control center keeps them 24 hours. */
+export const PRIVATE_DEFAULT_EXPIRY_HOURS = 24 * 30;
+
 export interface Config {
   mode: Mode;
   /** Members one tenant may have on the control center; 0 = no cap (private installs). */
@@ -127,7 +130,7 @@ export function configFrom(env: Env, requestOrigin = ""): Config {
     maxUnsentFilesPerOwner: 50,
     cleanupBatch: 200,
     cleanupRounds: 5,
-    defaultExpiryHours: control ? 24 : 24 * 30,
+    defaultExpiryHours: control ? 24 : PRIVATE_DEFAULT_EXPIRY_HOURS,
     maxExpiryHours: control ? 24 * 7 : 24 * 90,
     uploadTicketTtlMs: 15 * 60_000,
     downloadTicketTtlMs: 10 * 60_000,

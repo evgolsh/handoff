@@ -1,4 +1,4 @@
-import type { Config } from "../env";
+import { PRIVATE_DEFAULT_EXPIRY_HOURS, type Config } from "../env";
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "./style";
 import { DEPLOY_PATH, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
 import { CLAUDE_ICON, CLOUDFLARE_ICON, GITHUB_ICON, OPENAI_ICON } from "./assistant-icons";
@@ -139,12 +139,12 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): stri
   const active = opts.active ?? true;
   const playground = cfg.mode === "control" && active;
   const heroActions = playground
-    ? `<a class="site-button primary" href="/join">Try the playground <span aria-hidden="true">↗</span></a><a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Self-host on Cloudflare</span> <span aria-hidden="true">↗</span></a>`
+    ? `<a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a><a class="site-button" href="/join">Try the playground <span aria-hidden="true">↗</span></a><a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>`
     : active
     ? `<a class="site-button primary" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a><a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a><a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>`
     : `<a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a><a class="site-button" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>View on GitHub</span> <span aria-hidden="true">↗</span></a><a class="text-link" href="#use-cases">Explore the use cases <span aria-hidden="true">↓</span></a>`;
   const heroNote = playground
-    ? `<p class="hero-note"><span aria-hidden="true"></span>Free shared playground · No Cloudflare account needed.<br>Already have a team? <a href="/connect">Connect your assistants ↗</a></p>`
+    ? `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · Already on the playground? <a href="/connect">Connect your assistants ↗</a></p>`
     : active
     ? `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · <a href="#use-cases">Explore the use cases ↓</a></p>`
     : `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
@@ -152,14 +152,14 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): stri
     ? `<a href="/connect">See setup instructions and tested connections ↗</a>`
     : `<a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy your own on Cloudflare ↗</a>`;
   const closing = playground
-    ? `<section class="closing" aria-label="Try Handoff"><div><h2>Try your first handoff.</h2><p>Create a team, connect your assistants, and send a test brief.</p></div><div class="closing-actions"><a class="site-button" href="/join">Create a team <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a></div></section>`
+    ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
     : active
     ? `<section class="closing" aria-label="Connect to Handoff"><div><h2>Keep the work moving.</h2><p>Plan in one AI. Build in another.</p></div><div class="closing-actions"><a class="site-button" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy your own</span> <span aria-hidden="true">↗</span></a></div></section>`
     : `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a></div></section>`;
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Handoff</title>
-<meta name="description" content="Pass a prepared brief and original files to your next AI assistant, a teammate, or your family. ${playground ? "Try the shared playground or self-host for private work." : "Private handoffs on your own Cloudflare account."}">
+<meta name="description" content="Pass a prepared brief and original files to your next AI assistant, a teammate, or your family. Private handoffs on your own Cloudflare account.">
 <link rel="canonical" href="${esc(cfg.publicUrl)}/">
 ${FAVICON_LINK}${FONT_PRELOAD}
 <style>${BASE_CSS}${PAGE_HEADER_CSS}${PAGE_CSS}</style></head><body>
@@ -186,7 +186,7 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
   <section class="principles" aria-label="What travels with your work">
     <article><h2>The context, intact.</h2><p>Your prepared brief keeps the decisions, constraints, and next step together.</p></article>
     <article><h2>The original files.</h2><p>PDFs, images, and text travel with the brief, with checksums to verify the bytes.</p></article>
-    <article><h2>${playground ? "A team of your own." : "Your own place to keep it."}</h2><p>${playground ? "Try Handoff with your team on the shared playground. Self-host on Cloudflare for private files." : "Run Handoff on your Cloudflare account. You choose who joins your team."}</p></article>
+    <article><h2>Your own place to keep it.</h2><p>Run Handoff on your Cloudflare account. You choose who joins your team.</p></article>
   </section>
   <section id="use-cases" class="section" aria-labelledby="cases-title">
     <div class="section-head"><div><p class="eyebrow">Built for the way you work</p><h2 id="cases-title">A better place to pick up.</h2></div><p>For your next assistant, your partner, or the people building alongside you.</p></div>
@@ -200,7 +200,7 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
       </video><figcaption><span>HANDOFF / WALKTHROUGH</span><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
   </section>
   <section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">Small team. Clear boundaries.</p><h2 id="ownership-title">Share the work you choose.</h2></div>
-    <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>A useful lifetime</dt><dd>Handoffs expire after ${cfg.defaultExpiryHours} ${cfg.defaultExpiryHours === 1 ? "hour" : "hours"} by default. You can revoke a handoff before then.</dd></div></dl>
+    <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>A useful lifetime</dt><dd>Handoffs expire after ${PRIVATE_DEFAULT_EXPIRY_HOURS / 24} days by default on your own install${cfg.mode === "control" ? `, ${cfg.defaultExpiryHours} hours on the playground` : ""}. You can revoke a handoff before then.</dd></div></dl>
   </section>
   ${closing}
 </main>${pageFooter({ active, mode: cfg.mode })}</body></html>`;
