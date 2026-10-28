@@ -22,22 +22,13 @@
   // The deployed version id and time, shown on the console's Ops page.
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Cleanup, hourly. Each run is bounded (src/env.ts cleanupBatch, cleanupRounds) and logs backlog: true if it stopped early.
-  "triggers": { "crons": ["17 * * * *"] },
-  "vars": {
-    // Public origin of this Worker, without a trailing slash. Empty: the origin each request came to (the
-    // workers.dev address, or a custom domain). The MCP endpoint is that origin + "/mcp", and the Worker is its own
-    // OAuth 2.1 issuer there (src/auth/builtin.ts). Set it only to pin one origin when the Worker has several.
-    "PUBLIC_URL": "",
-    // "production" or "dev". Only "dev" honours DEV_TOKENS (local wrangler dev, never deployed).
-    "HANDOFF_ENV": "production",
-    // Hard bound on one attachment, in bytes (25 MiB).
-    "MAX_ATTACHMENT_BYTES": "26214400",
-    // Comma-separated hostnames allowed for server-side imports of host file URLs (OpenAI `files`); "*.x.com"
-    // matches subdomains. Empty = imports off. The refusal names the host, so the first ChatGPT test shows what to add.
-    "IMPORT_HOST_ALLOWLIST": "",
-    // Once a day the hourly cron asks the project's hosted instance for the latest version and the console's Ops
-    // page shows the answer. The request carries a random id made once for this deployment, the version and two
-    // size buckets (members; packets in 30 days), nothing else. "off" turns it off. README: "Update check".
-    "HANDOFF_UPDATE_CHECK": ""
-  }
+  "triggers": { "crons": ["17 * * * *"] }
+  // No "vars": every setting has a default in the code, so the Deploy to Cloudflare button asks for nothing but
+  // the HANDOFF_SETUP_CODE secret (a variable listed here, even empty, becomes a required field there).
+  // Optional variables, set under "vars" or in the dashboard, documented in docs/DEPLOY.md:
+  //   PUBLIC_URL             public origin without a trailing slash; empty = the origin each request came to.
+  //   HANDOFF_ENV            "dev" honours DEV_TOKENS for local wrangler dev; anything else is production.
+  //   MAX_ATTACHMENT_BYTES   bound on one file, default 26214400 (25 MiB).
+  //   IMPORT_HOST_ALLOWLIST  hosts for server-side imports of host file URLs (ChatGPT files); empty = off.
+  //   HANDOFF_UPDATE_CHECK   "off" turns off the daily update check (README, "Update check").
 }

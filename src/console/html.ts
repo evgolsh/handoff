@@ -254,7 +254,10 @@ export const SETUP_CODE_MIN = 12;
  * The first-admin page. `ready`: HANDOFF_SETUP_CODE is set, so the form is shown; otherwise the page says how
  * to set it, or how to make an admin from a terminal.
  */
-export function setupPage(ready: boolean, error?: string): Html {
+export function setupPage(ready: boolean, error?: string, opts: { tooShort?: boolean } = {}): Html {
+  const why = opts.tooShort
+    ? `the <span class="mono">HANDOFF_SETUP_CODE</span> secret is set but shorter than ${SETUP_CODE_MIN} characters, so it is not accepted`
+    : "no setup code is set";
   const body = ready
     ? `<form method="post" action="/console/setup" class="panel" autocomplete="off">
     <div class="t">Set up this server</div>
@@ -266,8 +269,8 @@ export function setupPage(ready: boolean, error?: string): Html {
   </form>`
     : `<div class="panel">
     <div class="t">Set up this server</div>
-    <div class="small">This server has no admin yet, and no setup code is set. Do one of these:</div>
-    <div class="small"><strong>In the Cloudflare dashboard:</strong> open this Worker, then Settings, then Variables and Secrets. Add a secret named <span class="mono">HANDOFF_SETUP_CODE</span>, ${SETUP_CODE_MIN} characters or more, deploy, and reload this page.</div>
+    <div class="small">This server has no admin yet, and ${why}. Do one of these:</div>
+    <div class="small"><strong>In the Cloudflare dashboard:</strong> open this Worker, then Settings, then Variables and Secrets. ${opts.tooShort ? "Replace" : "Add"} the secret named <span class="mono">HANDOFF_SETUP_CODE</span> with one of ${SETUP_CODE_MIN} characters or more, deploy, and reload this page.</div>
     <div class="small"><strong>From a copy of the repository:</strong> <span class="mono">npm run member:add -- &lt;you&gt;</span>, then <span class="mono">npm run admin -- &lt;you&gt;</span>, and sign in at <a class="u" href="/console/login">/console/login</a>.</div>
   </div>`;
   return document(

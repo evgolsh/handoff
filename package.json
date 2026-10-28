@@ -31,18 +31,6 @@
       },
       "HANDOFF_SETUP_CODE": {
         "description": "A code you choose, 12 characters or more (for example from `openssl rand -base64 18`). After deploying, open `/console/setup` on your Worker and enter it to become the admin. It works only while no admin exists."
-      },
-      "PUBLIC_URL": {
-        "description": "Leave empty: the Worker uses the address it is reached at. Set it (as `https://handoff.example.com`, no trailing slash) only to pin one address when the Worker has several."
-      },
-      "HANDOFF_ENV": {
-        "description": "Leave as `production`."
-      },
-      "MAX_ATTACHMENT_BYTES": {
-        "description": "Largest file one packet may carry, in bytes. Default 25 MiB."
-      },
-      "IMPORT_HOST_ALLOWLIST": {
-        "description": "Hosts ChatGPT file links may be fetched from, comma-separated (`*.example.com` matches subdomains). Empty turns imports off; the refusal names the host to add."
       }
     }
   },
