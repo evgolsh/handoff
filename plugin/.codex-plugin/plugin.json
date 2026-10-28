@@ -1,0 +1,6 @@
+{
+  "name": "handoff",
+  "version": "0.1.2",
+  "description": "Plan in one AI. Build in another. Sends a prepared brief with original attachments to your other assistant.",
+  "skills": "./skills/"
+}

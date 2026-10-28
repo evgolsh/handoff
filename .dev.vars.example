@@ -1,0 +1,7 @@
+# Secrets of a deployed Worker. The Deploy to Cloudflare button asks for each one listed here.
+# (Local development uses .dev.vars.local.example instead.)
+#
+# HANDOFF_SETUP_CODE: a code you choose, 12 characters or more (for example: openssl rand -base64 18).
+# After deploying, open /console/setup on your Worker and enter it to become the console's admin.
+# It works only while no admin exists. Leave it empty if you will make the admin from a terminal.
+HANDOFF_SETUP_CODE=

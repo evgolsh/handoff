@@ -1,0 +1,6 @@
+# Local development only. Copy to .dev.vars (ignored by git): cp .dev.vars.local.example .dev.vars
+# Never deploy these values. Dev tokens work only for requests to localhost, and only with HANDOFF_ENV=dev.
+HANDOFF_ENV=dev
+PUBLIC_URL=http://localhost:8787
+# Dev tokens: bearer -> subject.
+DEV_TOKENS={"dev-alice":"user_alice","dev-bob":"user_bob"}
