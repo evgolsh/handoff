@@ -90,7 +90,7 @@ server, `curl PUBLIC_URL/.well-known/oauth-authorization-server` lists the endpo
 ## 3. Hosts and the plugin package
 
 `plugin/mcp.json` names this deployment's endpoint. For another deployment, replace
-`https://handoff.evgolsh.workers.dev/mcp` there with `PUBLIC_URL/mcp`.
+`https://handoff.infraworks.net/mcp` there with `PUBLIC_URL/mcp`.
 
 The Connect page (`PUBLIC_URL/connect`) has the steps for each host and says which were tested.
 Codex desktop: install the `plugin/` folder as a local plugin (`plugin/README.md` has the tested
