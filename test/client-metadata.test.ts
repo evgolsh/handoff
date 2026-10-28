@@ -17,6 +17,21 @@ const claudeCodeDoc = (clientId: string) => ({
   token_endpoint_auth_method: "none",
 });
 
+// ChatGPT's document, as published at https://chatgpt.com/oauth/client.json (fetched 2026-10-28).
+const chatgptDoc = (clientId: string) => ({
+  client_id: clientId,
+  client_uri: "https://chatgpt.com/",
+  redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"],
+  token_endpoint_auth_method: "private_key_jwt",
+  token_endpoint_auth_methods_supported: ["none", "private_key_jwt"],
+  grant_types: ["authorization_code", "refresh_token"],
+  response_types: ["code"],
+  client_name: "ChatGPT",
+  logo_uri: "https://persistent.oaistatic.com/sonic/misc/openai-logo.png",
+  token_endpoint_auth_signing_alg: "RS256",
+  jwks_uri: "https://chatgpt.com/oauth/jwks.json",
+});
+
 // The Worker fetches documents with the global fetch; tests and the Worker share one isolate.
 const docs = new Map<string, () => Response>();
 const hits = new Map<string, number>();
@@ -123,6 +138,62 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
     expect(JSON.parse(row!.redirect_uris)).toEqual(["http://localhost/callback", "http://127.0.0.1/callback"]);
   });
 
+  it("signs ChatGPT in as a public client: it prefers private_key_jwt but also lists none", async () => {
+    const clientId = newClientId();
+    serve(clientId, chatgptDoc(clientId));
+    const handle = `gpt-${uid()}`;
+    await upsertMember(env.DB, handle, "gpt-passcode-2026");
+    const redirectUri = "https://chatgpt.com/connector_platform_oauth_redirect";
+
+    const html = await authorizePage(clientId, redirectUri);
+    expect(html).toContain("<strong>ChatGPT</strong>");
+    expect(html).toContain("<code>chatgpt.com</code>");
+    expect(html).toContain('<form method="post" action="/authorize">');
+
+    const signIn = await SELF.fetch(`${ORIGIN}/authorize`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        code_challenge: await challenge(),
+        code_challenge_method: "S256",
+        state: "st",
+        scope: "handoff offline_access",
+        handle,
+        access_code: "gpt-passcode-2026",
+      }),
+    });
+    expect(signIn.status).toBe(302);
+    const code = new URL(signIn.headers.get("location")!).searchParams.get("code")!;
+
+    // A client assertion, if ChatGPT sends one, is not what grants the token: PKCE is.
+    const assertion = { client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", client_assertion: "eyJhbGciOiJSUzI1NiJ9.e30.sig" };
+    const wrong = await SELF.fetch(`${ORIGIN}/oauth/token`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "authorization_code", code, code_verifier: "not-the-verifier-0123456789-0123456789-0123", client_id: clientId, redirect_uri: redirectUri, ...assertion }),
+    });
+    expect(wrong.status).toBe(400);
+
+    const signIn2 = await SELF.fetch(`${ORIGIN}/authorize`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: "code", code_challenge: await challenge(), code_challenge_method: "S256", state: "st", scope: "handoff offline_access", handle, access_code: "gpt-passcode-2026" }),
+    });
+    const code2 = new URL(signIn2.headers.get("location")!).searchParams.get("code")!;
+    const tokenRes = await SELF.fetch(`${ORIGIN}/oauth/token`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "authorization_code", code: code2, code_verifier: verifier, client_id: clientId, redirect_uri: redirectUri, ...assertion }),
+    });
+    expect(tokenRes.status).toBe(200);
+    expect(decodeJwt(((await tokenRes.json()) as { access_token: string }).access_token)).toMatchObject({ sub: handle, client_id: clientId });
+  });
+
   it("refuses redirect addresses the document does not list", async () => {
     const clientId = newClientId();
     serve(clientId, claudeCodeDoc(clientId));
@@ -143,6 +214,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
     const cases: Array<[string, (id: string) => void]> = [
       ["client_id_mismatch", (id) => serve(id, claudeCodeDoc("https://other.example.com/doc"))],
       ["not_public_client", (id) => serve(id, { ...claudeCodeDoc(id), token_endpoint_auth_method: "client_secret_basic" })],
+      ["not_public_client", (id) => serve(id, { ...chatgptDoc(id), token_endpoint_auth_methods_supported: ["private_key_jwt"] })],
       ["bad_redirect_uris", (id) => serve(id, { ...claudeCodeDoc(id), redirect_uris: ["http://evil.example.net/cb"] })],
       ["bad_redirect_uris", (id) => serve(id, { ...claudeCodeDoc(id), redirect_uris: [] })],
       ["not_json", (id) => serve(id, "<html>hello</html>")],

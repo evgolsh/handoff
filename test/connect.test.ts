@@ -30,13 +30,14 @@ describe("connect page", () => {
     for (const host of ["Claude Code", "Hermes", "Claude", "Codex", "ChatGPT"]) expect(html).toContain(`<span class="tab-name">${host}</span>`);
     // Each host says how far it was tested: the steps end to end, a part of them, or only the host's docs.
     const tags = [...html.matchAll(/<span class="tab-state">([^<]+)<\/span>/g)].map((m) => m[1]);
-    expect(tags).toEqual(["Tested", "Tested", "Sign-in tested", "Plugin tested", "From docs"]);
+    expect(tags).toEqual(["Tested", "Tested", "Send tested", "Plugin tested", "From docs"]);
     // Every tab has the assistant's mark: the Claude logo, the OpenAI logo, or Hermes's (a CSS mask image).
     expect(html.match(/<span class="tab-logo [a-z-]+" aria-hidden="true">/g)?.length).toBe(5);
     expect(html).toContain('<span class="tab-logo hermes" aria-hidden="true"></span>');
     expect(html).toMatch(/\.tab-logo\.hermes \{[^}]*mask:url\("data:image\/png;base64,/);
-    expect(html).toContain("They connected the Claude desktop app and signed in; sending and reading are not yet tested with Handoff.");
-    expect(html.match(/not yet tested with Handoff/g)?.length).toBe(3);
+    expect(html).toContain("Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below).");
+    expect(html).toContain(`To attach files, add ${new URL(ORIGIN).host} to the allowed domains`);
+    expect(html.match(/not yet tested with Handoff/g)?.length).toBe(2);
     // Codex names the route that was tested; download links are said to be bearer links.
     expect(html).toContain("Tested with Handoff in the Codex app on macOS, installed as a local plugin");
     expect(html).toContain("<code>codex plugin marketplace add</code>");
