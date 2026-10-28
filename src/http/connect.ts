@@ -87,7 +87,7 @@ function hosts(url: string, control = false): Host[] {
         { text: "Keep the recommended sign-in settings and select **Add**." },
         { text: `Select **Connect**, sign in with ${signIn}, and approve access.` },
       ],
-      note: `To attach files, add ${host} to the allowed domains in Claude's Settings > Capabilities. Claude uploads files from its own sandbox, which reaches only allowed domains; without it, text handoffs work and uploads fail with 403. On a Team or Enterprise plan, an owner first adds the connector in Organization settings > Connectors. Free plans allow one custom connector.`,
+      note: `To attach files, add ${host} to the allowed domains in Claude's Settings > Capabilities. Without it, uploads fail with a 403 error. On a Team or Enterprise plan, an owner first adds the connector in Organization settings > Connectors. Free plans allow one custom connector.`,
       source: { label: "Claude help: custom connectors", url: "https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" },
     },
     {
@@ -102,7 +102,6 @@ function hosts(url: string, control = false): Host[] {
         { text: `Sign in with ${signIn} and approve access:`, command: "codex mcp login handoff" },
         { text: "Start a new Codex chat, so it loads the Handoff tools." },
       ],
-      note: "Also tested in the Codex app: the Handoff plugin package installed as a local plugin (`codex plugin marketplace add`, then `codex plugin add`).",
       source: { label: "Codex MCP docs", url: "https://learn.chatgpt.com/docs/extend/mcp" },
     },
     {
@@ -259,7 +258,6 @@ const PAGE_CSS = `
   .say-quote { margin:10px 0; font-size:24px; font-weight:500; letter-spacing:-.025em; }
   .say-text { max-width:58ch; font-size:14px; color:var(--muted); }
   .privacy { padding-bottom:72px; }
-  .privacy-intro { max-width:32ch; margin-top:14px; font-size:14px; color:var(--muted); }
   .kv { display:grid; grid-template-columns:96px minmax(0,1fr); margin:0; border-top:1px solid var(--line); }
   .kv dt,.kv dd { margin:0; padding:14px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .kv dd { padding-left:24px; }
@@ -296,7 +294,6 @@ const PAGE_CSS = `
     .legend .dot { margin-top:6px; }
     .section-head { flex-direction:column; align-items:flex-start; gap:10px; }
     .say,.gate-cards { grid-template-columns:1fr; gap:16px; }
-    .privacy-intro { max-width:55ch; }
   }
   @media(max-width:600px) {
     .server-card { padding:14px; }
@@ -357,7 +354,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   </section>`
     : `<section class="connect-hero" aria-labelledby="connect-title">
     <div>
-      <p class="eyebrow">One inbox. All your assistants.</p>
+      <p class="eyebrow">Setup</p>
       <h1 id="connect-title">Connect once.<br><span>Keep going.</span></h1>
       <p class="lead">Add Handoff to the assistants you use and sign in with the same handle in each. Your next chat can pick up the brief and files you sent.</p>
       <a class="guide-link" href="#assistants">Find your setup guide <span aria-hidden="true">↓</span></a>
@@ -377,7 +374,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   </section>
 
   <section class="section setup" id="assistants" aria-labelledby="assistant-title">
-    <div class="section-head"><div><p class="eyebrow">Step by step</p><h2 id="assistant-title">Choose your assistant</h2></div><p>Setup instructions for each assistant.</p></div>
+    <div class="section-head"><div><p class="eyebrow">Step by step</p><h2 id="assistant-title">Choose your assistant</h2></div></div>
     <div class="split">
       <div class="rail">
         <div class="tabs" role="tablist" aria-label="Assistant" aria-orientation="vertical" hidden>${tabs}</div>
@@ -395,7 +392,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   </section>
 
   <section class="section next" aria-labelledby="next-title">
-    <div class="section-head"><div><p class="eyebrow">Your first handoff</p><h2 id="next-title">Two prompts. One continuous task.</h2></div><p>Plan in one AI. Build in another.</p></div>
+    <div class="section-head"><div><p class="eyebrow">Your first handoff</p><h2 id="next-title">Send in one chat, continue in another.</h2></div></div>
     <ol class="say">
       <li class="panel"><p class="eyebrow">01 · Send from any chat</p><p class="say-quote">“Hand this off to tom”</p><p class="say-text">Use your teammate’s handle, say “to the team” for everyone, or leave the recipient out to send to yourself. Your assistant prepares the brief, attaches the files you name, and gives you a packet ID.</p></li>
       <li class="panel"><p class="eyebrow">02 · Pick up in another</p><p class="say-quote">“Continue my handoff”</p><p class="say-text">The recipient asks their assistant to open the inbox, read the brief and original files, and take the next step. <a href="/#use-cases">Explore the use cases <span aria-hidden="true">↗</span></a></p></li>
@@ -403,7 +400,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   </section>
 
   <section class="section privacy split" aria-labelledby="privacy-title">
-    <div><p class="eyebrow">Know what you share</p><h2 id="privacy-title">Your context, with clear limits.</h2><p class="privacy-intro">Handoff keeps the brief and attachments you choose to send.</p></div>
+    <div><p class="eyebrow">Privacy</p><h2 id="privacy-title">What Handoff keeps</h2></div>
     <dl class="kv">
       <dt>Content</dt><dd>Only what you send: the brief and the files you attach.</dd>
       <dt>Files</dt><dd>PDF, PNG, JPEG, text and Markdown, up to ${cfg.maxAttachmentBytes / 1048576} MiB each; ${cfg.maxAttachmentsPerPacket} files per handoff.</dd>

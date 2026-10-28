@@ -44,9 +44,10 @@ describe("connect page", () => {
     expect(html).not.toContain("not yet tested");
     // Codex names the routes that were tested; download links are said to be bearer links.
     expect(html).toContain("Tested with Handoff in the Codex app on macOS and Windows: sign-in, send, read and files.");
-    expect(html).toContain("<code>codex plugin marketplace add</code>");
     expect(html).toContain("works for anyone who has it, for 10 minutes");
-    expect(html).toContain("Plan in one AI. Build in another.");
+    for (const filler of ["One inbox. All your assistants.", "Setup instructions for each assistant.", "Plan in one AI. Build in another.", "with clear limits", "own sandbox", "Also tested in the Codex app"]) {
+      expect(html).not.toContain(filler);
+    }
   });
 
   it("allows only its own nonce script", async () => {
