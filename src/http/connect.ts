@@ -1,6 +1,6 @@
 import type { Config } from "../env";
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "./style";
-import { DEPLOY_URL, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
+import { DEPLOY_PATH, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
 import { CLAUDE_ICON, CLOUDFLARE_ICON, GITHUB_ICON, HERMES_MASK, OPENAI_ICON } from "./assistant-icons";
 
 /**
@@ -342,7 +342,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
         <h2>Deploy to Cloudflare</h2>
         <p>Run your own private Handoff server (Workers, D1, R2, and built-in OAuth 2.1) on your Cloudflare account.</p>
         <div class="gate-actions">
-          <a class="site-button" href="${DEPLOY_URL}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a>
+          <a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a>
           <a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>
         </div>
       </article>

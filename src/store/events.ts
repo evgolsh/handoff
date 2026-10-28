@@ -2,7 +2,7 @@ import { nowIso } from "../domain/ids";
 
 /** What the console shows about activity. Never content: no titles, briefs, file names, codes or tokens. */
 export interface HandoffEvent {
-  kind: "tool" | "initialize" | "auth" | "sign_in" | "token" | "client_metadata" | "console" | "cleanup";
+  kind: "tool" | "initialize" | "auth" | "sign_in" | "token" | "client_metadata" | "console" | "cleanup" | "update_check" | "visit";
   name?: string | null;
   subject?: string | null;
   client_id?: string | null;
@@ -93,6 +93,16 @@ export async function markClientUsed(db: D1Database, clientId: string): Promise<
   }
 }
 
+/** Removes update checks from instances not heard from in 90 days (src/update-check.ts). 0 before migration 0007. */
+async function pruneInstances(db: D1Database, now: Date): Promise<number> {
+  try {
+    const r = await db.prepare("DELETE FROM instances_seen WHERE last_seen < ?").bind(new Date(now.getTime() - 90 * 86_400_000).toISOString()).run();
+    return r.meta.changes ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export interface RecordsPruned {
   events: number;
   oauth_codes: number;
@@ -100,12 +110,15 @@ export interface RecordsPruned {
   unused_clients: number;
   revocations: number;
   console_sessions: number;
+  /** Update checks from instances not heard from in 90 days (the hosted instance only). */
+  instances: number;
 }
 
 /**
  * Removes records that no longer do anything: events older than 30 days, expired sign-in codes, refresh tokens
  * that expired or were revoked more than 7 days ago, client registrations never used in 7 days, revocations
- * older than any access token (9 hours), and ended console sessions and login limits.
+ * older than any access token (9 hours), ended console sessions and login limits, and (where the update
+ * check receiver is on) instances not heard from in 90 days.
  */
 export async function pruneRecords(db: D1Database, now: Date = new Date()): Promise<RecordsPruned> {
   const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
@@ -127,5 +140,6 @@ export async function pruneRecords(db: D1Database, now: Date = new Date()): Prom
     db.prepare("DELETE FROM admin_login_limits WHERE expires_at <= ?").bind(at),
   ]);
   const n = (i: number) => r[i]?.meta.changes ?? 0;
-  return { events: n(0), oauth_codes: n(1), refresh_tokens: n(2), unused_clients: n(3), revocations: n(4), console_sessions: n(5) + n(6) };
+  const instances = await pruneInstances(db, now);
+  return { events: n(0), oauth_codes: n(1), refresh_tokens: n(2), unused_clients: n(3), revocations: n(4), console_sessions: n(5) + n(6), instances };
 }

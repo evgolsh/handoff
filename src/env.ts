@@ -15,6 +15,12 @@ export interface Env {
   HANDOFF_SETUP_CODE?: string;
   MAX_ATTACHMENT_BYTES?: string;
   IMPORT_HOST_ALLOWLIST?: string;
+  /** "off" turns off the daily update check (src/update-check.ts). Anything else: on. */
+  HANDOFF_UPDATE_CHECK?: string;
+  /** Where the update check asks. Empty: the project's hosted instance. */
+  UPDATE_CHECK_URL?: string;
+  /** "1" only on the project's hosted instance: it records the checks it receives and answers with its version. */
+  UPDATE_CHECK_RECEIVER?: string;
   ASSETS?: Fetcher;
   /** The deployed version (wrangler.jsonc version_metadata), shown on the console's Ops page. */
   CF_VERSION_METADATA?: WorkerVersionMetadata;

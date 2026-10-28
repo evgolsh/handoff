@@ -3,6 +3,8 @@ import { CLOUDFLARE_ICON, GITHUB_ICON } from "./assistant-icons";
 
 export const GITHUB_URL = "https://github.com/evgolsh/handoff";
 export const DEPLOY_URL = "https://deploy.workers.cloudflare.com/?url=https://github.com/evgolsh/handoff";
+/** The pages link here: the Worker counts the click (an anonymous "visit" event) and redirects to DEPLOY_URL. */
+export const DEPLOY_PATH = "/deploy";
 
 /** Public pages share the console's fonts and palette, with a wider layout. */
 export const PAGE_HEADER_CSS = `
@@ -55,9 +57,9 @@ export const PAGE_HEADER_CSS = `
 export function pageHeader(current: "connect" | "use-cases" = "connect", opts: { active?: boolean } = {}): string {
   const active = opts.active ?? true;
   const actions = active
-    ? `<a class="site-button nav-secondary" href="${DEPLOY_URL}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span></a>
+    ? `<a class="site-button nav-secondary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span></a>
       <a class="site-button primary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Connect <span aria-hidden="true">↗</span></a>`
-    : `<a class="site-button primary" href="${DEPLOY_URL}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>`;
+    : `<a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>`;
   return `<a href="#main" class="skip-link">Skip to content</a>
   <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff home">${BRAND_ICON}<span>Handoff</span></a>
     <nav class="page-nav" aria-label="Handoff">
@@ -71,5 +73,5 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
 export function pageFooter(opts: { active?: boolean } = {}): string {
   const active = opts.active ?? true;
   return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
-    <nav aria-label="Footer"><a href="/">Home</a><a href="/#use-cases">Use cases</a>${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">Console</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_URL}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
+    <nav aria-label="Footer"><a href="/">Home</a><a href="/#use-cases">Use cases</a>${active ? '<a href="/connect">Connect</a>' : ""}<a href="/console">Console</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
 }

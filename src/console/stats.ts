@@ -1,4 +1,5 @@
 import type { Config, Env } from "../env";
+import { updateState, type UpdateState } from "../update-check";
 
 /**
  * What the console shows, read from D1. Activity comes from the `events` table (names, members, clients,
@@ -422,6 +423,7 @@ export interface OpsData {
   audit: EventRow[];
   signingKey: OverviewData["signingKey"];
   clients: Map<string, ClientInfo>;
+  update: UpdateState;
 }
 
 export async function ops(env: Env, cfg: Config, now = Date.now()): Promise<OpsData> {
@@ -454,6 +456,7 @@ export async function ops(env: Env, cfg: Config, now = Date.now()): Promise<OpsD
   return {
     now,
     version: env.CF_VERSION_METADATA ?? null,
+    update: await updateState(env),
     migrations,
     files: await all<{ state: string; n: number; b: number }>(db, "SELECT state, COUNT(*) AS n, COALESCE(SUM(size), 0) AS b FROM attachments GROUP BY state ORDER BY state"),
     counts,
