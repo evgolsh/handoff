@@ -4,7 +4,7 @@ import { recordEvent } from "../store/events";
 /**
  * Which assistants may ask a member to sign in, and where the sign-in may return.
  *
- * Two kinds of client:
+ * Any standard MCP client signs in without being listed here. Two kinds:
  * - Registered (RFC 7591): the assistant POSTs its redirect addresses to /oauth/register and gets a client_id.
  * - Metadata document (draft-ietf-oauth-client-id-metadata-document, used by MCP since 2025-11-25): the client_id
  *   is an https URL where the assistant publishes its name and redirect addresses. Claude Code signs in this way.
@@ -13,6 +13,17 @@ import { recordEvent } from "../store/events";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
+/** Schemes a browser runs, reads or handles itself. Never a place for a sign-in code. */
+const BROWSER_SCHEMES = new Set([
+  "javascript:", "data:", "vbscript:", "file:", "blob:", "about:", "filesystem:", "view-source:",
+  "ws:", "wss:", "ftp:", "mailto:", "tel:", "sms:", "intent:", "chrome:", "edge:",
+]);
+
+/**
+ * Where a sign-in may return: https, http on the same computer (loopback), or a desktop app's own scheme such as
+ * cursor:// (RFC 8252 §7.1). Another app could claim the same scheme, but the code is useless without the PKCE
+ * verifier, which this server requires.
+ */
 export function isAllowedRedirectUri(raw: string): boolean {
   let u: URL;
   try {
@@ -20,9 +31,10 @@ export function isAllowedRedirectUri(raw: string): boolean {
   } catch {
     return false;
   }
-  if (u.hash) return false;
+  if (u.hash || u.username || u.password) return false;
   if (u.protocol === "https:") return true;
-  return u.protocol === "http:" && LOOPBACK.has(u.hostname);
+  if (u.protocol === "http:") return LOOPBACK.has(u.hostname);
+  return !BROWSER_SCHEMES.has(u.protocol);
 }
 
 /**
@@ -109,8 +121,12 @@ async function readCapped(res: Response, max: number): Promise<string | null> {
 
 /**
  * Fetches and checks a client's metadata document. Null, with the reason, when it cannot be used: not 200 (a
- * redirect is not followed), larger than 5 KB, slower than 5 s, not JSON, a different client_id inside, no
- * usable redirect address, or a client that can only authenticate with a secret or key (only public clients here).
+ * redirect is not followed), larger than 5 KB, slower than 5 s, not JSON, a different client_id inside, or no
+ * usable redirect address.
+ *
+ * The client's preferred token_endpoint_auth_method is not checked. This server never authenticates clients
+ * (it advertises only "none"): PKCE S256 and the document's own redirect addresses protect the code, so a client
+ * that prefers a key, as ChatGPT does, signs in like any other.
  */
 export async function fetchClientMetadata(clientId: string): Promise<{ ok: ClientMetadata } | { problem: string }> {
   let res: Response;
@@ -138,12 +154,6 @@ export async function fetchClientMetadata(clientId: string): Promise<{ ok: Clien
     return { problem: "not_json" };
   }
   if (doc.client_id !== clientId) return { problem: "client_id_mismatch" };
-  // ChatGPT prefers private_key_jwt but also lists "none". This server advertises only "none", so such a client
-  // signs in as a public client: PKCE and the listed redirect address protect the code.
-  const method = doc.token_endpoint_auth_method;
-  const supported = doc.token_endpoint_auth_methods_supported;
-  const canBePublic = method === undefined || method === "none" || (Array.isArray(supported) && supported.includes("none"));
-  if (!canBePublic) return { problem: "not_public_client" };
   const uris = doc.redirect_uris;
   if (!Array.isArray(uris) || uris.length === 0 || uris.length > 10) return { problem: "bad_redirect_uris" };
   if (!uris.every((u) => typeof u === "string" && isAllowedRedirectUri(u))) return { problem: "bad_redirect_uris" };

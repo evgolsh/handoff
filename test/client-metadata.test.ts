@@ -138,7 +138,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
     expect(JSON.parse(row!.redirect_uris)).toEqual(["http://localhost/callback", "http://127.0.0.1/callback"]);
   });
 
-  it("signs ChatGPT in as a public client: it prefers private_key_jwt but also lists none", async () => {
+  it("signs ChatGPT in: it prefers private_key_jwt, and PKCE is what grants the token", async () => {
     const clientId = newClientId();
     serve(clientId, chatgptDoc(clientId));
     const handle = `gpt-${uid()}`;
@@ -194,6 +194,15 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
     expect(decodeJwt(((await tokenRes.json()) as { access_token: string }).access_token)).toMatchObject({ sub: handle, client_id: clientId });
   });
 
+  it("does not refuse a client for the way it prefers to authenticate: no client is listed in advance", async () => {
+    for (const extra of [{ token_endpoint_auth_method: "client_secret_basic" }, { token_endpoint_auth_method: "private_key_jwt", token_endpoint_auth_methods_supported: ["private_key_jwt"] }]) {
+      const clientId = newClientId();
+      serve(clientId, { ...claudeCodeDoc(clientId), ...extra });
+      const html = await authorizePage(clientId, "http://localhost:49930/callback");
+      expect(html, JSON.stringify(extra)).toContain('<form method="post" action="/authorize">');
+    }
+  });
+
   it("refuses redirect addresses the document does not list", async () => {
     const clientId = newClientId();
     serve(clientId, claudeCodeDoc(clientId));
@@ -213,8 +222,6 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
   it("refuses documents it cannot use, and records why", async () => {
     const cases: Array<[string, (id: string) => void]> = [
       ["client_id_mismatch", (id) => serve(id, claudeCodeDoc("https://other.example.com/doc"))],
-      ["not_public_client", (id) => serve(id, { ...claudeCodeDoc(id), token_endpoint_auth_method: "client_secret_basic" })],
-      ["not_public_client", (id) => serve(id, { ...chatgptDoc(id), token_endpoint_auth_methods_supported: ["private_key_jwt"] })],
       ["bad_redirect_uris", (id) => serve(id, { ...claudeCodeDoc(id), redirect_uris: ["http://evil.example.net/cb"] })],
       ["bad_redirect_uris", (id) => serve(id, { ...claudeCodeDoc(id), redirect_uris: [] })],
       ["not_json", (id) => serve(id, "<html>hello</html>")],
