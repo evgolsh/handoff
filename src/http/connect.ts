@@ -39,6 +39,7 @@ interface Host {
 
 function hosts(url: string, control = false): Host[] {
   const signIn = control ? "your team, handle and access code" : "your handle and access code";
+  const host = new URL(url).host;
   return [
     {
       id: "claude-code",
@@ -71,9 +72,9 @@ function hosts(url: string, control = false): Host[] {
       id: "claude",
       name: "Claude",
       level: "partial",
-      tag: "Sign-in tested",
+      tag: "Send tested",
       status:
-        "Claude on the web and in the desktop app. Steps from Claude's help center. They connected the Claude desktop app and signed in; sending and reading are not yet tested with Handoff.",
+        "Claude on the web and in the desktop app. Steps from Claude's help center. Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below). Reading and revoking are not yet tested there.",
       steps: [
         { text: "Open [Customize > Connectors](https://claude.ai/customize/connectors)." },
         { text: "Select **+ Add**, then **Add custom connector**." },
@@ -81,7 +82,7 @@ function hosts(url: string, control = false): Host[] {
         { text: "Keep the recommended sign-in settings and select **Add**." },
         { text: `Select **Connect**, sign in with ${signIn}, and approve access.` },
       ],
-      note: "On a Team or Enterprise plan, an owner first adds the connector in Organization settings > Connectors. Free plans allow one custom connector.",
+      note: `To attach files, add ${host} to the allowed domains in Claude's Settings > Capabilities. Claude uploads files from its own sandbox, which reaches only allowed domains; without it, text handoffs work and uploads fail with 403. On a Team or Enterprise plan, an owner first adds the connector in Organization settings > Connectors. Free plans allow one custom connector.`,
       source: { label: "Claude help: custom connectors", url: "https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" },
     },
     {

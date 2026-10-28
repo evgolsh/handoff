@@ -98,8 +98,10 @@ commands) and sign in when it asks. Claude Code: `claude mcp add --transport htt
 handoff PUBLIC_URL/mcp`, then `/mcp` and Authenticate. Hermes Agent: `hermes mcp add handoff --url
 PUBLIC_URL/mcp --auth oauth`, then `hermes mcp login handoff`. ChatGPT: Plugins, add a custom MCP server with
 the endpoint URL and OAuth, "Create as a plugin", install it from the personal plugins view, then in a
-Work chat type `@` and pick Handoff. claude.ai: add a custom connector with the endpoint URL. Each host opens
-the sign-in page: enter the handle and access code.
+Work chat type `@` and pick Handoff. claude.ai: add a custom connector with the endpoint URL. To attach files
+from Claude (web or desktop), also add the server's host to the allowed domains in Claude's Settings >
+Capabilities: Claude uploads from its sandbox, and without the domain the upload fails with 403 while text
+handoffs still work. Each host opens the sign-in page: enter the handle and access code.
 
 Check: the five tools `handoff_send`, `handoff_inbox`, `handoff_read`, `handoff_revoke`,
 `handoff_upload_url` appear in the host.

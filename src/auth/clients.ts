@@ -110,7 +110,7 @@ async function readCapped(res: Response, max: number): Promise<string | null> {
 /**
  * Fetches and checks a client's metadata document. Null, with the reason, when it cannot be used: not 200 (a
  * redirect is not followed), larger than 5 KB, slower than 5 s, not JSON, a different client_id inside, no
- * usable redirect address, or a client that wants to authenticate with a secret or key (only public clients here).
+ * usable redirect address, or a client that can only authenticate with a secret or key (only public clients here).
  */
 export async function fetchClientMetadata(clientId: string): Promise<{ ok: ClientMetadata } | { problem: string }> {
   let res: Response;
@@ -138,8 +138,12 @@ export async function fetchClientMetadata(clientId: string): Promise<{ ok: Clien
     return { problem: "not_json" };
   }
   if (doc.client_id !== clientId) return { problem: "client_id_mismatch" };
+  // ChatGPT prefers private_key_jwt but also lists "none". This server advertises only "none", so such a client
+  // signs in as a public client: PKCE and the listed redirect address protect the code.
   const method = doc.token_endpoint_auth_method;
-  if (method !== undefined && method !== "none") return { problem: "not_public_client" };
+  const supported = doc.token_endpoint_auth_methods_supported;
+  const canBePublic = method === undefined || method === "none" || (Array.isArray(supported) && supported.includes("none"));
+  if (!canBePublic) return { problem: "not_public_client" };
   const uris = doc.redirect_uris;
   if (!Array.isArray(uris) || uris.length === 0 || uris.length > 10) return { problem: "bad_redirect_uris" };
   if (!uris.every((u) => typeof u === "string" && isAllowedRedirectUri(u))) return { problem: "bad_redirect_uris" };
