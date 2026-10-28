@@ -4,7 +4,7 @@ Requirements: Node 22+ and npm. No Cloudflare account is needed for tests or loc
 
 ```sh
 npm install
-npm test          # vitest inside workerd, with local D1 and R2 (docs/ACCEPTANCE.md has the current count)
+npm test          # vitest inside workerd, with local D1 and R2 (139 tests in 16 files on 2026-10-28)
 npm run typecheck
 ```
 
