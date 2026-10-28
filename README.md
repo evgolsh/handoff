@@ -9,7 +9,7 @@ into yours, creates the D1 database and R2 bucket, asks for one secret, `HANDOFF
 12 characters or more), and deploys. Then open `/console/setup` on your Worker, enter that code and your handle, and
 you are the admin. **Ask your AI**: say "Deploy https://github.com/evgolsh/handoff for me" to Claude Code, Codex or
 Hermes Agent; it follows `llms-install.md` and runs `npm run setup` (needs Node and a Cloudflare login, no GitHub).
-**A terminal**: the quick start below. Not tested yet: the button's end-to-end run.
+**A terminal**: the quick start below. The button was tested on 2026-10-28: build, deploy and the setup page.
 
 Handoff is a small MCP service that a family or a small team runs on its own Cloudflare account. The
 sending assistant writes a brief (purpose, decisions and reasons, constraints, next step, references,
