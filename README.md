@@ -70,6 +70,18 @@ HTTP: `POST /v1/uploads`, `PUT /v1/uploads/:id` (bearer or `?ticket=`), `GET /v1
 - Each account can hold at most 50 files that are not in a packet (uploading or uploaded); more uploads are refused with 429.
 - The token signing key is generated on first use and kept in D1 (`oauth_keys`), or set as the `OAUTH_SIGNING_JWK` secret. The local-only `DEV_TOKENS` work only with `HANDOFF_ENV=dev`.
 
+## Two modes, one code base
+
+- **A private install** (the default, nothing to set): what you get from the button, from `npm run setup`, or
+  from asking your AI. It serves its own console and Connect page; `/` goes to `/connect`. Members are added by
+  its admins; there is no sign-up.
+- **The control center** (`HANDOFF_MODE=control`, only the project's own deployment at
+  `https://handoff.infraworks.net`): the homepage, team sign-up at `/join`, a console per team, and the operator's
+  tracking page. A team there is a member's identity `team/handle` inside the same tables: `to: "tom"` means the
+  sender's own team's tom, `to: "team"` that team only, and no packet or file is visible across teams
+  (`src/domain/tenant.ts`, `test/tenants.test.ts`). It is a shared playground with caps (10 members per team,
+  packets 24 hours by default and 7 days at most, 5 MiB files); for private files, run a private install.
+
 ## Update check
 
 Once a day, the hourly cron asks the project's hosted instance for the latest version, and the console's Ops page

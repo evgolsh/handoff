@@ -18,7 +18,9 @@
     "assets": "node scripts/assets.mjs",
     "predev": "npm run assets",
     "pretest": "npm run assets",
-    "predeploy": "npm run assets"
+    "predeploy": "npm run assets",
+    "deploy:playground": "wrangler d1 migrations apply DB --remote -c wrangler.playground.jsonc && wrangler deploy -c wrangler.playground.jsonc",
+    "predeploy:playground": "npm run assets"
   },
   "license": "MIT",
   "cloudflare": {
