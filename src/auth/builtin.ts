@@ -197,7 +197,7 @@ export async function registerOAuthClient(
     if (typeof item !== "string" || !isAllowedRedirectUri(item)) {
       return {
         status: 400,
-        body: { error: "invalid_redirect_uri", error_description: "redirect_uris must use https or loopback http" },
+        body: { error: "invalid_redirect_uri", error_description: "redirect_uris must use https, http on localhost, or an app's own scheme (not javascript:, data:, file: and the like)" },
       };
     }
     uris.push(item);
@@ -254,7 +254,9 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
   const hasOAuth = Boolean(params.client_id || params.redirect_uri);
   let returnsTo = "";
   try {
-    returnsTo = new URL(params.redirect_uri).host;
+    const r = new URL(params.redirect_uri);
+    // A desktop app's own scheme says more than its host: cursor://anysphere.cursor-mcp.
+    returnsTo = r.protocol === "https:" || r.protocol === "http:" ? r.host : `${r.protocol}//${r.host}`;
   } catch {
     returnsTo = "";
   }
