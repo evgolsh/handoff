@@ -19,11 +19,16 @@ interface Step {
 }
 
 /**
- * tested: these steps worked with Handoff, from sign-in to send, read and revoke.
+ * tested: these steps worked with Handoff: sign-in and sending, with files. Revoking is not part of the test.
  * partial: some of it was tested (another route, or only the sign-in); the status says what.
  * docs: the host's own documentation, not yet tried with Handoff.
  */
 type Level = "tested" | "partial" | "docs";
+const LEGEND: Record<Level, string> = {
+  tested: "Tested: sign-in and sending worked with Handoff.",
+  partial: "Partly tested: the guide says which part.",
+  docs: "From the assistant’s documentation.",
+};
 
 interface Host {
   id: string;
@@ -71,10 +76,10 @@ function hosts(url: string, control = false): Host[] {
     {
       id: "claude",
       name: "Claude",
-      level: "partial",
-      tag: "Send tested",
+      level: "tested",
+      tag: "Tested",
       status:
-        "Claude on the web and in the desktop app. Steps from Claude's help center. Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below). Reading and revoking are not yet tested there.",
+        "Claude on the web, in the desktop app and in Cowork. Add it once: the connector follows your Claude account to every computer. Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below).",
       steps: [
         { text: "Open [Customize > Connectors](https://claude.ai/customize/connectors)." },
         { text: "Select **+ Add**, then **Add custom connector**." },
@@ -88,24 +93,24 @@ function hosts(url: string, control = false): Host[] {
     {
       id: "codex",
       name: "Codex",
-      level: "partial",
-      tag: "Plugin tested",
+      level: "tested",
+      tag: "Tested",
       status:
-        "The Codex app, CLI and IDE extension share this setup. Tested with Handoff in the Codex app on macOS, installed as a local plugin from the Handoff plugin package: sign-in, send, read and revoke. The two commands below are the Codex docs' setup for any server and not yet tested with Handoff.",
+        "The Codex app: add Handoff once in ChatGPT (ChatGPT tab) and it appears in the Codex app on every computer. Tested with Handoff in the Codex app on macOS and Windows: sign-in, send, read and files. The commands below are for the Codex CLI and IDE extension.",
       steps: [
         { text: "In a terminal, add the server:", command: `codex mcp add handoff --url ${url}` },
         { text: `Sign in with ${signIn} and approve access:`, command: "codex mcp login handoff" },
         { text: "Start a new Codex chat, so it loads the Handoff tools." },
       ],
-      note: "The tested route installs the Handoff plugin package as a local plugin (`codex plugin marketplace add`, then `codex plugin add`), so it needs a copy of the package.",
+      note: "Also tested in the Codex app: the Handoff plugin package installed as a local plugin (`codex plugin marketplace add`, then `codex plugin add`).",
       source: { label: "Codex MCP docs", url: "https://learn.chatgpt.com/docs/extend/mcp" },
     },
     {
       id: "chatgpt",
       name: "ChatGPT",
-      level: "docs",
-      tag: "From docs",
-      status: "Steps from OpenAI's plugin docs; not yet tested with Handoff.",
+      level: "tested",
+      tag: "Tested",
+      status: "Add it once: the connection follows your ChatGPT account to chatgpt.com and the Codex app, on every computer. Tested with Handoff on Windows: sign-in, send and files, used from the Codex app.",
       steps: [
         { text: "Open [ChatGPT Plugins](https://chatgpt.com/plugins)." },
         { text: "Select the plus button, then **Add custom MCP server**." },
@@ -377,9 +382,10 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <div class="rail">
         <div class="tabs" role="tablist" aria-label="Assistant" aria-orientation="vertical" hidden>${tabs}</div>
         <div class="rail-note">
-          <p class="legend">${dot("tested")}Tested: sign-in, send, read and revoke worked with Handoff.</p>
-          <p class="legend">${dot("partial")}Partly tested: the guide says which part.</p>
-          <p class="legend">${dot("docs")}From the assistant’s documentation.</p>
+          ${(["tested", "partial", "docs"] as const)
+            .filter((l) => list.some((h) => h.level === l))
+            .map((l) => `<p class="legend">${dot(l)}${LEGEND[l]}</p>`)
+            .join("\n          ")}
         </div>
       </div>
       <div class="panels">

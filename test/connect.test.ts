@@ -28,18 +28,22 @@ describe("connect page", () => {
     expect(html).toContain(`hermes mcp add handoff --url ${ORIGIN}/mcp --auth oauth`);
     expect(html).toContain(`codex mcp add handoff --url ${ORIGIN}/mcp`);
     for (const host of ["Claude Code", "Hermes", "Claude", "Codex", "ChatGPT"]) expect(html).toContain(`<span class="tab-name">${host}</span>`);
-    // Each host says how far it was tested: the steps end to end, a part of them, or only the host's docs.
+    // Each host says how far it was tested. All five are tested; the legend lists only levels in use.
     const tags = [...html.matchAll(/<span class="tab-state">([^<]+)<\/span>/g)].map((m) => m[1]);
-    expect(tags).toEqual(["Tested", "Tested", "Send tested", "Plugin tested", "From docs"]);
+    expect(tags).toEqual(["Tested", "Tested", "Tested", "Tested", "Tested"]);
+    expect(html).toContain("Tested: sign-in and sending worked with Handoff.");
+    expect(html).not.toContain("Partly tested: the guide says which part.");
     // Every tab has the assistant's mark: the Claude logo, the OpenAI logo, or Hermes's (a CSS mask image).
     expect(html.match(/<span class="tab-logo [a-z-]+" aria-hidden="true">/g)?.length).toBe(5);
     expect(html).toContain('<span class="tab-logo hermes" aria-hidden="true"></span>');
     expect(html).toMatch(/\.tab-logo\.hermes \{[^}]*mask:url\("data:image\/png;base64,/);
+    expect(html).toContain("Add it once: the connector follows your Claude account to every computer.");
     expect(html).toContain("Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below).");
+    expect(html).toContain("Add it once: the connection follows your ChatGPT account to chatgpt.com and the Codex app, on every computer.");
     expect(html).toContain(`To attach files, add ${new URL(ORIGIN).host} to the allowed domains`);
-    expect(html.match(/not yet tested with Handoff/g)?.length).toBe(2);
-    // Codex names the route that was tested; download links are said to be bearer links.
-    expect(html).toContain("Tested with Handoff in the Codex app on macOS, installed as a local plugin");
+    expect(html).not.toContain("not yet tested");
+    // Codex names the routes that were tested; download links are said to be bearer links.
+    expect(html).toContain("Tested with Handoff in the Codex app on macOS and Windows: sign-in, send, read and files.");
     expect(html).toContain("<code>codex plugin marketplace add</code>");
     expect(html).toContain("works for anyone who has it, for 10 minutes");
     expect(html).toContain("Plan in one AI. Build in another.");
