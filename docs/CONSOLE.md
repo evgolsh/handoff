@@ -17,6 +17,9 @@ npm run admin -- tim              # grant (the member must exist: npm run member
 npm run admin -- tim --revoke     # revoke; ends that admin's console sessions
 ```
 
+On the control center add `--playground` (it uses `wrangler.playground.jsonc`). A lost operator code:
+`npm run member:add -- <handle> --playground` prints a new one.
+
 `npm run setup` (scripts/deploy.mjs) makes the first member it seeds an admin. A server deployed with the
 Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SETUP_CODE` secret and a handle
 once, makes that member the admin and shows the code (docs/DEPLOY.md). Sign in at `/console/login` with the
