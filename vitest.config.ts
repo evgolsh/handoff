@@ -15,6 +15,8 @@ export default defineConfig(async () => {
       cloudflareTest({
         wrangler: { configPath: "./wrangler.jsonc" },
         miniflare: {
+          // The suite runs on R2 by default (test/kv-store.test.ts covers KV, the default of a self-hosted install).
+          r2Buckets: ["BLOBS"],
           bindings: {
             TEST_MIGRATIONS: migrations,
             PUBLIC_URL: "https://handoff.test",

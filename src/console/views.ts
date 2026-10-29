@@ -114,7 +114,7 @@ export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {
   </div>
   <div class="card">
     <div class="t"><span class="dot ${d.storage.ok ? "ok" : "bad"}"></span>Storage</div>
-    <div class="small muted">R2 ${d.storage.ok ? `answered in ${ms(d.storage.ms)}` : "did not answer"}</div>
+    <div class="small muted">${d.storage.kind} ${d.storage.ok ? `answered in ${ms(d.storage.ms)}` : "did not answer"}</div>
     <div class="small muted">${plural(d.storage.files, "file")} · ${bytes(d.storage.bytes)}</div>
   </div>
   <div class="card">

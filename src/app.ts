@@ -17,7 +17,7 @@ import {
 import { HandoffError, redactSecrets } from "./domain/errors";
 import { HandoffService } from "./domain/service";
 import { D1Repository } from "./store/d1";
-import { R2BlobStore } from "./store/blobs";
+import { blobStore } from "./store/blobs";
 import { uploadRoutes } from "./http/routes";
 import { buildMcpServer } from "./mcp/server";
 import { connectHeaders, connectPage } from "./http/connect";
@@ -37,7 +37,7 @@ export type Variables = AppVariables & { service: HandoffService };
 export { redactSecrets };
 
 export function serviceFrom(env: Env, requestOrigin = ""): HandoffService {
-  return new HandoffService(new D1Repository(env.DB), new R2BlobStore(env.BLOBS), configFrom(env, requestOrigin));
+  return new HandoffService(new D1Repository(env.DB), blobStore(env), configFrom(env, requestOrigin));
 }
 
 async function readFormOrJson(req: Request): Promise<Record<string, string>> {

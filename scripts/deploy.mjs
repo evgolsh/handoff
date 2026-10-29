@@ -2,7 +2,8 @@
 /**
  * One-command Cloudflare setup & deploy for Handoff:
  *   1. Checks Cloudflare login (`wrangler whoami` -> `wrangler login` if needed)
- *   2. Ensures the D1 database (wrangler.jsonc's, or yours named `handoff`) and R2 bucket `handoff-attachments` exist
+ *   2. Ensures the D1 database (wrangler.jsonc's, or yours named `handoff`) and the file store exist: the KV namespace
+ *      wrangler.jsonc binds as FILES (or, if wrangler.jsonc binds an R2 bucket instead, that bucket)
  *   3. Applies remote D1 migrations
  *   4. Deploys the Worker and prints the live /connect URL
  *   5. Seeds initial members (default: --members owner,teammate) if `members` is empty, and makes the first
@@ -25,7 +26,7 @@ function ensureWranglerAuth() {
   }
 }
 
-function ensureD1AndR2() {
+function ensureD1AndStore() {
   const cfgPath = "wrangler.jsonc";
   let raw = fs.readFileSync(cfgPath, "utf8");
   const idMatch = /("database_id"\s*:\s*")([^"]*)(")/.exec(raw);
@@ -55,15 +56,42 @@ function ensureD1AndR2() {
     console.log(`Using D1 database ${dbId} (written to wrangler.jsonc).`);
   }
 
-  // Ensure R2 bucket exists
-  try {
-    const buckets = run("npx", ["wrangler", "r2", "bucket", "list"]);
-    if (!buckets.includes("handoff-attachments")) {
-      console.log("Creating R2 bucket 'handoff-attachments'...");
-      execFileSync("npx", ["wrangler", "r2", "bucket", "create", "handoff-attachments"], { stdio: "inherit" });
+  // The file store. Default: a Workers KV namespace (free plan, no payment method): the one wrangler.jsonc names if
+  // it is in your account, otherwise yours titled "handoff-FILES", created if needed, with its id written into
+  // wrangler.jsonc. If wrangler.jsonc binds an R2 bucket instead (BLOBS), that bucket is created if needed.
+  const kvMatch = /("binding"\s*:\s*"FILES"\s*,\s*"id"\s*:\s*")([^"]*)(")/.exec(raw);
+  if (kvMatch) {
+    let spaces = [];
+    try {
+      spaces = JSON.parse(run("npx", ["wrangler", "kv", "namespace", "list"]));
+    } catch {
+      spaces = [];
     }
-  } catch {
-    // Already exists or created.
+    if (!spaces.some((n) => n.id === kvMatch[2])) {
+      let ns = spaces.find((n) => n.title === "handoff-FILES");
+      if (!ns) {
+        console.log("Creating KV namespace 'handoff-FILES' for files...");
+        const created = run("npx", ["wrangler", "kv", "namespace", "create", "FILES"]);
+        const m = /"id"\s*:\s*"([0-9a-f]+)"/i.exec(created);
+        if (m?.[1]) ns = { id: m[1] };
+      }
+      if (!ns?.id) throw new Error("Could not find or create the KV namespace. Run: npx wrangler kv namespace create FILES, and put its id in wrangler.jsonc.");
+      raw = raw.replace(kvMatch[0], `${kvMatch[1]}${ns.id}${kvMatch[3]}`);
+      fs.writeFileSync(cfgPath, raw);
+      console.log(`Using KV namespace ${ns.id} for files (written to wrangler.jsonc).`);
+    }
+  }
+  const bucket = /"bucket_name"\s*:\s*"([^"]+)"/.exec(raw)?.[1];
+  if (bucket) {
+    try {
+      const buckets = run("npx", ["wrangler", "r2", "bucket", "list"]);
+      if (!buckets.includes(bucket)) {
+        console.log(`Creating R2 bucket '${bucket}'...`);
+        execFileSync("npx", ["wrangler", "r2", "bucket", "create", bucket], { stdio: "inherit" });
+      }
+    } catch {
+      // Already exists or created.
+    }
   }
 }
 
@@ -100,7 +128,7 @@ function seedMembersIfEmpty(handles) {
 }
 
 ensureWranglerAuth();
-ensureD1AndR2();
+ensureD1AndStore();
 
 console.log("Applying D1 migrations...");
 execFileSync("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--remote"], { stdio: "inherit" });

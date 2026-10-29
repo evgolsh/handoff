@@ -28,8 +28,8 @@
       "DB": {
         "description": "D1 database for packets, attachment records, members, sign-ins and console activity. Created for you."
       },
-      "BLOBS": {
-        "description": "R2 bucket for the original files sent with a packet (PDF, PNG, JPEG, Markdown, plain text). Created for you."
+      "FILES": {
+        "description": "Workers KV namespace for the original files sent with a packet (PDF, PNG, JPEG, Markdown, plain text). Created for you; on the free plan."
       },
       "HANDOFF_SETUP_CODE": {
         "description": "A code you choose, 12 characters or more (for example from `openssl rand -base64 18`). After deploying, open `/console/setup` on your Worker and enter it to become the admin. It works only while no admin exists."

@@ -1,5 +1,5 @@
 {
-  // Handoff: hosted MCP service on Cloudflare Workers. One deployment profile (Workers + D1 + R2).
+  // Handoff: hosted MCP service on Cloudflare Workers. One deployment profile (Workers + D1 + KV).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "handoff",
   "main": "src/index.ts",
@@ -16,7 +16,10 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "handoff-attachments" }],
+  // Files live in Workers KV: on the free plan, no payment method needed. The Deploy to Cloudflare button and
+  // npm run setup put your own namespace id here. An R2 bucket bound as BLOBS is used instead when present
+  // (docs/DEPLOY.md, "Files").
+  "kv_namespaces": [{ "binding": "FILES", "id": "9cf30764597b4226a977f40a42fc4952" }],
   // Static files (fonts, from npm run assets). Served before the Worker for exact paths.
   "assets": { "directory": "./public", "binding": "ASSETS" },
   // The deployed version id and time, shown on the console's Ops page.
