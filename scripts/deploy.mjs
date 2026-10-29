@@ -152,7 +152,7 @@ console.log(`  Console:      ${publicUrl}/console`);
 if (seeded.length) {
   console.log("\nInitial teammate logins (save these codes):");
   for (const m of seeded) console.log(`  - ${m.handle}: ${m.code}`);
-  console.log(`${seeded[0].handle} is an admin of the console. More admins: npm run admin -- <handle>`);
-  console.log("Add members, reset codes and disconnect assistants in the console, or with: npm run member:add -- <handle>");
+  console.log(`${seeded[0].handle} is an admin of the console. More admins: npm run admin -- <username>`);
+  console.log("Add members, reset codes and disconnect assistants in the console, or with: npm run member:add -- <username>");
 }
 console.log("============================================================\n");

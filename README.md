@@ -10,7 +10,7 @@ Runs on your own Cloudflare account (Workers, D1, KV). Free plan, no payment met
 
 Three ways.
 
-**Deploy button.** Needs a Cloudflare account and a GitHub or GitLab account (Cloudflare copies the repo into it). The form asks for one secret, `HANDOFF_SETUP_CODE`: pick anything 12 characters or longer. After the deploy, open `/console/setup` on your Worker, enter that code and your handle. You are the admin.
+**Deploy button.** Needs a Cloudflare account and a GitHub or GitLab account (Cloudflare copies the repo into it). The form asks for one secret, `HANDOFF_SETUP_CODE`: pick anything 12 characters or longer. After the deploy, open `/console/setup` on your Worker, enter that code and your username. You are the admin.
 
 **Ask your AI.** Tell Claude Code, Codex or Hermes: "Deploy https://github.com/evgolsh/handoff for me and tom". It follows `llms-install.md`. Needs Node and a Cloudflare login, no GitHub.
 
@@ -20,7 +20,7 @@ Three ways.
 git clone https://github.com/evgolsh/handoff.git
 cd handoff
 npm install
-npm run setup -- --members=tim,tom   # your handle first
+npm run setup -- --members=tim,tom   # your username first
 ```
 
 `npm run setup` signs you in to Cloudflare, creates the D1 database and the KV namespace for files, runs the migrations, deploys, creates the members with access codes (shown once) and prints your `/connect` and `/console` URLs. Later: `npm run deploy`.
@@ -31,7 +31,7 @@ https://handoff.infraworks.net is the project's own deployment. Create a team at
 
 ## How it works
 
-The sender says "hand this off to tom with these files". The assistant calls `handoff_send` with a brief (purpose, decisions, constraints, next step, references, open questions) and the attachments. Tom says "pick up the handoff from tim"; his assistant calls `handoff_inbox` and `handoff_read`. The brief is stored verbatim, attachments as original bytes with a sha256. A packet goes to yourself, to one handle, or to `team`.
+The sender says "hand this off to tom with these files". The assistant calls `handoff_send` with a brief (purpose, decisions, constraints, next step, references, open questions) and the attachments. Tom says "pick up the handoff from tim"; his assistant calls `handoff_inbox` and `handoff_read`. The brief is stored verbatim, attachments as original bytes with a sha256. A packet goes to yourself, to one username, or to `team`.
 
 | Tool | Does |
 |---|---|
@@ -43,7 +43,7 @@ The sender says "hand this off to tom with these files". The assistant calls `ha
 
 Files: PDF, PNG, JPEG, text, Markdown. 25 MiB each, 10 per packet. Type is sniffed from the bytes. Packets expire after 30 days by default (1 hour to 90 days).
 
-The Worker is its own OAuth 2.1 server. Members sign in with a handle and an access code the admin gives them. No third-party identity provider, no sign-up on a private install.
+The Worker is its own OAuth 2.1 server. Members sign in with a username and an access code the admin gives them. No third-party identity provider, no sign-up on a private install.
 
 ## Security
 
@@ -57,7 +57,7 @@ The Worker is its own OAuth 2.1 server. Members sign in with a handle and an acc
 
 ## Console
 
-`/console`: members, connected assistants, activity, ops. Admins sign in with their handle and code. Add members, reset codes, disconnect an assistant, run cleanup. On the control center, `/console/tenants` is the operator's view across teams.
+`/console`: members, connected assistants, activity, ops. Admins sign in with their username and code. Add members, reset codes, disconnect an assistant, run cleanup. On the control center, `/console/tenants` is the operator's view across teams.
 
 ## Update check
 

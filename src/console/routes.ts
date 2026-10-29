@@ -92,7 +92,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     }
     const handle = normalizeHandle(form.handle ?? "");
     if (!isValidHandle(handle)) {
-      return html(setupPage(true, "Use 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. The handles team and all are reserved."), 400);
+      return html(setupPage(true, "Use 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. The usernames team and all are reserved."), 400);
     }
     const code = newAccessCode();
     const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
@@ -115,7 +115,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     ]);
     if ((done[1]?.meta.changes ?? 0) !== 1) {
       if (await hasAdmin(db)) return redirect("/console/login");
-      return html(setupPage(true, `${handle} is already a member. Choose another handle, or make ${handle} an admin with npm run admin -- ${handle}.`), 409);
+      return html(setupPage(true, `${handle} is already a member. Choose another username, or make ${handle} an admin with npm run admin -- ${handle}.`), 409);
     }
     await recordEvent(db, { kind: "console", name: "setup", subject: handle, outcome: "ok" });
     const cookie = await startSession(db, handle);
@@ -138,7 +138,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const cookie = valid && handle ? await startSession(db, handle) : null;
     if (!cookie) {
       await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "refused" }, { unauthenticated: true });
-      return html(loginPage(control ? "That team, handle and code do not match an admin of that team." : "That handle and code do not match an admin of this console.", { control, team: form.team }), 401);
+      return html(loginPage(control ? "That team, username and code do not match an admin of that team." : "That username and code do not match an admin of this console.", { control, team: form.team }), 401);
     }
     await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "ok" });
     return redirect("/console/overview", { "set-cookie": cookie });
@@ -208,7 +208,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const handle = normalizeHandle(c.get("form").handle ?? "");
     const refuse = async (text: string, status: number) => html(membersPage(vw(c), await members(db, tenant), Date.now(), { text, ok: false }), status);
     if (!isValidHandle(handle)) {
-      return refuse("Use 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. The handles team and all are reserved.", 400);
+      return refuse("Use 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. The usernames team and all are reserved.", 400);
     }
     const cap = c.get("cfg").tenantMembersCap;
     if (tenant && cap > 0) {
@@ -266,7 +266,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     return html(
       confirmPage(vw(c), "members", {
         title: `Remove ${handle}?`,
-        text: `${esc(handle)} can no longer sign in, and every assistant signed in as ${esc(handle)} is signed out at once. The packets ${esc(handle)} sent, and the packets sent to ${esc(handle)}, are revoked, so a member added later with the same handle cannot read them. Packets to the whole team stay.`,
+        text: `${esc(handle)} can no longer sign in, and every assistant signed in as ${esc(handle)} is signed out at once. The packets ${esc(handle)} sent, and the packets sent to ${esc(handle)}, are revoked, so a member added later with the same username cannot read them. Packets to the whole team stay.`,
         action: `/console/members/${handle}/remove`,
         button: `Remove ${handle}`,
         danger: true,

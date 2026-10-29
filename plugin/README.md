@@ -32,7 +32,7 @@ codex plugin marketplace add ~      # the folder that holds .agents/plugins/mark
 codex plugin add handoff@acme-local # <plugin name>@<marketplace name>
 ```
 
-Then start a new Codex chat, sign in with your handle and access code, and check that the five
+Then start a new Codex chat, sign in with your username and access code, and check that the five
 tools appear. After a package change, raise the version in both manifests and install again.
 
 ## Codex compatibility

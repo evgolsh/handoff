@@ -264,7 +264,7 @@ export class HandoffService {
     const r = normalizeRecipient(owner, to);
     if (r === owner) return owner;
     if (!isTeam(r) && !(await this.repo.isMember(r))) {
-      throw new HandoffError("invalid_input", `to: "${to?.trim()}" is not a member of this server; use a member handle, or "team" for every member`);
+      throw new HandoffError("invalid_input", `to: "${to?.trim()}" is not a member of this server; use a member's username, or "team" for every member`);
     }
     return r;
   }

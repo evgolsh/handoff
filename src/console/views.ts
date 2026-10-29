@@ -79,8 +79,8 @@ export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): H
   <div class="card"><div class="t">Active handoffs</div><div class="big">${num(d.packetsLive)}</div><div class="small muted">Available to their recipients</div></div>
 </section>
 <section class="grid3" aria-label="Get started">
-  <div class="panel"><div class="t">1. Connect an assistant</div><p>Choose your assistant and sign in with team <strong>${esc(v.tenant)}</strong>, your handle and access code.</p><div><a class="btn primary" href="/connect">Connect an assistant</a></div></div>
-  <div class="panel"><div class="t">2. Add teammates</div><p>Add a handle for each teammate, then share their team name, handle and access code in private. You can also try Handoff on your own.</p><div><a class="btn" href="/console/members">Add teammates</a></div></div>
+  <div class="panel"><div class="t">1. Connect an assistant</div><p>Choose your assistant and sign in with team <strong>${esc(v.tenant)}</strong>, your username and access code.</p><div><a class="btn primary" href="/connect">Connect an assistant</a></div></div>
+  <div class="panel"><div class="t">2. Add teammates</div><p>Add a username for each teammate, then share their team name, username and access code in private. You can also try Handoff on your own.</p><div><a class="btn" href="/console/members">Add teammates</a></div></div>
   <div class="panel"><div class="t">3. Try your first handoff</div><p>In one assistant, say <strong>“Hand this off.”</strong> In another, signed in as the same member, say <strong>“Continue my handoff.”</strong></p><div><a class="btn" href="/connect#next-title">First handoff guide</a></div></div>
 </section>
 <section class="panel"><div class="t">Shared playground</div><div class="small muted">Handoffs expire after ${plural(cfg.defaultExpiryHours, "hour")} by default. Files can be up to ${bytes(cfg.maxAttachmentBytes)} each. Use a <a class="u" href="/deploy" target="_blank" rel="noopener">private install</a> for private files.</div></section>`,
@@ -260,10 +260,10 @@ ${note ? flash(note.text, note.ok) : ""}
 <section class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
   <form method="post" action="/console/members" class="panel" autocomplete="off">
     <div class="t">Add a member</div>
-    <div class="small muted">The access code is shown once, on the next page. Share the sign-in details in private; they sign in to each assistant with ${v.tenant ? "the team name, " : ""}their handle and that code.</div>
+    <div class="small muted">The access code is shown once, on the next page. Share the sign-in details in private; they sign in to each assistant with ${v.tenant ? "the team name, " : ""}their username and that code.</div>
     ${csrfField(v)}
     <div class="row">
-      <div style="flex:1 1 200px"><label class="lbl" for="handle">handle</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tom"></div>
+      <div style="flex:1 1 200px"><label class="lbl" for="handle">username</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tom"></div>
       <button type="submit" class="btn primary">Add member</button>
     </div>
     <div class="small muted">Letters, digits, <span class="mono">. _ -</span>, up to 63 characters, stored in lower case. <span class="mono">team</span> and <span class="mono">all</span> are reserved: they address every member.</div>
@@ -289,10 +289,10 @@ export function codePage(v: Viewer, handle: string, code: string, kind: "added" 
     "Access code",
     `${head(kind === "added" ? `Added ${handle}` : `New code for ${handle}`, "shown once · Handoff keeps only a hash")}
 <section class="panel" style="max-width:680px">
-  <dl class="kv"><dt>Server</dt><dd class="mono">${esc(publicUrl)}/mcp</dd>${v.tenant ? `<dt>Team</dt><dd class="mono">${esc(v.tenant)}</dd>` : ""}<dt>Handle</dt><dd class="mono">${esc(handle)}</dd></dl>
+  <dl class="kv"><dt>Server</dt><dd class="mono">${esc(publicUrl)}/mcp</dd>${v.tenant ? `<dt>Team</dt><dd class="mono">${esc(v.tenant)}</dd>` : ""}<dt>Username</dt><dd class="mono">${esc(handle)}</dd></dl>
   <div class="small muted">access code for <strong>${esc(handle)}</strong></div>
   <div class="secret" aria-label="access code">${esc(code)}</div>
-  <div class="small">Save these sign-in details now. The code will not be shown again.${self ? "" : ` Share the server address, ${v.tenant ? "team name, " : ""}handle and code with ${esc(handle)} in private.`} In each assistant, sign in with ${v.tenant ? `team <span class="mono">${esc(v.tenant)}</span>, ` : ""}handle <span class="mono">${esc(handle)}</span> and this code. <a class="u" href="${esc(publicUrl)}/connect">Assistant setup instructions</a>.</div>
+  <div class="small">Save these sign-in details now. The code will not be shown again.${self ? "" : ` Share the server address, ${v.tenant ? "team name, " : ""}username and code with ${esc(handle)} in private.`} In each assistant, sign in with ${v.tenant ? `team <span class="mono">${esc(v.tenant)}</span>, ` : ""}username <span class="mono">${esc(handle)}</span> and this code. <a class="u" href="${esc(publicUrl)}/connect">Assistant setup instructions</a>.</div>
   ${
     kind === "reset"
       ? `<div class="small warn">Every assistant of ${esc(handle)} was signed out. Each one asks to sign in again at its next call.${self ? " Your console session ended too: sign in again with the new code." : ""}</div>`
@@ -379,7 +379,7 @@ export function assistantsPage(v: Viewer, d: AssistantsData, now: number, note: 
         .join("")}</tbody></table>`
     : `<div class="small muted">None in ${WINDOW_DAYS} days.</div>`;
   const bad = d.badSignIns.length
-    ? `<table><thead><tr><th>handle tried</th><th class="r">count</th><th>last</th></tr></thead><tbody>${d.badSignIns
+    ? `<table><thead><tr><th>username tried</th><th class="r">count</th><th>last</th></tr></thead><tbody>${d.badSignIns
         .map((r) => `<tr><td>${who(r.subject)}</td><td class="r">${num(r.n)}</td><td class="nowrap">${when(r.last, now)}</td></tr>`)
         .join("")}</tbody></table>`
     : `<div class="small muted">None in ${WINDOW_DAYS} days.</div>`;
