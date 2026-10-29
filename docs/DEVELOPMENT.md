@@ -30,7 +30,7 @@ curl -s http://localhost:8787/mcp -H 'authorization: Bearer dev-alice' \
 - `src/env.ts`: bindings and limits.
 - `src/auth/`: the OAuth 2.1 server (`builtin.ts`: registration, sign-in page, token exchange, signing key), bearer verification, the 401 challenge, resource metadata.
 - `src/domain/service.ts`: packets, idempotency, attachments, imports, tickets, cleanup. No HTTP or MCP here.
-- `src/store/`: the `Repository` and `BlobStore` contracts, with the D1, KV and R2 implementations. `blobStore(env)` picks R2 when a bucket is bound, else KV.
+- `src/store/`: the `Repository` and `BlobStore` contracts, with the D1, KV and R2 implementations. `blobStore(env)` picks the adapter `FILE_STORE` names (kv or r2); unset, R2 when a bucket is bound, else KV. A new store is one adapter and one entry in that table.
 - `src/http/routes.ts`: upload and download endpoints. `src/http/connect.ts`: the Connect page.
 - `src/console/`: the operators' console at `/console` (`docs/CONSOLE.md`). `src/store/events.ts` and `src/store/telemetry.ts`: what it reads (events, revocations); `src/cleanup.ts`: the hourly cleanup.
 - `src/mcp/server.ts`: the five tools and the server instructions.

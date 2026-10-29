@@ -34,4 +34,5 @@
   //   MAX_ATTACHMENT_BYTES   bound on one file, default 26214400 (25 MiB).
   //   IMPORT_HOST_ALLOWLIST  hosts for server-side imports of host file URLs (ChatGPT files); empty = off.
   //   HANDOFF_UPDATE_CHECK   "off" turns off the daily update check (README, "Update check").
+  //   FILE_STORE             "kv" (default) or "r2": the file store; unset picks R2 if a bucket is bound, else KV.
 }

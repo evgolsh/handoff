@@ -45,6 +45,11 @@ describe("Workers KV as the file store", () => {
     expect(blobStore(env)).toBeInstanceOf(R2BlobStore);
     expect(blobStore({ FILES: env.FILES })).toBeInstanceOf(KvBlobStore);
     expect(() => blobStore({})).toThrow(/FILES.*BLOBS/);
+    // FILE_STORE names the adapter; it must then be bound.
+    expect(blobStore({ ...env, FILE_STORE: "kv" })).toBeInstanceOf(KvBlobStore);
+    expect(blobStore({ ...env, FILE_STORE: "R2" })).toBeInstanceOf(R2BlobStore);
+    expect(() => blobStore({ FILES: env.FILES, FILE_STORE: "r2" })).toThrow(/no an R2 bucket bound as BLOBS/);
+    expect(() => blobStore({ ...env, FILE_STORE: "s3" })).toThrow(/unknown: use kv or r2/);
   });
 
   it("stores an upload in KV with its type and size, serves it back by download ticket, and cleanup deletes it", async () => {

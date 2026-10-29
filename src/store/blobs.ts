@@ -69,9 +69,27 @@ export class R2BlobStore implements BlobStore {
   }
 }
 
-/** The store this deployment has: the R2 bucket when one is bound (BLOBS), otherwise the KV namespace (FILES). */
-export function blobStore(env: { BLOBS?: R2Bucket; FILES?: KVNamespace }): BlobStore {
-  if (env.BLOBS) return new R2BlobStore(env.BLOBS);
-  if (env.FILES) return new KvBlobStore(env.FILES);
-  throw new Error("no file store is bound: add a KV namespace (FILES) or an R2 bucket (BLOBS) to wrangler.jsonc");
+/** The adapters by the FILE_STORE setting. A future "s3" or "gcs" entry builds its adapter from env secrets. */
+const ADAPTERS: Record<string, (env: StoreEnv) => BlobStore | null> = {
+  kv: (env) => (env.FILES ? new KvBlobStore(env.FILES) : null),
+  r2: (env) => (env.BLOBS ? new R2BlobStore(env.BLOBS) : null),
+};
+const BINDING: Record<string, string> = { kv: "a KV namespace bound as FILES", r2: "an R2 bucket bound as BLOBS" };
+
+export type StoreEnv = { FILE_STORE?: string; BLOBS?: R2Bucket; FILES?: KVNamespace };
+
+/**
+ * The file store of this deployment. FILE_STORE names it ("kv", the default of a self-hosted install, or "r2").
+ * Unset: the R2 bucket when one is bound, otherwise the KV namespace, so an install that only binds one works.
+ */
+export function blobStore(env: StoreEnv): BlobStore {
+  const chosen = (env.FILE_STORE ?? "").trim().toLowerCase();
+  if (chosen) {
+    const make = ADAPTERS[chosen];
+    if (!make) throw new Error(`FILE_STORE "${chosen}" is unknown: use ${Object.keys(ADAPTERS).join(" or ")}`);
+    const store = make(env);
+    if (!store) throw new Error(`FILE_STORE is "${chosen}" but wrangler.jsonc binds no ${BINDING[chosen]}`);
+    return store;
+  }
+  return ADAPTERS.r2!(env) ?? ADAPTERS.kv!(env) ?? (() => { throw new Error("no file store is bound: add a KV namespace (FILES) or an R2 bucket (BLOBS) to wrangler.jsonc"); })();
 }
