@@ -55,15 +55,17 @@ namespace:
 "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "handoff-attachments" }]
 ```
 
-The Worker uses the R2 bucket whenever one is bound, otherwise KV (`src/store/blobs.ts`). Files already stored
-are not moved when the binding changes: copy them, or let them expire with their packets.
+`FILE_STORE` names the store: `kv` (the default) or `r2`. Unset, the Worker uses the R2 bucket when one is bound,
+otherwise KV. The adapters implement one contract, `BlobStore` in `src/store/blobs.ts` (put, get, delete, ping),
+so another store (S3, GCS) is one more adapter built from its own secrets. Files already stored are not moved
+when the store changes: copy them, or let them expire with their packets.
 
 `PUBLIC_URL` is not set: the Worker uses the origin each request came to (the workers.dev address, or a custom
 domain), and that origin is the OAuth issuer. `wrangler.jsonc` has no `vars` at all, so the Deploy to Cloudflare
 button asks for nothing but the `HANDOFF_SETUP_CODE` secret. The optional variables (set under `vars`, or in the
 dashboard): `PUBLIC_URL` to pin one origin when the Worker has several (no trailing slash; changing it signs every
 assistant out), `HANDOFF_ENV=dev` for local development only, `MAX_ATTACHMENT_BYTES` (default 25 MiB),
-`IMPORT_HOST_ALLOWLIST` (section 4), and `HANDOFF_UPDATE_CHECK=off` (README, "Update check").
+`IMPORT_HOST_ALLOWLIST` (section 4), `HANDOFF_UPDATE_CHECK=off` (README, "Update check"), and `FILE_STORE` ("Files").
 
 ## 2. Sign-in and members
 

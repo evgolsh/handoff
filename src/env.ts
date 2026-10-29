@@ -3,6 +3,8 @@ export interface Env {
   /** Files. One of the two is bound: a KV namespace (the default of a self-hosted install) or an R2 bucket. */
   FILES?: KVNamespace;
   BLOBS?: R2Bucket;
+  /** Which file store to use: "kv" (default) or "r2". Unset: R2 when a bucket is bound, otherwise KV. */
+  FILE_STORE?: string;
   /** Public origin, without a trailing slash. Empty: the origin of the request. */
   PUBLIC_URL?: string;
   /** Optional ES256 private JWK (JSON) that signs access tokens. Empty: a key generated once and kept in D1. */
