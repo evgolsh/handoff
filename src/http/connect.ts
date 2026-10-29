@@ -45,7 +45,7 @@ interface Host {
 }
 
 function hosts(url: string, control = false): Host[] {
-  const signIn = control ? "your team, handle and access code" : "your handle and access code";
+  const signIn = control ? "your team, username and access code" : "your username and access code";
   const host = new URL(url).host;
   return [
     {
@@ -337,7 +337,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
     <div>
       <p class="eyebrow">Server setup required</p>
       <h1 id="connect-title">Finish setup first.<br><span>Or deploy your own.</span></h1>
-      <p class="lead">Assistants can connect once this Handoff server has an admin who can issue member handles and access codes.</p>
+      <p class="lead">Assistants can connect once this Handoff server has an admin who can issue usernames and access codes.</p>
     </div>
     <div class="gate-cards">
       <article class="panel gate-card">
@@ -361,7 +361,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
     <div>
       <p class="eyebrow">Setup</p>
       <h1 id="connect-title">Connect once.<br><span>Keep going.</span></h1>
-      <p class="lead">Add Handoff to the assistants you use and sign in with the same handle in each. Your next chat can pick up the brief and files you sent.</p>
+      <p class="lead">Add Handoff to the assistants you use and sign in with the same username in each. Your next chat can pick up the brief and files you sent.</p>
       <a class="guide-link" href="#assistants">Find your setup guide <span aria-hidden="true">↓</span></a>
     </div>
     <aside class="server-card" aria-labelledby="addr-label">
@@ -371,7 +371,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
         <div class="addr-row"><code>${shownUrl}</code>${copyButton(url, "Copy the server address", true)}</div>
       </div>
       <ol class="overview" aria-label="Setup overview">
-        <li><span class="num" aria-hidden="true">01</span><div><strong>Get your ${control ? "team, " : ""}handle and access code</strong><p>${control ? `<a href="/join">Create a team</a> and you get them at once; a teammate gets theirs from the team's admin in the <a href="/console">console</a>.` : `The person who runs this server adds members in the <a href="/console">console</a>.`}</p></div></li>
+        <li><span class="num" aria-hidden="true">01</span><div><strong>Get your ${control ? "team, " : ""}username and access code</strong><p>${control ? `<a href="/join">Create a team</a> and you get them at once; a teammate gets theirs from the team's admin in the <a href="/console">console</a>.` : `The person who runs this server adds members in the <a href="/console">console</a>.`}</p></div></li>
         <li><span class="num" aria-hidden="true">02</span><div><strong>Add this address to your assistant</strong><p>Choose your assistant below for its exact steps.</p></div></li>
         <li><span class="num" aria-hidden="true">03</span><div><strong>Sign in and approve access</strong><p>Then say “Hand this off” in any chat.</p></div></li>
       </ol>
@@ -399,7 +399,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   <section class="section next" aria-labelledby="next-title">
     <div class="section-head"><div><p class="eyebrow">Your first handoff</p><h2 id="next-title">Send in one chat, continue in another.</h2></div></div>
     <ol class="say">
-      <li class="panel"><p class="eyebrow">01 · Send from any chat</p><p class="say-quote">“Hand this off to tom”</p><p class="say-text">Use your teammate’s handle, say “to the team” for everyone, or leave the recipient out to send to yourself. Your assistant prepares the brief, attaches the files you name, and gives you a packet ID.</p></li>
+      <li class="panel"><p class="eyebrow">01 · Send from any chat</p><p class="say-quote">“Hand this off to tom”</p><p class="say-text">Use your teammate’s username, say “to the team” for everyone, or leave the recipient out to send to yourself. Your assistant prepares the brief, attaches the files you name, and gives you a packet ID.</p></li>
       <li class="panel"><p class="eyebrow">02 · Pick up in another</p><p class="say-quote">“Continue my handoff”</p><p class="say-text">The recipient asks their assistant to open the inbox, read the brief and original files, and take the next step. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>Explore the use cases <span aria-hidden="true">↗</span></a></p></li>
     </ol>
   </section>

@@ -27,7 +27,7 @@ Trigger: the user asks to hand off, pass on, or continue this work in another as
      returned. Do not build your own command by pasting a file name into a shell. Then pass the `attachment_id`
      values in `attachment_ids`.
    - Accepted: PDF, PNG, JPEG, plain text, Markdown, up to the size limit the tool reports.
-3. Call `handoff_send` (or `mcp_handoff_handoff_send` in Hermes) with a short `title`, the `brief`, optional `to` (a teammate handle such as `"tom"` or `"team"` for the shared inbox; omit for self-handoff), the attachments, and a fresh `idempotency_key` (a UUID).
+3. Call `handoff_send` (or `mcp_handoff_handoff_send` in Hermes) with a short `title`, the `brief`, optional `to` (a teammate's username such as `"tom"` or `"team"` for the shared inbox; omit for self-handoff), the attachments, and a fresh `idempotency_key` (a UUID).
    If the call fails for a transient reason, retry with the same key; the server returns the same packet.
 4. Tell the user the `packet_id`, the title, the recipient (`to`), and the expiry. Do not promise that the other assistant opens it on its own: the user asks for it there.
 

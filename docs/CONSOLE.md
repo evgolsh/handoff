@@ -10,7 +10,7 @@ for the accounts without a team.
 
 ## Who can open it
 
-Members whose handle is in `admin_members`. The operator grants that in a terminal:
+Members whose username is in `admin_members`. The operator grants that in a terminal:
 
 ```sh
 npm run admin -- tim              # grant (the member must exist: npm run member:add -- tim)
@@ -18,19 +18,19 @@ npm run admin -- tim --revoke     # revoke; ends that admin's console sessions
 ```
 
 On the control center add `--playground` (it uses `wrangler.playground.jsonc`). A lost operator code:
-`npm run member:add -- <handle> --playground` prints a new one.
+`npm run member:add -- <username> --playground` prints a new one.
 
 `npm run setup` (scripts/deploy.mjs) makes the first member it seeds an admin. A server deployed with the
-Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SETUP_CODE` secret and a handle
+Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SETUP_CODE` secret and a username
 once, makes that member the admin and shows the code (docs/DEPLOY.md). Sign in at `/console/login` with the
-member handle and access code.
+member username and access code.
 
 On the control center, `/join` creates a team and makes its creator that team's admin. The browser is signed
 in to the new team, replacing any session it had, and the access code is shown once. If the session cannot be
 started, the code is still shown and the console link opens sign-in with the team filled in. Members added in
 the console can connect assistants but cannot open the console.
 
-Team admins sign in with team, handle and access code; the operator leaves team empty. `/console/login?team=acme`
+Team admins sign in with team, username and access code; the operator leaves team empty. `/console/login?team=acme`
 opens the console only if the browser's session belongs to `acme`, otherwise it shows the sign-in form for
 `acme`. To change accounts, sign out first.
 
@@ -39,7 +39,7 @@ opens the console only if the browser's session belongs to `acme`, otherwise it 
 - **Your team** (team admins on the control center): the team's members, connected assistants and live
   handoffs, and three first steps: connect an assistant, add teammates, try a handoff. No deployment health,
   keys, storage or cleanup. Ops and Tenants redirect here. The page with a new or reset code also shows the
-  server address, team and handle.
+  server address, team and username.
 - **Overview**: status of the Worker (deployed version), D1 and the file store, KV or R2 (answer time), sign-in (members, admins,
   assistants connected, signing key) and the last cleanup; handoffs sent per day over 14 days; latency by
   tool (p50, p95, max) and tool calls ok / failed over 7 days; refused tokens and wrong sign-in codes; calls
@@ -50,7 +50,7 @@ opens the console only if the browser's session belongs to `acme`, otherwise it 
 - **Assistants**: each assistant signed in as each member: the name it gave when it registered, the name and
   version it announced at MCP initialize, the host its sign-in returns to (`127.0.0.1` or `localhost` = an app
   on that computer), first and last seen, calls, connected or signed out. Disconnect one assistant. Also:
-  refused tokens by reason, wrong sign-in codes by handle, and registrations never used.
+  refused tokens by reason, wrong sign-in codes by username, and registrations never used.
 - **Ops**: deployment (version, address, issuer, signing key, limits), database counts and applied
   migrations, files in storage by state, cleanup runs with a **Run cleanup now** button, recent problems
   (tool errors, refused tokens, wrong codes, failed cleanups), and the console's own record of who did what.
@@ -60,13 +60,13 @@ access code is the one exception: it is shown once, on the page right after Add 
 
 ## What the actions do
 
-- **Add member**: creates the handle with a new code (`hf-` and 96 random bits), shown once. `team` and `all`
+- **Add member**: creates the username with a new code (`hf-` and 96 random bits), shown once. `team` and `all`
   are reserved: they address every member in `handoff_send`.
 - **Reset code**: a new code, shown once. The old code stops, and every assistant of that member is signed out
   at once: their refresh tokens are revoked, and access tokens issued before the reset are refused. Resetting
-  your own code ends your console session too. `npm run member:add -- <existing handle>` does the same.
+  your own code ends your console session too. `npm run member:add -- <existing username>` does the same.
 - **Remove member**: deletes the member and their admin grant, signs out all their assistants, and revokes the
-  live packets they sent or that were addressed to them, so a member added later with the same handle cannot
+  live packets they sent or that were addressed to them, so a member added later with the same username cannot
   read them. Packets to the whole team stay. You cannot remove yourself.
 - **Disconnect** (Assistants): signs out one assistant of one member at once. Signing in again works.
 - **Run cleanup now**: the hourly cleanup, run immediately.
@@ -117,7 +117,7 @@ Open `http://localhost:8787/console`. `PUBLIC_URL` must be the origin you open, 
 
 `test/console.test.ts`: sign-in page without script and with `same-origin` referrer policy; signed-out
 redirects; admin-only sign-in; cookie flags and a hashed session token; refusal of another origin; the
-10-attempt limit; CSRF; add (code once, hashed, taken and reserved handles refused); reset (new code works,
+10-attempt limit; CSRF; add (code once, hashed, taken and reserved usernames refused); reset (new code works,
 old fails, assistants signed out); own reset ends the session; remove (signed out, packets revoked, not
 yourself); activity recorded and shown without titles, briefs, codes or tokens; disconnect of one assistant
 only; wrong sign-in code recorded; refresh refused for a removed member; cleanup from Ops prunes old events

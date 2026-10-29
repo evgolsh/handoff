@@ -2,12 +2,12 @@
 
 The Worker is its own OAuth 2.1 server (`src/auth/builtin.ts`), backed by Cloudflare D1 (packets, attachment
 records, members, OAuth clients/codes/tokens, console sessions, events) and a file store: Workers KV by default,
-or an R2 bucket (see "Files"). Members sign in with a handle and an access code; there is no external identity
+or an R2 bucket (see "Files"). Members sign in with a username and an access code; there is no external identity
 provider.
 
 Before opening an instance to people outside your machine:
 - Add the Cloudflare WAF rate rule (see Operations).
-- Verify member isolation with a second member handle (`npm run member:add -- tom`).
+- Verify member isolation with a second member username (`npm run member:add -- tom`).
 
 Deploy order: D1 migrations before the Worker. `npm run deploy` does both, in that order (the Deploy to
 Cloudflare button runs it too).
@@ -79,7 +79,7 @@ document lists; a loopback address matches on any port (RFC 8252). A document it
 "client document unusable" in the console's recent activity.
 
 First admin: `npm run setup` makes one. A server deployed with the button has none; open
-`PUBLIC_URL/console/setup`, enter the `HANDOFF_SETUP_CODE` secret and a handle, and that member becomes the
+`PUBLIC_URL/console/setup`, enter the `HANDOFF_SETUP_CODE` secret and a username, and that member becomes the
 admin (code shown once). The page is open only while no admin exists and the secret is 12 characters or
 more; guesses count against the console's sign-in limit (10 per 10 minutes per address). Without the secret,
 the page says how to set it in the dashboard, or to use `npm run member:add` and `npm run admin`.
@@ -92,7 +92,7 @@ npm run member:add -- tom              # prints a new access code once; --local 
 npm run admin -- tim                   # lets member tim open the console (--revoke to undo)
 ```
 
-Give the handle and code to that person privately. Each of their assistants signs in with them. A new code
+Give the username and code to that person privately. Each of their assistants signs in with them. A new code
 stops the old one and signs out every assistant of that member at once; they sign in again with the new code.
 `docs/CONSOLE.md` describes the console.
 
@@ -120,7 +120,7 @@ the endpoint URL and OAuth, "Create as a plugin", install it from the personal p
 Work chat type `@` and pick Handoff. claude.ai: add a custom connector with the endpoint URL. To attach files
 from Claude (web or desktop), also add the server's host to the allowed domains in Claude's Settings >
 Capabilities: Claude uploads from its sandbox, and without the domain the upload fails with 403 while text
-handoffs still work. Each host opens the sign-in page: enter the handle and access code.
+handoffs still work. Each host opens the sign-in page: enter the username and access code.
 
 Check: the five tools `handoff_send`, `handoff_inbox`, `handoff_read`, `handoff_revoke`,
 `handoff_upload_url` appear in the host.

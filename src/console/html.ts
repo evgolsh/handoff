@@ -250,15 +250,15 @@ export function loginPage(error?: string, opts: { needsSetup?: boolean; control?
   <div class="brand" style="font-size:18px">${BRAND_ICON}<span>Handoff console</span></div>
   <form method="post" action="/console/login" class="panel" autocomplete="off">
     <div class="t">Sign in</div>
-    <div class="small muted">${opts.control ? "Sign in to your team's console with its team name, your handle and access code. The person who created the team is its admin. Other members connect their assistants from the Connect page." : "With your member handle and access code. The console is open to members the operator made admins (<span class=\"mono\">npm run admin -- &lt;handle&gt;</span>)."} The session lasts 12 hours, and ends when your code is reset.</div>
+    <div class="small muted">${opts.control ? "Sign in to your team's console with its team name, your username and access code. The person who created the team is its admin. Other members connect their assistants from the Connect page." : "With your username and access code. The console is open to members the operator made admins (<span class=\"mono\">npm run admin -- &lt;username&gt;</span>)."} The session lasts 12 hours, and ends when your code is reset.</div>
     ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
     ${opts.control ? `<div><label class="lbl" for="team">team</label><input id="team" name="team" class="field" autofocus autocapitalize="none" spellcheck="false" placeholder="acme" value="${esc(opts.team ?? "")}"></div>` : ""}
-    <div><label class="lbl" for="handle">handle</label><input id="handle" name="handle" class="field" required${opts.control ? "" : " autofocus"} autocapitalize="none" spellcheck="false"></div>
+    <div><label class="lbl" for="handle">username</label><input id="handle" name="handle" class="field" required${opts.control ? "" : " autofocus"} autocapitalize="none" spellcheck="false"></div>
     <div><label class="lbl" for="code">access code</label><input id="code" name="access_code" type="password" class="field" required></div>
     <div><button type="submit" class="btn primary">Sign in</button></div>
   </form>
   ${opts.needsSetup ? `<div class="small">This server has no admin yet. If you deployed it, <a class="u" href="/console/setup">set it up</a>.</div>` : ""}
-  ${opts.control ? `<div class="small">No team yet? <a class="u" href="/join">Create one</a>: it takes a name and a handle.</div>` : ""}
+  ${opts.control ? `<div class="small">No team yet? <a class="u" href="/join">Create one</a>: it takes a team name and a username.</div>` : ""}
   <div class="small muted"><a class="u" href="/connect">Connect page</a></div>
 </div>`,
   );
@@ -278,10 +278,10 @@ export function setupPage(ready: boolean, error?: string, opts: { tooShort?: boo
   const body = ready
     ? `<form method="post" action="/console/setup" class="panel" autocomplete="off">
     <div class="t">Set up this server</div>
-    <div class="small muted">This server has no admin yet. Enter the setup code you chose when you deployed it (the <span class="mono">HANDOFF_SETUP_CODE</span> secret) and the handle you want. You become a member and the console's admin, and get your access code on the next page. This page closes once an admin exists.</div>
+    <div class="small muted">This server has no admin yet. Enter the setup code you chose when you deployed it (the <span class="mono">HANDOFF_SETUP_CODE</span> secret) and the username you want. You become a member and the console's admin, and get your access code on the next page. This page closes once an admin exists.</div>
     ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
     <div><label class="lbl" for="setup_code">setup code</label><input id="setup_code" name="setup_code" type="password" class="field" required autofocus></div>
-    <div><label class="lbl" for="handle">your handle</label><input id="handle" name="handle" class="field" required autocapitalize="none" spellcheck="false" placeholder="for example: tim"></div>
+    <div><label class="lbl" for="handle">your username</label><input id="handle" name="handle" class="field" required autocapitalize="none" spellcheck="false" placeholder="for example: tim"></div>
     <div><button type="submit" class="btn primary">Create my admin account</button></div>
   </form>`
     : `<div class="panel">
@@ -310,7 +310,7 @@ export function setupDonePage(handle: string, code: string): Html {
     <div class="t">You are this server's admin</div>
     <div class="small muted">access code for <strong>${esc(handle)}</strong></div>
     <div class="secret" aria-label="access code">${esc(code)}</div>
-    <div class="small">Copy it now: this page will not show it again. Sign in to the console and to each of your assistants with handle <span class="mono">${esc(handle)}</span> and this code. If you lose it, another admin can reset it, or run <span class="mono">npm run member:add -- ${esc(handle)}</span>.</div>
+    <div class="small">Copy it now: this page will not show it again. Sign in to the console and to each of your assistants with username <span class="mono">${esc(handle)}</span> and this code. If you lose it, another admin can reset it, or run <span class="mono">npm run member:add -- ${esc(handle)}</span>.</div>
     <div class="small muted">The setup code no longer opens anything. You may delete the <span class="mono">HANDOFF_SETUP_CODE</span> secret.</div>
     <div><a class="btn primary" href="/console/members">Add your teammates</a></div>
   </div>

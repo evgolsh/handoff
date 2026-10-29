@@ -279,7 +279,7 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
           : ""
       }
       <div class="field">
-        <label for="handle">Handle</label>
+        <label for="handle">Username</label>
         <input id="handle" name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required${cfg.mode === "control" ? "" : " autofocus"}>
       </div>
       <div class="field">
@@ -288,7 +288,7 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
       </div>
       <button type="submit" class="btn">Sign in and allow</button>
     </form>
-    <p class="meta foot">${cfg.mode === "control" ? `Your team, handle and access code come from your team's sign-up or its admin. No team yet? <a href="/join">Create one</a>.` : "Your access code comes from the person who runs this Handoff server."} Use the same handle in each of your assistants.</p>`;
+    <p class="meta foot">${cfg.mode === "control" ? `Your team, username and access code come from your team's sign-up or its admin. No team yet? <a href="/join">Create one</a>.` : "Your access code comes from the person who runs this Handoff server."} Use the same username in each of your assistants.</p>`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -350,7 +350,7 @@ export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, for
   const handle = identity ? await verifyMemberCode(db, identity, form.access_code ?? "") : null;
   if (!handle) {
     await recordEvent(db, { kind: "sign_in", subject: identity, client_id: params.client_id, outcome: "bad_code" }, { unauthenticated: true });
-    return bad(cfg.mode === "control" ? "That team, handle and access code do not match." : "That handle and access code do not match.", 401);
+    return bad(cfg.mode === "control" ? "That team, username and access code do not match." : "That username and access code do not match.", 401);
   }
   await recordEvent(db, { kind: "sign_in", subject: handle, client_id: params.client_id, outcome: "ok" });
 

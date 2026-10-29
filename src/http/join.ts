@@ -25,7 +25,7 @@ export function joinPage(cfg: Config, opts: { error?: string; team?: string; han
     ${opts.error ? `<div class="flash" role="alert">${esc(opts.error)}</div>` : ""}
     <div><label class="lbl" for="team">team name</label><input id="team" name="team" class="field" required autofocus maxlength="32" pattern="[a-z0-9][a-z0-9\\-]{1,30}[a-z0-9]" autocapitalize="none" spellcheck="false" placeholder="acme" value="${esc(opts.team ?? "")}"></div>
     <div class="small muted">3 to 32 lower-case letters, digits or hyphens. Your teammates type it when they sign in.</div>
-    <div><label class="lbl" for="handle">your handle</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tim" value="${esc(opts.handle ?? "")}"></div>
+    <div><label class="lbl" for="handle">your username</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tim" value="${esc(opts.handle ?? "")}"></div>
     <div><button type="submit" class="btn primary">Create the team</button></div>
     <div class="small muted">You become the team's admin and get an access code on the next page, shown once. Creating a team switches this browser to its console.</div>
   </form>
@@ -42,10 +42,10 @@ export function joinedPage(team: string, handle: string, code: string, signedIn:
   <div class="panel">
     <div class="t">Team ${esc(team)} is ready</div>
     <div class="small">Your sign-in, for every assistant and for the console. The code is shown once; keep it somewhere safe.</div>
-    <dl class="kv"><dt>team</dt><dd class="mono">${esc(team)}</dd><dt>handle</dt><dd class="mono">${esc(handle)}</dd><dt>access code</dt><dd class="mono">${esc(code)}</dd></dl>
+    <dl class="kv"><dt>team</dt><dd class="mono">${esc(team)}</dd><dt>username</dt><dd class="mono">${esc(handle)}</dd><dt>access code</dt><dd class="mono">${esc(code)}</dd></dl>
     <div class="small">${signedIn ? `You are signed in as ${esc(handle)}, admin of ${esc(team)}.` : "Your team was created. Save the code above, then sign in to open its console."}</div>
     <div><a class="btn primary" href="/console/login?team=${encodeURIComponent(team)}">Open your team console</a></div>
-    <div class="small">Or <a class="u" href="/connect">connect an assistant</a> with your team, handle and code.</div>
+    <div class="small">Or <a class="u" href="/connect">connect an assistant</a> with your team, username and code.</div>
   </div>
 </div>`,
   );
@@ -60,7 +60,7 @@ export async function handleJoin(db: D1Database, cfg: Config, form: Record<strin
   const again = (error: string, status: number) => ({ status, body: joinPage(cfg, { error, team, handle }) });
   if (!(await loginAllowed(db, ip, JOIN_ATTEMPTS_PURPOSE))) return again("Too many attempts from this address. Try again in 10 minutes.", 429);
   if (!isValidTenant(team)) return again("Team name: 3 to 32 lower-case letters, digits or hyphens, starting and ending with a letter or digit. Some names are reserved.", 400);
-  if (!isValidHandle(handle)) return again("Handle: 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. team and all are reserved.", 400);
+  if (!isValidHandle(handle)) return again("Username: 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. team and all are reserved.", 400);
 
   const identity = qualify(team, handle);
   const code = newAccessCode();

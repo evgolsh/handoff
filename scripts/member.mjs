@@ -4,7 +4,7 @@
  * out every assistant of that member at once (they sign in again with the new code).
  * The console (/console, Members) does the same from a browser.
  * Usage:
- *   npm run member:add -- <handle> [access_code] [--local | --playground]
+ *   npm run member:add -- <username> [access_code] [--local | --playground]
  * --playground runs it on the control center (wrangler.playground.jsonc), for example to reset the operator's code.
  */
 import crypto from "node:crypto";
@@ -18,7 +18,7 @@ const rawHandle = (positional[0] ?? "").trim().toLowerCase();
 
 // "team" and "all" address every member in handoff_send (src/auth/builtin.ts RESERVED_HANDLES).
 if (!rawHandle || !/^[a-z0-9][a-z0-9._-]{0,62}$/.test(rawHandle) || ["team", "all"].includes(rawHandle)) {
-  console.error("Usage: npm run member:add -- <handle> [access_code] [--local | --playground]   (team and all are reserved)");
+  console.error("Usage: npm run member:add -- <username> [access_code] [--local | --playground]   (team and all are reserved)");
   console.error("Example: npm run member:add -- tom");
   process.exit(1);
 }
@@ -47,5 +47,5 @@ execFileSync(
 );
 
 console.log(`\n✓ Member "${rawHandle}" ready (${isLocal ? "local" : "remote"} D1${config.length ? ", control center" : ""}).`);
-console.log(`  Handle:      ${rawHandle}`);
+console.log(`  Username:    ${rawHandle}`);
 console.log(`  Access code: ${accessCode}\n`);
