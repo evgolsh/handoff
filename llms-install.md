@@ -4,7 +4,7 @@ Use these exact steps when a user asks you (Claude Code, Hermes Agent, Codex, Cu
 
 ## 1. Prerequisites
 - Node.js 20+ and `npm`
-- A Cloudflare account (Free tier is sufficient: Workers + D1 + R2)
+- A Cloudflare account (the free plan is enough: Workers + D1 + KV; no payment method)
 
 ## 2. Ask, then Clone and Deploy (One Command)
 
@@ -28,7 +28,7 @@ If a Worker named `handoff` already exists in this Cloudflare account, stop and 
 
 What `npm run setup` (`scripts/deploy.mjs`) does:
 1. Checks `npx wrangler whoami` (opens `npx wrangler login` in the browser if not signed in).
-2. Uses the D1 database named in `wrangler.jsonc` if it is in the user's account; otherwise the user's database `handoff`, created if needed, with its `database_id` written into `wrangler.jsonc`. Creates the R2 bucket (`handoff-attachments`) if needed.
+2. Uses the D1 database named in `wrangler.jsonc` if it is in the user's account; otherwise the user's database `handoff`, created if needed, with its `database_id` written into `wrangler.jsonc`. Same for the files store: the KV namespace `handoff-FILES`, created if needed, with its id written into `wrangler.jsonc`.
 3. Applies all D1 migrations (`migrations/`).
 4. Deploys the Cloudflare Worker (`https://handoff.<subdomain>.workers.dev`).
 5. Seeds the member handles from `--members`, makes the first one an admin of `/console`, and prints the live `/connect` and `/console` URLs plus each member's handle and access code. **The codes are shown once.** Give the user their own code, and each teammate's code to hand over privately. Never write the codes into a file in the repository or into a handoff brief.

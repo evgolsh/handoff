@@ -2,7 +2,7 @@
 
 Tell something to a teammate's agent. Your assistant writes a brief, attaches the original files, and sends it. Their assistant reads it and carries on. Works across vendors: Claude, ChatGPT, Codex, Hermes, Cursor, Gemini CLI.
 
-Runs on your own Cloudflare account (Workers, D1, R2). Free tier is enough. MIT.
+Runs on your own Cloudflare account (Workers, D1, KV). Free plan, no payment method. MIT.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://handoff.infraworks.net/deploy)
 
@@ -23,7 +23,7 @@ npm install
 npm run setup -- --members=tim,tom   # your handle first
 ```
 
-`npm run setup` signs you in to Cloudflare, creates the D1 database and R2 bucket, runs the migrations, deploys, creates the members with access codes (shown once) and prints your `/connect` and `/console` URLs. Later: `npm run deploy`.
+`npm run setup` signs you in to Cloudflare, creates the D1 database and the KV namespace for files, runs the migrations, deploys, creates the members with access codes (shown once) and prints your `/connect` and `/console` URLs. Later: `npm run deploy`.
 
 ## Try it first
 

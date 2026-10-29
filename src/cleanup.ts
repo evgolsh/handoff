@@ -2,7 +2,7 @@ import { configFrom, type Env } from "./env";
 import { redactSecrets } from "./domain/errors";
 import { HandoffService } from "./domain/service";
 import { D1Repository } from "./store/d1";
-import { R2BlobStore } from "./store/blobs";
+import { blobStore } from "./store/blobs";
 import { pruneRecords, recordEvent, type RecordsPruned } from "./store/events";
 
 export type CleanupResult = { attachments_deleted: number; packets_deleted: number; backlog: boolean } & RecordsPruned;
@@ -15,7 +15,7 @@ export type CleanupResult = { attachments_deleted: number; packets_deleted: numb
 export async function runCleanup(env: Env, trigger: "schedule" | "console", by: string | null = null): Promise<CleanupResult> {
   const started = Date.now();
   try {
-    const service = new HandoffService(new D1Repository(env.DB), new R2BlobStore(env.BLOBS), configFrom(env));
+    const service = new HandoffService(new D1Repository(env.DB), blobStore(env), configFrom(env));
     const result: CleanupResult = { ...(await service.cleanup()), ...(await pruneRecords(env.DB)) };
     const ms = Date.now() - started;
     await recordEvent(env.DB, { kind: "cleanup", name: trigger, subject: by, outcome: result.backlog ? "backlog" : "ok", ms, detail: { ...result } });

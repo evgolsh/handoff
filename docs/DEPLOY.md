@@ -1,8 +1,9 @@
 # Deploy and connect
 
-The Worker is its own OAuth 2.1 server (`src/auth/builtin.ts`), backed by Cloudflare D1 (packets, attachments,
-members, OAuth clients/codes/tokens, console sessions, events) and R2 (`handoff-attachments`). Members sign in
-with a handle and an access code; there is no external identity provider.
+The Worker is its own OAuth 2.1 server (`src/auth/builtin.ts`), backed by Cloudflare D1 (packets, attachment
+records, members, OAuth clients/codes/tokens, console sessions, events) and a file store: Workers KV by default,
+or an R2 bucket (see "Files"). Members sign in with a handle and an access code; there is no external identity
+provider.
 
 Before opening an instance to people outside your machine:
 - Add the Cloudflare WAF rate rule (see Operations).
@@ -26,18 +27,36 @@ Known issues:
 
 Three ways, each into your own Cloudflare account:
 
-- The Deploy to Cloudflare button (README). It reads `wrangler.jsonc`, creates the database and bucket, asks
-  for the secrets in `.dev.vars.example` (only `HANDOFF_SETUP_CODE`) and runs `npm run deploy`. Untested until
-  the repository is public.
+- The Deploy to Cloudflare button (README). It needs a GitHub or GitLab account (Cloudflare copies the repository
+  into it). It reads `wrangler.jsonc`, creates the database and the KV namespace, asks for the secrets in
+  `.dev.vars.example` (only `HANDOFF_SETUP_CODE`; the form shows no description for a secret, so the 12-character
+  minimum is only in the README) and runs `npm run deploy`. Cold-tested 2026-10-30: see the README for its limits.
 - `npm run setup` (scripts/deploy.mjs): see the README.
 - By hand:
 
 ```sh
 npx wrangler login
 npx wrangler d1 create handoff            # put its database_id into wrangler.jsonc
-npx wrangler r2 bucket create handoff-attachments
+npx wrangler kv namespace create FILES    # put its id into wrangler.jsonc
 npm run deploy                            # migrations, then the Worker
 ```
+
+### Files
+
+Files live in Workers KV (`kv_namespaces`, binding `FILES`): it is part of the Workers free plan, so a self-hosted
+install needs no payment method on Cloudflare. KV's limits fit Handoff's: 25 MiB per value, which is the file limit,
+and on the free plan 1 GB per account and 1,000 uploads per day.
+
+R2 is the alternative for larger teams: Cloudflare asks for a payment method before it creates a bucket (R2 is a
+metered service with a free allowance). To use it, create the bucket and bind it instead of, or next to, the
+namespace:
+
+```jsonc
+"r2_buckets": [{ "binding": "BLOBS", "bucket_name": "handoff-attachments" }]
+```
+
+The Worker uses the R2 bucket whenever one is bound, otherwise KV (`src/store/blobs.ts`). Files already stored
+are not moved when the binding changes: copy them, or let them expire with their packets.
 
 `PUBLIC_URL` is not set: the Worker uses the origin each request came to (the workers.dev address, or a custom
 domain), and that origin is the OAuth issuer. `wrangler.jsonc` has no `vars` at all, so the Deploy to Cloudflare

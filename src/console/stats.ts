@@ -1,6 +1,7 @@
 import type { Config, Env } from "../env";
 import { updateState, type UpdateState } from "../update-check";
 import { handleOf, teamOf, tenantWhere } from "../domain/tenant";
+import { blobStore } from "../store/blobs";
 
 /**
  * A tenant admin sees their tenant only: `scope` adds the tenant predicate for an identity column. The
@@ -137,7 +138,7 @@ export interface LatencyRow {
 export interface OverviewData {
   now: number;
   database: { ok: boolean; ms: number };
-  storage: { ok: boolean; ms: number; files: number; bytes: number };
+  storage: { kind: string; ok: boolean; ms: number; files: number; bytes: number };
   packetsLive: number;
   members: number;
   admins: number;
@@ -209,7 +210,8 @@ export async function overview(env: Env, cfg: Config, tenant = "", now = Date.no
   const show = shownBy(tenant);
 
   const database = await timed(() => db.prepare("SELECT 1 AS ok").first());
-  const r2 = await timed(() => env.BLOBS.list({ limit: 1 }));
+  const store = blobStore(env);
+  const storage = await timed(() => store.ping());
   const files = await one<{ n: number; b: number }>(db, `SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS b FROM attachments WHERE state = 'ready'${own.sql}`, ...own.binds);
   const counts = await one<{ packets: number; members: number; admins: number; connected: number }>(
     db,
@@ -286,7 +288,7 @@ export async function overview(env: Env, cfg: Config, tenant = "", now = Date.no
   return {
     now,
     database: { ok: database.ok, ms: database.ms },
-    storage: { ok: r2.ok, ms: r2.ms, files: files?.n ?? 0, bytes: files?.b ?? 0 },
+    storage: { kind: store.name, ok: storage.ok, ms: storage.ms, files: files?.n ?? 0, bytes: files?.b ?? 0 },
     packetsLive: counts?.packets ?? 0,
     members: counts?.members ?? 0,
     admins: counts?.admins ?? 0,

@@ -349,7 +349,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <article class="panel gate-card">
         <p class="eyebrow">02 · Run your own copy</p>
         <h2>Deploy to Cloudflare</h2>
-        <p>Run your own private Handoff server (Workers, D1, R2, and built-in OAuth 2.1) on your Cloudflare account.</p>
+        <p>Run your own private Handoff server (Workers, D1, KV, and built-in OAuth 2.1) on your Cloudflare account.</p>
         <div class="gate-actions">
           <a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a>
           <a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>

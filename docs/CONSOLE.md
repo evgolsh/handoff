@@ -40,7 +40,7 @@ opens the console only if the browser's session belongs to `acme`, otherwise it 
   handoffs, and three first steps: connect an assistant, add teammates, try a handoff. No deployment health,
   keys, storage or cleanup. Ops and Tenants redirect here. The page with a new or reset code also shows the
   server address, team and handle.
-- **Overview**: status of the Worker (deployed version), D1 and R2 (answer time), sign-in (members, admins,
+- **Overview**: status of the Worker (deployed version), D1 and the file store, KV or R2 (answer time), sign-in (members, admins,
   assistants connected, signing key) and the last cleanup; handoffs sent per day over 14 days; latency by
   tool (p50, p95, max) and tool calls ok / failed over 7 days; refused tokens and wrong sign-in codes; calls
   per member; recent activity.

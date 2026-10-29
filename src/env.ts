@@ -1,6 +1,8 @@
 export interface Env {
   DB: D1Database;
-  BLOBS: R2Bucket;
+  /** Files. One of the two is bound: a KV namespace (the default of a self-hosted install) or an R2 bucket. */
+  FILES?: KVNamespace;
+  BLOBS?: R2Bucket;
   /** Public origin, without a trailing slash. Empty: the origin of the request. */
   PUBLIC_URL?: string;
   /** Optional ES256 private JWK (JSON) that signs access tokens. Empty: a key generated once and kept in D1. */
