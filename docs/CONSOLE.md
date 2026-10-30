@@ -27,7 +27,7 @@ member username and access code.
 
 On the control center, `/join` creates a team and makes its creator that team's admin. The browser is signed
 in to the new team, replacing any session it had, and the access code is shown once. If the session cannot be
-started, the code is still shown and Continue to setup opens sign-in with the team filled in. The normal flow is Create team → Save access → Connect. Members added in
+started, the code is still shown and Continue to setup opens sign-in with the team filled in. The normal flow is Create team → Save sign-in → Connect. Members added in
 the console can connect assistants but cannot open the console.
 
 Team admins sign in with team, username and access code; the operator leaves team empty. `/console/login?team=acme`
