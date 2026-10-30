@@ -24,7 +24,7 @@ const form = (fields: Record<string, string>, extra: Record<string, string> = {}
 async function join(team: string, handle: string, oldCookie = "") {
   const res = await fetchAs(ctl, "/join", form({ team, handle }, { cookie: oldCookie }));
   const text = await res.text();
-  return { status: res.status, code: /hf-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text, cookie: res.headers.get("set-cookie") };
+  return { status: res.status, code: /hf-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text, cookie: res.headers.get("set-cookie"), headers: res.headers };
 }
 
 interface Session {
@@ -74,7 +74,7 @@ describe("the control center", () => {
     expect(join.status).toBe(200);
     const page = await join.text();
     expect(page).toContain('action="/join"');
-    expect(page).toContain("shared Handoff playground");
+    expect(page).toContain("The shared playground");
     const stats = await fetchAs(ctl, "/stats.json");
     expect(stats.status).toBe(200);
     expect(Object.keys((await stats.json()) as object)).toEqual(expect.arrayContaining(["teams", "users_28d", "private_instances_28d", "deploy_clicks_30d"]));
@@ -163,9 +163,28 @@ describe("the control center", () => {
     for (const flag of ["Secure", "HttpOnly", "SameSite=Strict", "Path=/"]) expect(created.cookie).toContain(flag);
     const cookie = created.cookie!.split(";")[0]!;
     expect(cookie).not.toBe(oldCookie);
-    expect(created.text).toContain(`href="/console/login?team=${team}"`);
+    expect(created.text).toContain(`href="/console/login?team=${team}&amp;next=connect"`);
+    expect(created.headers.get("cache-control")).toBe("no-store");
+    const nonce = /script-src 'nonce-([^']+)'/.exec(created.headers.get("content-security-policy")!)![1];
+    expect(created.text).toContain(`<script nonce="${nonce}">`);
+    expect(created.text).toContain(`Team: ${team}\nUsername: tim\nAccess code: ${created.code}`);
+    expect([...created.text.matchAll(/href="([^"]+)"/g)].some(m => m[1]!.includes(created.code!))).toBe(false);
     const s = withCookie(ctl, cookie);
     expect((await s.page(`/console/login?team=${team}`)).location).toBe("/console/overview");
+    expect((await s.page(`/console/login?team=${team}&next=connect`)).location).toBe("/console/connect");
+    expect((await s.page("/connect")).location).toBe("/console/connect");
+    const guide = await fetchAs(ctl, "/console/connect", { headers: { cookie } });
+    expect(guide.status).toBe(200);
+    expect(guide.headers.get("cache-control")).toBe("no-store");
+    expect(guide.headers.get("referrer-policy")).toBe("same-origin");
+    expect(guide.headers.get("content-security-policy")).toContain("form-action 'self'");
+    const guideNonce = /script-src 'nonce-([^']+)'/.exec(guide.headers.get("content-security-policy")!)![1];
+    const guideText = await guide.text();
+    expect(guideText.match(/<script\b[^>]*>/g)).toEqual([`<script nonce="${guideNonce}">`]);
+    expect(guideText).toContain(`Team <strong>${team}</strong>`);
+    expect(guideText).toContain('href="/console/connect" class="on" aria-current="page"');
+    expect(guideText).not.toContain(oldTeam);
+    expect(guideText).not.toContain(created.code!);
     const overview = await s.page("/console/overview");
     expect(overview.status).toBe(200);
     expect(overview.text).toContain(`Team administration · <strong>${team}</strong>`);
@@ -180,6 +199,25 @@ describe("the control center", () => {
     expect((await s.page("/console/overview")).status).toBe(200);
     expect((await s.submit("/console/logout")).status).toBe(303);
     expect((await s.page("/console/overview")).location).toBe("/console/login");
+    expect((await s.page("/console/connect")).location).toBe("/console/login?next=connect");
+  });
+
+  it("keeps a setup continuation through login, accepts only known destinations, and leaves public setup open to members", async () => {
+    const team = `resume-${uid()}`;
+    const me = await join(team, "tim");
+    const wrong = await fetchAs(ctl, "/console/login", form({ team, handle: "tim", access_code: "wrong", next: "connect" }));
+    expect(wrong.status).toBe(401);
+    expect(await wrong.text()).toContain('name="next" value="connect"');
+    const good = await fetchAs(ctl, "/console/login", form({ team, handle: "tim", access_code: me.code!, next: "connect" }));
+    expect(good.headers.get("location")).toBe("/console/connect");
+    const external = await fetchAs(ctl, "/console/login", form({ team, handle: "tim", access_code: me.code!, next: "https://example.org/steal" }));
+    expect(external.headers.get("location")).toBe("/console/overview");
+    const publicGuide = await fetchAs(ctl, "/connect");
+    expect(publicGuide.status).toBe(200);
+    expect(publicGuide.headers.get("cache-control")).toBe("no-store");
+    const text = await publicGuide.text();
+    expect(text).toContain('role="tablist"');
+    expect(text).not.toContain(team);
   });
 
   it("keeps the one-time code available if the team is saved but its browser session cannot be created", async () => {
@@ -253,6 +291,13 @@ describe("the control center", () => {
     const { access_token } = (await tok.json()) as { access_token: string };
     const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(access_token.split(".")[1]!.replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0))));
     expect(payload.sub).toBe(`${team}/tim`);
+    const session = withCookie(ctl, me.cookie!.split(";")[0]!);
+    const connections = await session.page("/console/assistants");
+    expect(connections.text).toContain("Test host");
+    expect(connections.text).toContain(`member=tim&amp;client=${client.client_id}`);
+    const confirm = await session.page(`/console/assistants/disconnect?member=tim&client=${client.client_id}`);
+    expect(confirm.status).toBe(200);
+    expect(confirm.text).toContain('name="member" value="tim"');
   });
 
   it("the operator signs in with no team and sees every team on the Tenants page and Ops", async () => {

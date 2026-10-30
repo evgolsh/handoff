@@ -1,3 +1,4 @@
+import { COPY_SCRIPT } from "../http/clipboard";
 import type { Config } from "../env";
 import { RELEASES_URL, type UpdateState } from "../update-check";
 import { isNewer } from "../version";
@@ -68,23 +69,23 @@ function clientCell(clients: Map<string, ClientInfo>, id: string | null): Html {
 // ---- overview -----------------------------------------------------------------------------------------------
 
 export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): Html {
-  return shell(
-    "overview",
-    v,
-    "Your team",
-    `${head(v.tenant, "Your team on the Handoff playground")}
-<section class="cards" aria-label="Your team">
-  <a class="card" href="/console/members"><div class="t">Members</div><div class="big">${num(d.members)}</div><div class="small muted">Manage your teammates</div></a>
-  <a class="card" href="/console/assistants"><div class="t">Connected assistants</div><div class="big">${num(d.connected)}</div><div class="small muted">Manage your team's connections</div></a>
-  <div class="card"><div class="t">Active handoffs</div><div class="big">${num(d.packetsLive)}</div><div class="small muted">Available to their recipients</div></div>
+  const connected = d.connected > 0;
+  return shell("overview", v, "Your team", `
+<header class="team-welcome"><div><span class="kicker">Your workspace</span><h1>${esc(v.tenant)}</h1><p>${connected ? "Your people, your assistants, and the next handoff." : "Your team is ready. Let's connect your first assistant."}</p></div></header>
+<section class="team-start" aria-label="Get started">
+  <div><span class="kicker">${connected ? "Keep the work moving" : "Start here"}</span><h2>${connected ? "Bring another assistant in." : "Connect your first assistant."}</h2><p>Choose Claude, Codex, ChatGPT or Hermes. Follow the setup steps, then sign in as <strong>${esc(v.handle)}</strong>.</p><a class="btn primary" href="/console/connect">${connected ? "Connect an assistant" : "Choose your assistant"} →</a></div>
+  <div class="team-steps">
+    <div class="team-step"><span>1</span><div><strong>Connect</strong><p>Add Handoff to the assistants you use.</p></div></div>
+    <div class="team-step"><span>2</span><div><strong>Send a brief</strong><p>Say “Hand this off” in your first chat.</p></div></div>
+    <div class="team-step"><span>3</span><div><strong>Pick it up</strong><p>Say “Continue my handoff” in another.</p></div></div>
+  </div>
 </section>
-<section class="grid3" aria-label="Get started">
-  <div class="panel"><div class="t">1. Connect an assistant</div><p>Choose your assistant and sign in with team <strong>${esc(v.tenant)}</strong>, your username and access code.</p><div><a class="btn primary" href="/connect">Connect an assistant</a></div></div>
-  <div class="panel"><div class="t">2. Add teammates</div><p>Add a username for each teammate, then share their team name, username and access code in private. You can also try Handoff on your own.</p><div><a class="btn" href="/console/members">Add teammates</a></div></div>
-  <div class="panel"><div class="t">3. Try your first handoff</div><p>In one assistant, say <strong>“Hand this off.”</strong> In another, signed in as the same member, say <strong>“Continue my handoff.”</strong></p><div><a class="btn" href="/connect#next-title">First handoff guide</a></div></div>
+<section class="team-shortcuts" aria-label="Manage your team">
+  <a href="/console/members"><div><strong>Invite a teammate</strong><p>Add someone and share their sign-in details.</p></div><span aria-hidden="true">↗</span></a>
+  <a href="/console/assistants"><div><strong>Manage connections</strong><p>See which assistants your team has connected.</p></div><span aria-hidden="true">↗</span></a>
 </section>
-<section class="panel"><div class="t">Shared playground</div><div class="small muted">Handoffs expire after ${plural(cfg.defaultExpiryHours, "hour")} by default. Files can be up to ${bytes(cfg.maxAttachmentBytes)} each. Use a <a class="u" href="/deploy" target="_blank" rel="noopener">private install</a> for private files.</div></section>`,
-  );
+<section class="team-metrics" aria-label="Your team"><span><strong>${num(d.members)}</strong> ${d.members === 1 ? "member" : "members"}</span><span><strong>${num(d.connected)}</strong> connected assistants</span><span><strong>${num(d.packetsLive)}</strong> active handoffs</span></section>
+<div class="team-limits">Shared playground · ${plural(cfg.defaultExpiryHours, "hour")} expiry · ${bytes(cfg.maxAttachmentBytes)} per file · <a class="u" href="/deploy" target="_blank" rel="noopener">Self-host for private work ↗</a></div>`);
 }
 
 export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {
@@ -224,6 +225,12 @@ ${cards}
 // ---- members ------------------------------------------------------------------------------------------------
 
 export function membersPage(v: Viewer, data: { rows: MemberRow[]; teamPackets: number }, now: number, note: { text: string; ok: boolean } | null): Html {
+  if (v.tenant) return shell("members", v, "Members", `
+<header class="team-welcome"><div><span class="kicker">${plural(data.rows.length, "member")}</span><h1>Your people.</h1><p>Bring someone into the team, or manage their access.</p></div></header>
+${note ? flash(note.text, note.ok) : ""}
+<div class="team-management"><section class="people-list" aria-label="Team members">
+${data.rows.map(m => `<article class="person-row"><div><strong>${esc(m.handle)}</strong> ${m.admin ? '<span class="chip">admin</span>' : ""} ${m.handle === v.handle ? '<span class="chip">you</span>' : ""}<p>${m.assistants ? `${plural(m.assistants, "assistant")} connected` : "No assistants connected yet"}</p></div><details class="person-actions"><summary>Manage</summary><div><a href="/console/members/${esc(m.handle)}/reset">Reset access code</a>${m.handle === v.handle ? "" : `<a class="danger" href="/console/members/${esc(m.handle)}/remove">Remove member</a>`}</div></details></article>`).join("")}
+</section><form method="post" action="/console/members" class="flow-panel" autocomplete="off"><div><strong>Invite a teammate</strong><p class="flow-note">Create their username. You'll get an invitation to copy and share privately.</p></div>${csrfField(v)}<div><label class="lbl" for="handle">Username</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tom"><p class="field-help">Letters, numbers, dots, underscores or hyphens.</p></div><button type="submit" class="btn primary">Create invitation →</button><details class="flow-note"><summary>Who can manage this team?</summary><p>The person who created the team is its admin. Invited members can connect assistants, but cannot administer the team.</p></details></form></div>`);
   const rows = data.rows
     .map((m) => {
       const self = m.handle === v.handle;
@@ -281,25 +288,28 @@ npm run admin -- &lt;handle&gt; --revoke</pre>`}
 }
 
 /** The new access code, shown once. */
-export function codePage(v: Viewer, handle: string, code: string, kind: "added" | "reset", publicUrl: string): Html {
+export function codePage(v: Viewer, handle: string, code: string, kind: "added" | "reset", publicUrl: string, nonce: string): Html {
   const self = handle === v.handle;
+  const invitation = `Handoff\nServer: ${publicUrl}/mcp\n${v.tenant ? `Team: ${v.tenant}\n` : ""}Username: ${handle}\nAccess code: ${code}\nSetup: ${publicUrl}/connect`;
   return shell(
     "members",
     v,
     "Access code",
-    `${head(kind === "added" ? `Added ${handle}` : `New code for ${handle}`, "shown once · Handoff keeps only a hash")}
+    `${head(kind === "added" ? `Added ${handle}` : `New code for ${handle}`, "Save these details before leaving this page")}
 <section class="panel" style="max-width:680px">
   <dl class="kv"><dt>Server</dt><dd class="mono">${esc(publicUrl)}/mcp</dd>${v.tenant ? `<dt>Team</dt><dd class="mono">${esc(v.tenant)}</dd>` : ""}<dt>Username</dt><dd class="mono">${esc(handle)}</dd></dl>
   <div class="small muted">access code for <strong>${esc(handle)}</strong></div>
   <div class="secret" aria-label="access code">${esc(code)}</div>
-  <div class="small">Save these sign-in details now. The code will not be shown again.${self ? "" : ` Share the server address, ${v.tenant ? "team name, " : ""}username and code with ${esc(handle)} in private.`} In each assistant, sign in with ${v.tenant ? `team <span class="mono">${esc(v.tenant)}</span>, ` : ""}username <span class="mono">${esc(handle)}</span> and this code. <a class="u" href="${esc(publicUrl)}/connect">Assistant setup instructions</a>.</div>
+  <button type="button" class="btn primary" data-copy="${esc(invitation)}">${self ? "Copy sign-in details" : "Copy invitation"}</button>
+  <div class="small muted">${self ? "Keep these in your password manager." : `Send this invitation to ${esc(handle)} in private. It includes everything they need to connect.`} The code is shown only once.</div>
+  <a class="u small" href="${esc(publicUrl)}/connect">View assistant setup instructions ↗</a>
   ${
     kind === "reset"
       ? `<div class="small warn">Every assistant of ${esc(handle)} was signed out. Each one asks to sign in again at its next call.${self ? " Your console session ended too: sign in again with the new code." : ""}</div>`
       : ""
   }
-  <div><a class="btn" href="/console/members">Done</a></div>
-</section>`,
+  <div><a class="btn" href="/console/members">Back to members</a></div><p id="copy-status" class="sr-only" role="status"></p>
+</section>`, { nonce, script: COPY_SCRIPT },
   );
 }
 
@@ -389,6 +399,12 @@ export function assistantsPage(v: Viewer, d: AssistantsData, now: number, note: 
         .map((c) => `<tr><td>${esc(c.name)}</td><td class="mono">${esc(c.host ?? "—")}</td><td class="nowrap">${when(c.created_at, now)}</td></tr>`)
         .join("")}</tbody></table>`
     : `<div class="small muted">None.</div>`;
+
+  if (v.tenant) return shell("assistants", v, "Connections", `
+<header class="team-welcome"><div><span class="kicker">Your team's assistants</span><h1>Connections.</h1><p>See who's connected, and sign out an assistant when you need to.</p></div></header>
+${flash(note)}
+${d.rows.length ? `<section class="people-list" aria-label="Assistant connections">${d.rows.map(r => `<article class="person-row"><div><strong>${esc(r.client?.name ?? r.announced?.name ?? "Assistant")}</strong> <span class="chip ${r.connected ? "ok" : ""}">${r.connected ? "connected" : "signed out"}</span><p>${esc(r.subject)} · ${r.client?.host ? `${esc(r.client.host)} · ` : ""}Last used ${when(r.last_seen, now)}</p></div>${r.connected ? `<a class="btn sm" href="/console/assistants/disconnect?member=${encodeURIComponent(r.subject)}&amp;client=${encodeURIComponent(r.client_id)}">Disconnect…</a>` : ""}</article>`).join("")}</section><div><a class="btn primary" href="/console/connect">Connect another assistant →</a></div>` : `<section class="empty-connections"><h2>Your first connection starts here.</h2><p>Choose an assistant and follow its setup steps.</p><a class="btn primary" href="/console/connect">Connect an assistant →</a></section>`}
+<details class="troubleshooting"><summary>Sign-in troubleshooting</summary><div class="grid2"><div class="panel"><div class="t">Tokens refused · ${WINDOW_DAYS} days</div>${rejected}</div><div class="panel"><div class="t">Wrong sign-in codes · ${WINDOW_DAYS} days</div>${bad}</div></div></details>`);
 
   return shell(
     "assistants",

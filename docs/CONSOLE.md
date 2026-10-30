@@ -1,10 +1,10 @@
 # Console
 
-`PUBLIC_URL/console` is the admin console: server-rendered pages, no script. It replaced the first admin
+`PUBLIC_URL/console` is the admin console: server-rendered pages, with small scripts for assistant setup and copying sign-in details. It replaced the first admin
 console at `/admin` (2026-10-26), which now redirects here. Code: `src/console/`.
 
 A private install has Overview, Members, Assistants and Ops. On the control center (`HANDOFF_MODE=control`,
-the shared playground), a team admin has Your team, Members and Assistants, all limited to that team. The
+the shared playground), a team admin has Your team, Connect an assistant, Members and Connections, all limited to that team. The
 operator has Overview and Ops for the whole deployment, Tenants for every team, and Members and Assistants
 for the accounts without a team.
 
@@ -27,19 +27,28 @@ member username and access code.
 
 On the control center, `/join` creates a team and makes its creator that team's admin. The browser is signed
 in to the new team, replacing any session it had, and the access code is shown once. If the session cannot be
-started, the code is still shown and the console link opens sign-in with the team filled in. Members added in
+started, the code is still shown and Continue to setup opens sign-in with the team filled in. The normal flow is Create team → Save access → Connect. Members added in
 the console can connect assistants but cannot open the console.
 
 Team admins sign in with team, username and access code; the operator leaves team empty. `/console/login?team=acme`
 opens the console only if the browser's session belongs to `acme`, otherwise it shows the sign-in form for
 `acme`. To change accounts, sign out first.
 
+`/console/connect` keeps assistant setup inside the signed-in workspace and shows the current team and username.
+`/connect` redirects there when an admin session exists; otherwise it stays a public guide for ordinary members.
+The login continuation accepts only `next=connect`; it cannot redirect to an arbitrary URL.
+
 ## Pages
 
-- **Your team** (team admins on the control center): the team's members, connected assistants and live
-  handoffs, and three first steps: connect an assistant, add teammates, try a handoff. No deployment health,
+- **Your team** (team admins on the control center): starts with connecting an assistant, followed by invitations,
+  connection management, and counts of members, connected assistants and active handoffs. No deployment health,
   keys, storage or cleanup. Ops and Tenants redirect here. The page with a new or reset code also shows the
   server address, team and username.
+- **Connect an assistant**: an assistant picker with setup steps, copyable commands, and first-handoff prompts.
+  Compatibility details, sources and privacy information are expandable; required setup warnings stay visible.
+- **Members / Connections** (team admins): compact member and connection lists. Create invitation provides a
+  copy button containing the server, team, username, one-time code and setup link. Reset/remove and disconnect
+  still open confirmation pages. Connection diagnostics are under Sign-in troubleshooting.
 - **Overview**: status of the Worker (deployed version), D1 and the file store, KV or R2 (answer time), sign-in (members, admins,
   assistants connected, signing key) and the last cleanup; handoffs sent per day over 14 days; latency by
   tool (p50, p95, max) and tool calls ok / failed over 7 days; refused tokens and wrong sign-in codes; calls
@@ -82,8 +91,9 @@ Each action asks first on a page of its own, except Add and Run cleanup.
   (sha256 of the session token, in a hidden field). Pages use `referrer-policy: same-origin`: with
   `no-referrer` a browser sends `Origin: null` and the check would refuse the form.
 - Console sign-in: at most 10 attempts per 10 minutes per client IP (only a hash of the IP is stored).
-- Pages: `no-store`, `noindex`, and a CSP with `default-src 'none'`, no script, `form-action 'self'` and
-  `frame-ancestors 'none'`.
+- Pages: `no-store`, `noindex`, and a CSP with `default-src 'none'`, `form-action 'self'` and
+  `frame-ancestors 'none'`. Setup and new-code pages allow only their nonce script; other console pages allow
+  no script. Copying requires a button click, and codes never enter browser storage or URLs.
 
 ## Where the numbers come from
 
@@ -126,4 +136,5 @@ and unused registrations and keeps used ones.
 `test/control-center.test.ts`: sign-up from a signed-out browser and from another team's or the operator's
 session; the team link on the sign-in page; the code still shown when the session fails; team counts; a
 teammate's sign-in details; a teammate refused at the console; operator-only pages; the operator's Members
-and Assistants list only accounts without a team.
+and Assistants list only accounts without a team; authenticated setup and its CSP; login continuation,
+failed sign-in and refusal of arbitrary redirect targets; complete copyable credentials without code-bearing URLs.

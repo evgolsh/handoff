@@ -31,6 +31,7 @@ import { DEPLOY_PATH, DEPLOY_URL } from "./http/header";
 import { handleJoin, joinHeaders, joinPage } from "./http/join";
 import { publicStats } from "./console/stats";
 import { CONSOLE_HEADERS, document as consoleDocument, esc } from "./console/html";
+import { cookieToken, sessionFrom } from "./console/session";
 
 export type Variables = AppVariables & { service: HandoffService };
 
@@ -105,7 +106,12 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   const homeOrConnect = (c: Parameters<typeof home>[0] & { redirect: (to: string, status: 303) => Response }) => (control(c) ? home(c) : c.redirect("/connect", 303));
   app.get("/", (c) => homeOrConnect(c));
   app.get("/use-cases", (c) => homeOrConnect(c));
-  app.get("/connect", (c) => connect(c));
+  app.get("/connect", async (c) => {
+    // Setup stays inside an admin's workspace; regular members can use the public guide without a console account.
+    const session = await sessionFrom(c.env.DB, cookieToken(c.req.header("cookie")));
+    if (session) return new Response(null, { status: 303, headers: { location: "/console/connect", "cache-control": "no-store" } });
+    return connect(c);
+  });
   app.get("/healthz", (c) => c.json({ ok: true }));
 
   // Sign-up and public counters, on the control center only.
@@ -117,8 +123,9 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
       return new Response(joinPage(c.get("cfg"), { error: "The form must be sent from this site's own page." }), { status: 403, headers: joinHeaders() });
     }
     const body = await readFormOrJson(c.req.raw);
-    const r = await handleJoin(c.env.DB, c.get("cfg"), body, c.req.header("cf-connecting-ip"));
-    return new Response(r.body, { status: r.status, headers: { ...joinHeaders(), ...(r.cookie ? { "set-cookie": r.cookie } : {}) } });
+    const nonce = newNonce();
+    const r = await handleJoin(c.env.DB, c.get("cfg"), body, c.req.header("cf-connecting-ip"), nonce);
+    return new Response(r.body, { status: r.status, headers: { ...joinHeaders(nonce), ...(r.cookie ? { "set-cookie": r.cookie } : {}) } });
   });
   app.get("/stats.json", async (c) => (control(c) ? c.json(await publicStats(c.env.DB), 200, { "cache-control": "public, max-age=300" }) : c.notFound()));
   app.get("/stats", async (c) => {

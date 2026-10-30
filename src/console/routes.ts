@@ -5,9 +5,10 @@ import type { Env } from "../env";
 import { constantTimeEqual, hashAccessCode, identityFrom, isValidHandle, isValidIdentity, newAccessCode, normalizeHandle, verifyMemberCode } from "../auth/builtin";
 import { handleOf, qualify, tenantOf } from "../domain/tenant";
 import { runCleanup } from "../cleanup";
-import { nowIso, sha256Hex } from "../domain/ids";
+import { base64url, nowIso, sha256Hex } from "../domain/ids";
 import { recordEvent, revokeAccess } from "../store/events";
-import { CONSOLE_HEADERS, SETUP_CODE_MIN, esc, loginPage, problemPage, setupDonePage, setupPage, type Html, type Viewer } from "./html";
+import { CONSOLE_HEADERS, SETUP_CODE_MIN, esc, interactiveHeaders, loginPage, problemPage, setupDonePage, setupPage, type Html, type Viewer } from "./html";
+import { connectPage } from "../http/connect";
 import { cookieToken, csrfOk, endSession, loginAllowed, sameOrigin, sessionCookie, sessionFrom, startSession, type Session } from "./session";
 import { assistants, controlCenter, members, ops, overview, teamOverview } from "./stats";
 import { assistantsPage, codePage, confirmPage, membersPage, opsPage, overviewPage, teamOverviewPage, tenantsPage } from "./views";
@@ -56,9 +57,10 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
   app.get("/console/login", async (c) => {
     const control = c.get("cfg").mode === "control";
     const team = control ? normalizeHandle(c.req.query("team") ?? "") : "";
+    const next = c.req.query("next") === "connect" ? "connect" : "overview";
     const session = await sessionFrom(c.env.DB, cookieToken(c.req.header("cookie")));
-    if (session && (!team || tenantOf(session.handle) === team)) return redirect("/console/overview");
-    return html(loginPage(undefined, { needsSetup: !(await hasAdmin(c.env.DB)), control, team }));
+    if (session && (!team || tenantOf(session.handle) === team)) return redirect(`/console/${next}`);
+    return html(loginPage(undefined, { needsSetup: !(await hasAdmin(c.env.DB)), control, team, next }));
   });
 
   // First admin, for a server deployed without a terminal (the Deploy to Cloudflare button). Open only while no
@@ -138,16 +140,16 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const cookie = valid && handle ? await startSession(db, handle) : null;
     if (!cookie) {
       await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "refused" }, { unauthenticated: true });
-      return html(loginPage(control ? "That team, username and code do not match an admin of that team." : "That username and code do not match an admin of this console.", { control, team: form.team }), 401);
+      return html(loginPage(control ? "That team, username and code do not match an admin of that team." : "That username and code do not match an admin of this console.", { control, team: form.team, next: form.next === "connect" ? "connect" : "overview" }), 401);
     }
     await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "ok" });
-    return redirect("/console/overview", { "set-cookie": cookie });
+    return redirect(form.next === "connect" ? "/console/connect" : "/console/overview", { "set-cookie": cookie });
   });
 
   // Everything below needs a session; a POST also needs this origin and the session's CSRF value.
   app.use("/console/*", async (c, next) => {
     const session = await sessionFrom(c.env.DB, cookieToken(c.req.header("cookie")));
-    if (!session) return redirect("/console/login");
+    if (!session) return redirect(c.req.path === "/console/connect" ? "/console/login?next=connect" : "/console/login");
     if (c.req.method !== "GET" && c.req.method !== "HEAD") {
       if (!sameOrigin(c.req.header("origin"), c.get("cfg").publicUrl)) {
         return html(problemPage("Refused", "Changes must be sent from this console's own pages."), 403);
@@ -174,6 +176,11 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
   });
 
   const vw = (c: { get: (k: "session") => Session } & { get(k: "cfg"): Variables["cfg"] }) => viewer(c.get("session"), c.get("cfg").mode === "control");
+
+  app.get("/console/connect", (c) => {
+    const nonce = base64url(crypto.getRandomValues(new Uint8Array(16)));
+    return html(connectPage(c.get("cfg"), nonce, { viewer: vw(c) }), 200, interactiveHeaders(nonce));
+  });
 
   app.get("/console/overview", async (c) => {
     const v = vw(c);
@@ -224,7 +231,8 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
       .run();
     if (added.meta.changes !== 1) return refuse(`${handle} is already a member. Use Reset code to give them a new code.`, 409);
     await audit(db, s, "member_add", { member: handle });
-    return html(codePage(vw(c), handle, code, "added", c.get("cfg").publicUrl));
+    const nonce = base64url(crypto.getRandomValues(new Uint8Array(16)));
+    return html(codePage(vw(c), handle, code, "added", c.get("cfg").publicUrl, nonce), 200, interactiveHeaders(nonce));
   });
 
   app.get("/console/members/:handle/reset", async (c) => {
@@ -255,7 +263,8 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     await db.prepare("UPDATE members SET code_salt = ?, code_hash = ? WHERE handle = ?").bind(salt, await hashAccessCode(code, salt), identity).run();
     await revokeAccess(db, identity, "*");
     await audit(db, s, "member_reset", { member: handle });
-    return html(codePage(vw(c), handle, code, "reset", c.get("cfg").publicUrl));
+    const nonce = base64url(crypto.getRandomValues(new Uint8Array(16)));
+    return html(codePage(vw(c), handle, code, "reset", c.get("cfg").publicUrl, nonce), 200, interactiveHeaders(nonce));
   });
 
   app.get("/console/members/:handle/remove", async (c) => {
