@@ -16,6 +16,16 @@ import { execFileSync } from "node:child_process";
 const run = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: "utf8", stdio: ["inherit", "pipe", "pipe"], ...opts });
 
+/** Runs a wrangler step quietly; on failure, prints what wrangler said and stops. */
+function quiet(label, cmd, args) {
+  try {
+    return run(cmd, args);
+  } catch (e) {
+    console.error(`\n${label} failed:\n${e.stdout ?? ""}${e.stderr ?? e.message}`);
+    process.exit(1);
+  }
+}
+
 function ensureWranglerAuth() {
   try {
     const out = run("npx", ["wrangler", "whoami"]);
@@ -44,8 +54,7 @@ function ensureD1AndStore() {
   if (!list.some((d) => idOf(d) === configuredId)) {
     let db = list.find((d) => d.name === "handoff");
     if (!db) {
-      console.log("Creating D1 database 'handoff'...");
-      const created = run("npx", ["wrangler", "d1", "create", "handoff"]);
+      const created = quiet("Creating the database", "npx", ["wrangler", "d1", "create", "handoff"]);
       const m = /"database_id"\s*:\s*"([0-9a-f-]+)"/i.exec(created) ?? /database_id\s*=\s*"([0-9a-f-]+)"/i.exec(created);
       if (m?.[1]) db = { uuid: m[1] };
     }
@@ -53,7 +62,7 @@ function ensureD1AndStore() {
     if (!dbId || !idMatch) throw new Error("Could not find or create the D1 database. Run: npx wrangler d1 create handoff, and put its id in wrangler.jsonc.");
     raw = raw.replace(idMatch[0], `${idMatch[1]}${dbId}${idMatch[3]}`);
     fs.writeFileSync(cfgPath, raw);
-    console.log(`Using D1 database ${dbId} (written to wrangler.jsonc).`);
+    console.log(`Database:  handoff (${dbId})`);
   }
 
   // The file store. Default: a Workers KV namespace (free plan, no payment method): the one wrangler.jsonc names if
@@ -70,15 +79,14 @@ function ensureD1AndStore() {
     if (!spaces.some((n) => n.id === kvMatch[2])) {
       let ns = spaces.find((n) => n.title === "handoff-FILES");
       if (!ns) {
-        console.log("Creating KV namespace 'handoff-FILES' for files...");
-        const created = run("npx", ["wrangler", "kv", "namespace", "create", "FILES"]);
+        const created = quiet("Creating the file store", "npx", ["wrangler", "kv", "namespace", "create", "FILES"]);
         const m = /"id"\s*:\s*"([0-9a-f]+)"/i.exec(created);
         if (m?.[1]) ns = { id: m[1] };
       }
       if (!ns?.id) throw new Error("Could not find or create the KV namespace. Run: npx wrangler kv namespace create FILES, and put its id in wrangler.jsonc.");
       raw = raw.replace(kvMatch[0], `${kvMatch[1]}${ns.id}${kvMatch[3]}`);
       fs.writeFileSync(cfgPath, raw);
-      console.log(`Using KV namespace ${ns.id} for files (written to wrangler.jsonc).`);
+      console.log(`Files:     KV namespace handoff-FILES (${ns.id})`);
     }
   }
   const bucket = /"bucket_name"\s*:\s*"([^"]+)"/.exec(raw)?.[1];
@@ -86,8 +94,8 @@ function ensureD1AndStore() {
     try {
       const buckets = run("npx", ["wrangler", "r2", "bucket", "list"]);
       if (!buckets.includes(bucket)) {
-        console.log(`Creating R2 bucket '${bucket}'...`);
-        execFileSync("npx", ["wrangler", "r2", "bucket", "create", bucket], { stdio: "inherit" });
+        quiet("Creating the bucket", "npx", ["wrangler", "r2", "bucket", "create", bucket]);
+        console.log(`Files:     R2 bucket ${bucket}`);
       }
     } catch {
       // Already exists or created.
@@ -117,12 +125,12 @@ function seedMembersIfEmpty(handles) {
     const hash = crypto.pbkdf2Sync(code, salt, 100_000, 32, "sha256").toString("hex");
     const now = new Date().toISOString();
     const sql = `INSERT OR IGNORE INTO members (handle, code_salt, code_hash, created_at) VALUES ('${handle}', '${salt}', '${hash}', '${now}');`;
-    execFileSync("npx", ["wrangler", "d1", "execute", "DB", "--remote", "--command", sql], { stdio: "inherit" });
+    quiet(`Adding member ${handle}`, "npx", ["wrangler", "d1", "execute", "DB", "--remote", "--command", sql]);
     seeded.push({ handle, code });
   }
   if (seeded.length) {
     const first = seeded[0].handle;
-    execFileSync("npx", ["wrangler", "d1", "execute", "DB", "--remote", "--command", `INSERT OR IGNORE INTO admin_members (handle) VALUES ('${first}');`], { stdio: "inherit" });
+    quiet(`Making ${first} an admin`, "npx", ["wrangler", "d1", "execute", "DB", "--remote", "--command", `INSERT OR IGNORE INTO admin_members (handle) VALUES ('${first}');`]);
   }
   return seeded;
 }
@@ -130,17 +138,16 @@ function seedMembersIfEmpty(handles) {
 ensureWranglerAuth();
 ensureD1AndStore();
 
-console.log("Applying D1 migrations...");
-execFileSync("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--remote"], { stdio: "inherit" });
+// The schema. wrangler prints every migration file it applies; one line is enough here.
+const migrated = quiet("Preparing the database", "npx", ["wrangler", "d1", "migrations", "apply", "DB", "--remote"]);
+console.log(migrated.includes("No migrations to apply") ? "Schema:    up to date" : "Schema:    ready");
 
 // The static files (fonts, demo) are built, not committed: a fresh clone has no public/ folder, and wrangler
 // refuses to deploy without it. npm run deploy does this through its predeploy script.
-console.log("Building static files...");
-execFileSync("node", ["scripts/assets.mjs"], { stdio: "inherit" });
+quiet("Building the static files", "node", ["scripts/assets.mjs"]);
 
-console.log("Deploying Handoff Worker...");
-const deployOut = run("npx", ["wrangler", "deploy"]);
-process.stdout.write(deployOut);
+console.log("Deploying...");
+const deployOut = quiet("Deploying the Worker", "npx", ["wrangler", "deploy"]);
 
 const urlMatch = /https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev/i.exec(deployOut);
 const publicUrl = urlMatch ? urlMatch[0] : "https://handoff.<your-subdomain>.workers.dev";
@@ -149,15 +156,13 @@ const argMembers = process.argv.find((a) => a.startsWith("--members="))?.split("
 const handles = (argMembers ?? "owner,teammate").split(",");
 const seeded = seedMembersIfEmpty(handles);
 
-console.log("\n============================================================");
-console.log("✓ Handoff is live and wired!");
-console.log(`  Connect page: ${publicUrl}/connect`);
-console.log(`  MCP endpoint: ${publicUrl}/mcp`);
-console.log(`  Console:      ${publicUrl}/console`);
+console.log(`\nHandoff is live at ${publicUrl}`);
+console.log(`  Server address for assistants:  ${publicUrl}/mcp`);
+console.log(`  Setup for each assistant:       ${publicUrl}/connect`);
+console.log(`  Console:                        ${publicUrl}/console`);
 if (seeded.length) {
-  console.log("\nInitial teammate logins (save these codes):");
-  for (const m of seeded) console.log(`  - ${m.handle}: ${m.code}`);
-  console.log(`${seeded[0].handle} is an admin of the console. More admins: npm run admin -- <username>`);
-  console.log("Add members, reset codes and disconnect assistants in the console, or with: npm run member:add -- <username>");
+  console.log("\nSign-in details, shown once. Save them in a password manager:");
+  for (const m of seeded) console.log(`  ${m.handle.padEnd(16)} ${m.code}`);
+  console.log(`\n${seeded[0].handle} is the console's admin. Add members or reset a code in the console, or with npm run member:add -- <username>.`);
 }
-console.log("============================================================\n");
+console.log("");
