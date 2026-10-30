@@ -36,13 +36,13 @@ export function joinedPage(team: string, handle: string, code: string, signedIn:
   const details = `Handoff\nServer: ${publicUrl}/mcp\nTeam: ${team}\nUsername: ${handle}\nAccess code: ${code}\nSetup: ${publicUrl}/connect`;
   return document(
     "Team created",
-    `${flowHeader("/", "About Handoff")}<div class="flow-wrap">${flowProgress(2)}<div class="flow-grid">
+    `${flowHeader("/", "About Handoff", true)}<div class="flow-wrap">${flowProgress(2)}<div class="flow-grid">
   <section class="flow-intro"><div class="flow-complete">✓ Team ${esc(team)} is ready</div><h1>Save your<br>sign-in details.</h1><p>Save these details before you continue. You'll use them to sign in from each assistant.</p><p class="flow-note">Your access code is shown only once. Keep it in your password manager.</p></section>
   <section class="flow-panel">
     <dl class="credential-meta"><div><dt>Team</dt><dd>${esc(team)}</dd></div><div><dt>Username</dt><dd>${esc(handle)}</dd></div></dl>
     <div><span class="lbl small muted">Your access code</span><div class="secret" aria-label="access code">${esc(code)}</div><button type="button" class="btn" data-copy="${esc(details)}">Copy sign-in details</button></div>
     ${signedIn ? `<div class="flow-note">Signed in as ${esc(handle)} · team admin</div>` : '<div class="flash">Your team was created. Save the code above, then sign in to continue.</div>'}
-    <a class="btn primary" href="/console/login?team=${encodeURIComponent(team)}&amp;next=connect">Continue to setup →</a>
+    <a class="btn primary" href="${signedIn ? "/console/connect" : `/console/login?team=${encodeURIComponent(team)}&amp;next=connect`}">Continue to setup →</a>
     <p id="copy-status" class="sr-only" role="status"></p>
   </section></div></div>`, { nonce, script: COPY_SCRIPT },
   );

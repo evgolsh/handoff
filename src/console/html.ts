@@ -1,4 +1,5 @@
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "../http/style";
+import { CONTROL_CENTER_URL } from "../env";
 
 /**
  * The console's look: a sidebar, white panels with thin lines on a
@@ -240,8 +241,12 @@ export const pagesFor = (v: Viewer): Page[] =>
 /** A hidden form field with the session's CSRF value. Every console form that changes something carries it. */
 export const csrfField = (v: Viewer): Html => `<input type="hidden" name="csrf" value="${esc(v.csrf)}">`;
 
-export const flowHeader = (link = "/console/login", label = "Sign in"): Html => `<header class="flow-top"><a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a><a class="small u" href="${esc(link)}">${esc(label)} ↗</a></header>`;
-export const flowProgress = (step: number): Html => `<ol class="flow-progress" aria-label="Team setup">${["Create team", "Save sign-in", "Connect"].map((label, i) => `<li${step === i + 1 ? ' aria-current="step"' : ""}><span>${step > i + 1 ? "✓" : i + 1}</span>${label}</li>`).join("")}</ol>`;
+/** The header of the sign-up and sign-in pages. With newTab, every link opens elsewhere: the page shows a code only once. */
+export const flowHeader = (link = "/console/login", label = "Sign in", newTab = false): Html => {
+  const t = newTab ? ' target="_blank" rel="noopener"' : "";
+  return `<header class="flow-top"><a class="brand" href="/"${t}>${BRAND_ICON}<span>Handoff</span></a><a class="small u" href="${esc(link)}"${t}>${esc(label)} ↗</a></header>`;
+};
+export const flowProgress = (step: number): Html => `<ol class="flow-progress" aria-label="Team setup">${["Create team", "Save access code", "Connect"].map((label, i) => `<li${step === i + 1 ? ' aria-current="step"' : ""}><span>${step > i + 1 ? "✓" : i + 1}</span>${label}</li>`).join("")}</ol>`;
 
 export interface PageEnhancement { nonce: string; script: string; style?: string }
 
@@ -261,6 +266,7 @@ export function document(title: string, body: Html, enhancement?: PageEnhancemen
 <title>${esc(title)} · Handoff console</title>
 ${FAVICON_LINK}
 ${FONT_PRELOAD}
+${enhancement ? `<script nonce="${esc(enhancement.nonce)}">document.documentElement.classList.add("js");</script>` : ""}
 <style>${BASE_CSS}${CONSOLE_CSS}${enhancement?.style ?? ""}</style>
 </head>
 <body>
@@ -279,9 +285,10 @@ export function shell(page: Page, v: Viewer, title: string, body: Html, enhancem
     v.control ? `${title} · ${v.tenant || "operator"}` : title,
     `<div class="shell">
   <nav class="side" aria-label="Console">
-    <a class="brand" href="/console/overview">${BRAND_ICON}<span>Handoff</span></a>
+    <a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a>
     ${links}
     <div class="nav-separator"></div>
+    ${v.control ? `<a href="/">Home</a>` : `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>`}
     <div class="grow"></div>
     <div class="who">
       <div><span class="dot live"></span> ${v.tenant ? `<span class="muted">${esc(v.tenant)} ·</span> ` : ""}<strong>${esc(v.handle)}</strong> <span class="chip">${v.tenant || !v.control ? "admin" : "operator"}</span></div>
