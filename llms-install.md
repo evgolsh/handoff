@@ -1,6 +1,6 @@
 # Handoff: install and deploy (guide for AI agents)
 
-Use these exact steps when a user asks you (Claude Code, Hermes Agent, Codex, Cursor, or Cline) to deploy **Handoff** to their Cloudflare account and connect their assistants.
+Use these exact steps when a user asks you (Claude Code, Hermes Agent, Codex CLI, Cursor, or Cline) to deploy **Handoff** to their Cloudflare account and connect their assistants. If you cannot run commands on the user's computer (for example Claude or ChatGPT in a browser or desktop app), say so first and give the user the four commands of section 2 to run in their own terminal.
 
 ## 1. Prerequisites
 - Node.js 20+ and `npm`
