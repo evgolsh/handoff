@@ -105,7 +105,7 @@ describe("connect page", () => {
     expect(html).toContain("MIT licensed · Runs on your Cloudflare account");
     // The homepage is the brand link: no "Use cases" item in the menu or footer.
     expect(html).not.toContain(">Use cases</a>");
-    expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Connect</a>');
+    expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
     expect(html).toContain("Your context. Your files. Your Cloudflare account.");
     expect(html).toContain("30 days by default on your own install, 24 hours on the playground");
     expect(html).toContain('href="/connect">Connect your assistants');

@@ -1,3 +1,4 @@
+import { shell, type Viewer } from "../console/html";
 import { CONTROL_CENTER_URL, type Config } from "../env";
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "./style";
 import { DEPLOY_PATH, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
@@ -37,6 +38,8 @@ interface Host {
   /** A few words for the tab and the badge. */
   tag: string;
   status: string;
+  /** A distinction needed before following the steps. */
+  intro?: string;
   steps: Step[];
   /** A step people miss, in orange text. */
   warn?: string;
@@ -96,6 +99,7 @@ function hosts(url: string, control = false): Host[] {
     {
       id: "codex",
       name: "Codex",
+      intro: "Using the Codex app? Choose ChatGPT in the assistant picker and add Handoff there once. The steps below are for the Codex CLI and IDE extension.",
       level: "tested",
       tag: "Tested",
       status:
@@ -165,57 +169,51 @@ function hostPanel(h: Host, first: boolean, url: string): string {
     .join("\n        ");
   return `<section class="panel host" id="panel-${h.id}" role="tabpanel" aria-labelledby="tab-${h.id}" tabindex="0"${first ? "" : " data-later"}>
       <div class="host-head"><h3 class="host-name">${esc(h.name)}</h3><span class="badge">${dot(h.level)}${esc(h.tag)}</span></div>
-      <p class="status">${esc(h.status)}</p>
+      ${h.intro ? `<p class="host-intro">${inline(h.intro)}</p>` : ""}
       <ol class="steps">
         ${steps}
       </ol>
       <div class="foot">
         ${h.warn ? `<p class="warn">${inline(h.warn)}</p>` : ""}
         ${h.note ? `<p>${inline(h.note)}</p>` : ""}
-        <p>Source: <a href="${esc(h.source.url)}" target="_blank" rel="noopener">${esc(h.source.label)}</a></p>
+        <details class="guide-evidence"><summary>Connection details &amp; source</summary><p class="status">${esc(h.status)}</p><a href="${esc(h.source.url)}" target="_blank" rel="noopener">${esc(h.source.label)} ↗</a></details>
       </div>
     </section>`;
 }
 
 const PAGE_CSS = `
   p,h1,h2,h3,ol { margin:0; }
-  .connect-hero { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); align-items:center; gap:clamp(40px,5vw,80px); padding-block:clamp(36px,3.5vw,56px); }
-  h1 { font-size:clamp(40px,4.4vw,66px); font-weight:500; line-height:1.04; letter-spacing:-.055em; margin:16px 0 18px; text-wrap:balance; }
+  max-width:1120px;min-width:0;margin-inline:auto;
+  .setup-intro { padding:20px 0 24px; }
+  h1 { font-size:clamp(30px,3.5vw,44px); font-weight:500; letter-spacing:-.045em; line-height:1.15; margin:10px 0; }
   h1 span { color:var(--muted); }
-  .lead { max-width:46ch; color:var(--muted); font-size:clamp(16px,1.3vw,19px); line-height:1.55; }
-  .guide-link { display:inline-flex; align-items:center; gap:12px; margin-top:24px; padding-block:10px; font-size:14px; font-weight:500; text-decoration:none; }
-  .guide-link span { color:var(--muted); }
-  .setup-notice { max-width:46ch; margin-top:20px; padding:12px 16px; border:1px solid var(--warn); border-radius:6px; font-size:14px; }
-  .setup-notice a { font-weight:500; }
+  .lead { color:var(--muted); font-size:16px; line-height:1.6; }
+  .setup-identity,.access-notice { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:16px 20px; border:1px solid var(--line); border-radius:10px; font-size:13px; background:var(--panel); }
+  .setup-identity span+span,.access-notice p { color:var(--muted); font-size:12px; }
+  .setup-identity strong { margin-left:5px; }.setup-identity [aria-hidden] { padding:0 12px;color:var(--faint); }
+  .access-notice p { margin-top:5px; }.access-notice strong { font-weight:500; }
+  .setup-address { display:flex; gap:16px; align-items:center; justify-content:space-between; padding:18px 0 24px; }
+  .setup-address>div { min-width:0; }.setup-address code { display:block; font:12px/1.6 var(--mono);overflow-wrap:anywhere; }
+  .addr-label { display:block; color:var(--muted); font-size:11px; margin-bottom:4px; }
+  .prompt-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .next-note { color:var(--muted); font-size:12px; margin-top:16px; line-height:1.6; }.next-note a { text-decoration:underline;text-underline-offset:3px; }
+  .guide-evidence summary,.privacy summary,.rail-note summary { cursor:pointer; color:var(--muted); font-size:12px; padding:8px 0; }
+  .guide-evidence[open] summary { margin-bottom:8px; }.guide-evidence .status { padding:0;margin:0 0 10px; }
+  .privacy { border-top:1px solid var(--line); }.privacy>summary { font-size:13px; padding:22px 0; }
 
-  .server-card { min-width:0; padding:20px 22px 22px; border:1px solid var(--line); border-radius:12px; background:var(--line-soft); }
-  .card-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; font:10px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
-  .card-mark { display:flex; align-items:center; gap:8px; }
-  .card-mark svg { width:20px; height:20px; }
-  .addr { padding:18px 20px; background:var(--panel); border:1px solid var(--line); border-radius:8px; box-shadow:0 12px 28px #00000006; }
-  .addr-label { margin-bottom:8px; font-size:12px; color:var(--muted); }
-  .addr-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px 16px; }
-  .addr-row code { min-width:0; max-width:100%; font:500 16px/1.5 var(--mono); overflow-wrap:anywhere; }
-  .overview { list-style:none; padding:6px 2px 0; }
-  .overview li { display:grid; grid-template-columns:26px minmax(0,1fr); column-gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
-  .overview li:last-child { padding-bottom:0; border-bottom:0; }
-  .num { display:grid; place-items:center; width:26px; height:26px; border:1px solid var(--line); border-radius:50%; background:var(--panel); font:500 10px var(--mono); color:var(--muted); }
-  .overview strong { display:block; padding-top:3px; font-size:14px; font-weight:500; line-height:1.45; }
-  .overview p { font-size:13px; color:var(--muted); }
-
-  .section { padding-block:56px; border-top:1px solid var(--line); }
-  .section-head { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:28px; }
-  .section-head h2,.privacy h2 { font-size:clamp(28px,2.6vw,38px); font-weight:500; line-height:1.15; letter-spacing:-.04em; margin-top:10px; text-wrap:balance; }
+  .section { padding-block:28px; border-top:1px solid var(--line); }
+  .section-head { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:20px; }
+  .section-head h2,.privacy h2 { font-size:24px; font-weight:500; line-height:1.15; letter-spacing:-.04em; margin-top:10px; text-wrap:balance; }
   .section-head > p { max-width:36ch; font-size:14px; color:var(--muted); }
-  .split { display:grid; grid-template-columns:260px minmax(0,1fr); gap:clamp(24px,3vw,48px); align-items:start; }
+  .split { display:grid; height:auto; grid-template-columns:200px minmax(0,1fr); gap:clamp(24px,3vw,48px); align-items:start; }
 
   .rail { position:sticky; top:24px; display:grid; gap:20px; }
   .tabs { display:grid; gap:4px; }
   .tabs[hidden] { display:none; }
-  [role=tab] { display:grid; grid-template-columns:18px minmax(0,1fr) 8px auto; align-items:center; gap:10px; width:100%; min-height:46px; padding:10px 14px; border:1px solid transparent; border-radius:6px; background:none; color:var(--muted); font:500 14px/1.3 var(--sans); text-align:left; cursor:pointer; }
+  [role=tab] { display:grid; grid-template-columns:18px minmax(0,1fr) 8px; align-items:center; gap:10px; width:100%; min-height:46px; padding:10px 14px; border:1px solid transparent; border-radius:6px; background:none; color:var(--muted); font:500 14px/1.3 var(--sans); text-align:left; cursor:pointer; }
   [role=tab]:hover { color:var(--ink); background:var(--line-soft); }
   [role=tab][aria-selected=true] { color:var(--ink); background:var(--panel); border-color:var(--line); }
-  .tab-state { font:10px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+  .tab-state { display:none; font:10px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
   [role=tab] .dot { margin-right:-4px; }
   .tab-logo { display:grid; place-items:center; width:18px; height:18px; }
   .tab-logo svg { width:17px; height:17px; }
@@ -231,14 +229,15 @@ const PAGE_CSS = `
   .dot.docs { border:1.5px solid var(--muted); }
 
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
-  .host { padding:28px 32px 24px; }
-  html:not(.js) .host + .host { margin-top:16px; }
-  .js .host[hidden],.js:not(.ready) .host[data-later] { display:none; }
+  .host { padding:24px 28px; display:block; border-radius:12px; }
+  .host + .host { margin-top:16px; }
+  .host[hidden] { display:none; }
   .host-head { display:flex; align-items:center; justify-content:space-between; gap:12px 16px; flex-wrap:wrap; }
   .host-name { font-size:24px; font-weight:500; letter-spacing:-.03em; }
+  .host-intro { font-size:14px; line-height:1.6; margin-top:18px; }
   .badge { display:inline-flex; align-items:center; gap:8px; padding:5px 11px; border:1px solid var(--line); border-radius:999px; font:10px/1.4 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
   .status { max-width:78ch; margin-top:10px; padding-bottom:18px; font-size:13px; color:var(--muted); }
-  .steps { list-style:none; counter-reset:step; padding:6px 0 4px; border-top:1px solid var(--line-soft); }
+  .steps { list-style:none; counter-reset:step; padding:6px 0 4px; margin-top:18px;border-top:1px solid var(--line-soft); }
   .steps li { counter-increment:step; display:grid; grid-template-columns:24px minmax(0,1fr); column-gap:14px; padding:12px 0; }
   .steps li::before { content:counter(step); grid-row:1/span 2; width:24px; height:24px; border:1px solid var(--line); border-radius:50%; font:500 11px/22px var(--mono); text-align:center; color:var(--muted); }
   .steps li > * { grid-column:2; }
@@ -252,17 +251,17 @@ const PAGE_CSS = `
   .foot { padding-top:16px; border-top:1px solid var(--line-soft); font-size:12px; color:var(--muted); }
   .foot p + p { margin-top:6px; }
 
-  .btn { flex:none; min-width:72px; min-height:40px; padding:9px 14px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:500 13px/1.2 var(--sans); cursor:pointer; }
+  .btn { text-decoration:none; flex:none; min-width:72px; min-height:40px; padding:9px 14px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:500 13px/1.2 var(--sans); cursor:pointer; }
   .btn:hover { border-color:var(--accent); color:var(--accent); }
   .btn.primary { background:var(--ink); border-color:var(--ink); color:var(--ground); }
   .btn.primary:hover { background:var(--accent); border-color:var(--accent); color:var(--ground); }
   .btn.done,.btn.done:hover { background:var(--ok); border-color:var(--ok); color:var(--panel); }
 
   .say { list-style:none; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:24px; }
-  .say li { padding:26px 30px; }
-  .say-quote { margin:10px 0; font-size:24px; font-weight:500; letter-spacing:-.025em; }
+  .say li { padding:22px 24px; display:block; }
+  .say-quote { margin:12px 0; font-size:21px; font-weight:500; letter-spacing:-.025em; }
   .say-text { max-width:58ch; font-size:14px; color:var(--muted); }
-  .privacy { padding-bottom:72px; }
+  .privacy { padding-bottom:24px; }
   .kv { display:grid; grid-template-columns:96px minmax(0,1fr); margin:0; border-top:1px solid var(--line); }
   .kv dt,.kv dd { margin:0; padding:14px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .kv dd { padding-left:24px; }
@@ -279,11 +278,8 @@ const PAGE_CSS = `
   .text-link svg { width:16px; height:16px; flex:none; }
 
   @media(max-width:1100px) {
-    .split { grid-template-columns:220px minmax(0,1fr); }
+    .split { grid-template-columns:180px minmax(0,1fr); }
     .host { padding:24px; }
-  }
-  @media(max-width:900px) {
-    .connect-hero { grid-template-columns:1fr; gap:28px; }
   }
   @media(max-width:760px) {
     .split { display:flex; flex-direction:column; gap:16px; }
@@ -301,9 +297,6 @@ const PAGE_CSS = `
     .say,.gate-cards { grid-template-columns:1fr; gap:16px; }
   }
   @media(max-width:600px) {
-    .server-card { padding:14px; }
-    .addr { padding:14px; }
-    .addr-row code { font-size:14px; }
     .section { padding-block:40px; }
     .host { padding:20px; }
     .host-name { font-size:21px; }
@@ -317,128 +310,9 @@ const PAGE_CSS = `
     .kv { grid-template-columns:72px minmax(0,1fr); }
     .kv dd { padding-left:16px; }
   }
-  @media(max-width:420px) { .addr-row { grid-template-columns:1fr; } .addr-row code { font-size:13px; } .addr-row .btn { width:100%; } .card-top > span + span { display:none; } }
   @media(prefers-reduced-motion:no-preference) { .btn,[role=tab] { transition:background-color .15s,border-color .15s,color .15s; } }`;
 
-export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boolean } = {}): string {
-  const active = !opts.needsSetup;
-  const url = cfg.mcpResource;
-  const shownUrl = showAddress(url);
-  const control = cfg.mode === "control";
-  const list = hosts(url, control);
-  const tabs = list
-    .map(
-      (h, i) =>
-        `<button type="button" role="tab" id="tab-${h.id}" aria-controls="panel-${h.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${tabLogo(h)}<span class="tab-name">${esc(h.name)}</span>${dot(h.level)}<span class="tab-state">${esc(h.tag)}</span></button>`,
-    )
-    .join("");
-  const mainBody = opts.needsSetup
-    ? `<section class="inactive-gate" aria-labelledby="connect-title">
-    <div>
-      <p class="eyebrow">Server setup required</p>
-      <h1 id="connect-title">Finish setup first.<br><span>Or deploy your own.</span></h1>
-      <p class="lead">Assistants can connect once this Handoff server has an admin who can issue usernames and access codes.</p>
-    </div>
-    <div class="gate-cards">
-      <article class="panel gate-card">
-        <p class="eyebrow">01 · Operator of this server</p>
-        <h2>Set up this instance</h2>
-        <p>If you deployed this server, enter your <code>HANDOFF_SETUP_CODE</code> secret to create the first admin. Then this page shows how to connect each assistant.</p>
-        <a class="site-button primary" href="/console/setup">Set up this server <span aria-hidden="true">↗</span></a>
-      </article>
-      <article class="panel gate-card">
-        <p class="eyebrow">02 · Run your own copy</p>
-        <h2>Deploy to Cloudflare</h2>
-        <p>Run your own private Handoff server (Workers, D1, KV, and built-in OAuth 2.1) on your Cloudflare account.</p>
-        <div class="gate-actions">
-          <a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a>
-          <a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>
-        </div>
-      </article>
-    </div>
-  </section>`
-    : `<section class="connect-hero" aria-labelledby="connect-title">
-    <div>
-      <p class="eyebrow">Setup</p>
-      <h1 id="connect-title">Connect once.<br><span>Keep going.</span></h1>
-      <p class="lead">Add Handoff to the assistants you use and sign in with the same username in each. Your next chat can pick up the brief and files you sent.</p>
-      <a class="guide-link" href="#assistants">Find your setup guide <span aria-hidden="true">↓</span></a>
-    </div>
-    <aside class="server-card" aria-labelledby="addr-label">
-      <div class="card-top"><span class="card-mark">${BRAND_ICON}Your Handoff server</span><span>MCP · OAuth sign-in</span></div>
-      <div class="addr">
-        <p class="addr-label" id="addr-label">Server address, the same in every assistant</p>
-        <div class="addr-row"><code>${shownUrl}</code>${copyButton(url, "Copy the server address", true)}</div>
-      </div>
-      <ol class="overview" aria-label="Setup overview">
-        <li><span class="num" aria-hidden="true">01</span><div><strong>Get your ${control ? "team, " : ""}username and access code</strong><p>${control ? `<a href="/join">Create a team</a> and you get them at once; a teammate gets theirs from the team's admin in the <a href="/console">console</a>.` : `The person who runs this server adds members in the <a href="/console">console</a>.`}</p></div></li>
-        <li><span class="num" aria-hidden="true">02</span><div><strong>Add this address to your assistant</strong><p>Choose your assistant below for its exact steps.</p></div></li>
-        <li><span class="num" aria-hidden="true">03</span><div><strong>Sign in and approve access</strong><p>Then say “Hand this off” in any chat.</p></div></li>
-      </ol>
-    </aside>
-  </section>
-
-  <section class="section setup" id="assistants" aria-labelledby="assistant-title">
-    <div class="section-head"><div><p class="eyebrow">Step by step</p><h2 id="assistant-title">Choose your assistant</h2></div></div>
-    <div class="split">
-      <div class="rail">
-        <div class="tabs" role="tablist" aria-label="Assistant" aria-orientation="vertical" hidden>${tabs}</div>
-        <div class="rail-note">
-          ${(["tested", "partial", "docs"] as const)
-            .filter((l) => list.some((h) => h.level === l))
-            .map((l) => `<p class="legend">${dot(l)}${LEGEND[l]}</p>`)
-            .join("\n          ")}
-        </div>
-      </div>
-      <div class="panels">
-    ${list.map((h, i) => hostPanel(h, i === 0, url)).join("\n    ")}
-      </div>
-    </div>
-  </section>
-
-  <section class="section next" aria-labelledby="next-title">
-    <div class="section-head"><div><p class="eyebrow">Your first handoff</p><h2 id="next-title">Send in one chat, continue in another.</h2></div></div>
-    <ol class="say">
-      <li class="panel"><p class="eyebrow">01 · Send from any chat</p><p class="say-quote">“Hand this off to tom”</p><p class="say-text">Use your teammate’s username, say “to the team” for everyone, or leave the recipient out to send to yourself. Your assistant prepares the brief, attaches the files you name, and gives you a packet ID.</p></li>
-      <li class="panel"><p class="eyebrow">02 · Pick up in another</p><p class="say-quote">“Continue my handoff”</p><p class="say-text">The recipient asks their assistant to open the inbox, read the brief and original files, and take the next step. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>Explore the use cases <span aria-hidden="true">↗</span></a></p></li>
-    </ol>
-  </section>
-
-  <section class="section privacy split" aria-labelledby="privacy-title">
-    <div><p class="eyebrow">Privacy</p><h2 id="privacy-title">What Handoff keeps</h2></div>
-    <dl class="kv">
-      <dt>Content</dt><dd>Only what you send: the brief and the files you attach.</dd>
-      <dt>Files</dt><dd>PDF, PNG, JPEG, text and Markdown, up to ${cfg.maxAttachmentBytes / 1048576} MiB each; ${cfg.maxAttachmentsPerPacket} files per handoff.</dd>
-      <dt>Access</dt><dd>Your handoffs are visible to you and their recipient. A team handoff is visible to every current member, including people added later. A file download link that an assistant gets works for anyone who has it, for 10 minutes.</dd>
-      <dt>Expiry</dt><dd>${cfg.defaultExpiryHours / 24} days by default. The sender or named recipient can revoke a handoff. Only the sender can revoke a team handoff.</dd>
-      <dt>Reading</dt><dd>Reading a packet does not change it, so you can open it in more than one assistant.</dd>
-    </dl>
-  </section>
-  <p id="copy-status" class="sr-only" role="status"></p>`;
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Connect Handoff</title>
-<meta name="description" content="Add Handoff to Claude, Codex and ChatGPT, then move work between them.">
-<script nonce="${nonce}">document.documentElement.classList.add("js");</script>
-${FAVICON_LINK}
-${FONT_PRELOAD}
-<style>
-  ${BASE_CSS}
-  ${PAGE_HEADER_CSS}
-${PAGE_CSS}
-</style>
-</head>
-<body>
-${pageHeader("connect", { active, mode: cfg.mode })}
-<main id="main" class="site-width">
-  ${mainBody}
-</main>
-${pageFooter({ active, mode: cfg.mode })}
-<script nonce="${nonce}">
-(function () {
+const CONNECT_SCRIPT = `(function () {
   var list = document.querySelector("[role=tablist]");
   if (!list) return;
   var tabs = Array.prototype.slice.call(document.querySelectorAll("[role=tab]"));
@@ -501,6 +375,117 @@ ${pageFooter({ active, mode: cfg.mode })}
     }
   });
 })();
+`;
+
+export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boolean; viewer?: Viewer } = {}): string {
+  const active = !opts.needsSetup;
+  const url = cfg.mcpResource;
+  const shownUrl = showAddress(url);
+  const control = cfg.mode === "control";
+  const list = hosts(url, control);
+  const tabs = list
+    .map(
+      (h, i) =>
+        `<button type="button" role="tab" id="tab-${h.id}" aria-controls="panel-${h.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${tabLogo(h)}<span class="tab-name">${esc(h.name)}</span>${dot(h.level)}<span class="tab-state">${esc(h.tag)}</span></button>`,
+    )
+    .join("");
+  const mainBody = opts.needsSetup
+    ? `<section class="inactive-gate" aria-labelledby="connect-title">
+    <div>
+      <p class="eyebrow">Server setup required</p>
+      <h1 id="connect-title">Finish setup first.<br><span>Or deploy your own.</span></h1>
+      <p class="lead">Assistants can connect once this Handoff server has an admin who can issue usernames and access codes.</p>
+    </div>
+    <div class="gate-cards">
+      <article class="panel gate-card">
+        <p class="eyebrow">01 · Operator of this server</p>
+        <h2>Set up this instance</h2>
+        <p>If you deployed this server, enter your <code>HANDOFF_SETUP_CODE</code> secret to create the first admin. Then this page shows how to connect each assistant.</p>
+        <a class="site-button primary" href="/console/setup">Set up this server <span aria-hidden="true">↗</span></a>
+      </article>
+      <article class="panel gate-card">
+        <p class="eyebrow">02 · Run your own copy</p>
+        <h2>Deploy to Cloudflare</h2>
+        <p>Run your own private Handoff server (Workers, D1, KV, and built-in OAuth 2.1) on your Cloudflare account.</p>
+        <div class="gate-actions">
+          <a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>
+        </div>
+      </article>
+    </div>
+  </section>`
+    : `<section class="setup-intro" aria-labelledby="connect-title">
+      <p class="eyebrow">${opts.viewer ? "Assistant setup" : control ? "The Handoff playground" : "Your Handoff server"}</p>
+      <h1 id="connect-title">Connect an assistant.</h1>
+      <p class="lead">Choose the app you use. Add Handoff, then sign in.</p>
+    </section>
+    ${opts.viewer ? `<div class="setup-identity"><span>${opts.viewer.tenant ? `Team <strong>${esc(opts.viewer.tenant)}</strong> <span aria-hidden="true">/</span> ` : ""}Username <strong>${esc(opts.viewer.handle)}</strong></span><span>Use your saved access code when asked to sign in.</span></div>` : `<div class="access-notice"><div><strong>Have your ${control ? "team name, " : ""}username and access code ready.</strong><p>${control ? "Invited by someone? Use the details they shared with you." : "Ask the person who runs this server for your sign-in details."}</p></div>${control ? '<a class="btn" href="/join">Create a team →</a>' : '<a class="u" href="/console/login">Admin sign-in →</a>'}</div>`}
+    <div class="setup-address"><div><span class="addr-label">Server address</span><code>${shownUrl}</code></div>${copyButton(url, "Copy the server address")}</div>
+
+  <section class="section setup" id="assistants" aria-labelledby="assistant-title">
+    <div class="section-head"><h2 id="assistant-title">Choose your assistant</h2><p>Follow the steps for your app.</p></div>
+    <div class="split">
+      <div class="rail">
+        <div class="tabs" role="tablist" aria-label="Assistant" aria-orientation="vertical" hidden>${tabs}</div>
+        <details class="rail-note"><summary>About these guides</summary>
+          ${(["tested", "partial", "docs"] as const)
+            .filter((l) => list.some((h) => h.level === l))
+            .map((l) => `<p class="legend">${dot(l)}${LEGEND[l]}</p>`)
+            .join("\n          ")}
+        </details>
+      </div>
+      <div class="panels">
+    ${list.map((h, i) => hostPanel(h, i === 0, url)).join("\n    ")}
+      </div>
+    </div>
+  </section>
+
+  <section class="section next" aria-labelledby="next-title">
+    <div class="section-head"><div><p class="eyebrow">Once you're connected</p><h2 id="next-title">Try your first handoff.</h2></div></div>
+    <ol class="say">
+      <li class="panel"><p class="eyebrow">1 · In your first assistant</p><div class="prompt-row"><p class="say-quote">“Hand this off.”</p>${copyButton("Hand this off.", "Copy the send prompt")}</div><p class="say-text">Ask it to package the brief and files from your chat.</p></li>
+      <li class="panel"><p class="eyebrow">2 · In another assistant</p><div class="prompt-row"><p class="say-quote">“Continue my handoff.”</p>${copyButton("Continue my handoff.", "Copy the receive prompt")}</div><p class="say-text">Connect with the same username, then pick up where you left off.</p></li>
+    </ol>
+    <p class="next-note">Working with someone else? Say “Hand this off to tom”, using your teammate's username. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>More examples ↗</a></p>
+  </section>
+
+  <details class="privacy"><summary>Privacy, file limits and expiry</summary>
+    <dl class="kv">
+      <dt>Content</dt><dd>Only what you send: the brief and the files you attach.</dd>
+      <dt>Files</dt><dd>PDF, PNG, JPEG, text and Markdown, up to ${cfg.maxAttachmentBytes / 1048576} MiB each; ${cfg.maxAttachmentsPerPacket} files per handoff.</dd>
+      <dt>Access</dt><dd>Your handoffs are visible to you and their recipient. A team handoff is visible to every current member, including people added later. A file download link that an assistant gets works for anyone who has it, for 10 minutes.</dd>
+      <dt>Expiry</dt><dd>${cfg.defaultExpiryHours} hours by default. The sender or named recipient can revoke a handoff. Only the sender can revoke a team handoff.</dd>
+      <dt>Reading</dt><dd>Reading a packet does not change it, so you can open it in more than one assistant.</dd>
+    </dl>
+  </details>
+  <p id="copy-status" class="sr-only" role="status"></p>`;
+  if (opts.viewer) return shell("connect", opts.viewer, "Connect an assistant", `<div class="connect-content">${mainBody}</div>`, {
+    nonce, script: CONNECT_SCRIPT, style: `${PAGE_HEADER_CSS}.connect-content {${PAGE_CSS}}`,
+  });
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect Handoff</title>
+<meta name="description" content="Add Handoff to Claude, Codex and ChatGPT, then move work between them.">
+<script nonce="${nonce}">document.documentElement.classList.add("js");</script>
+${FAVICON_LINK}
+${FONT_PRELOAD}
+<style>
+  ${BASE_CSS}
+  ${PAGE_HEADER_CSS}
+.connect-content {${PAGE_CSS}}
+</style>
+</head>
+<body>
+${pageHeader("connect", { active, mode: cfg.mode })}
+<main id="main" class="site-width connect-content">
+  ${mainBody}
+</main>
+${pageFooter({ active, mode: cfg.mode })}
+<script nonce="${nonce}">
+${CONNECT_SCRIPT}
 </script>
 </body>
 </html>`;
@@ -509,7 +494,7 @@ ${pageFooter({ active, mode: cfg.mode })}
 export function connectHeaders(nonce: string): Record<string, string> {
   return {
     "content-type": "text/html; charset=utf-8",
-    "cache-control": "public, max-age=300",
+    "cache-control": "no-store",
     "referrer-policy": "no-referrer",
     "x-content-type-options": "nosniff",
     "content-security-policy": `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
