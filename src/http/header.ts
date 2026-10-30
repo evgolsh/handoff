@@ -65,7 +65,7 @@ export const PAGE_HEADER_CSS = `
 
 export function pageHeader(current: "connect" | "use-cases" = "connect", opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
-  const menu = `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">${opts.mode === "private" ? "Manage server" : "Manage team"}</a>${active && opts.mode !== "private" ? '<a href="/join">Try the playground</a>' : ""}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
+  const menu = `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">${opts.mode === "private" ? "Console" : "Manage team"}</a>${active && opts.mode !== "private" ? '<a href="/join">Try the playground</a>' : ""}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
   if (opts.mode === "private") {
     // A private install: its own Connect page and console, and where to read about Handoff.
     return `<a href="#main" class="skip-link">Skip to content</a>
@@ -74,8 +74,8 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
       <a class="nav-link nav-secondary" href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>
       ${active ? '<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>' : ""}
       <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
+      <a class="nav-link" href="/console">Console</a>
       ${menu}
-      <a class="site-button primary" href="/console"><span class="deploy-label-long">Manage server</span><span class="deploy-label-short">Manage</span> <span aria-hidden="true">↗</span></a>
     </nav></header>`;
   }
   // The control center: the homepage is the brand link; Connect and the playground only once it has an admin.
@@ -96,7 +96,7 @@ export function pageFooter(opts: { active?: boolean; mode?: "private" | "control
   // A private install's "/" is its Connect page, so it links to the control center for the rest.
   const links =
     opts.mode === "private"
-      ? `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">Manage server</a>`
+      ? `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">Console</a>`
       : `<a href="/">Home</a>${active ? '<a href="/join">Try the playground</a><a href="/connect">Assistant setup</a>' : ""}<a href="/console">Manage team</a>`;
   return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
     <nav aria-label="Footer">${links}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;

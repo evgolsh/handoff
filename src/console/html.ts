@@ -241,7 +241,7 @@ export const pagesFor = (v: Viewer): Page[] =>
 export const csrfField = (v: Viewer): Html => `<input type="hidden" name="csrf" value="${esc(v.csrf)}">`;
 
 export const flowHeader = (link = "/console/login", label = "Sign in"): Html => `<header class="flow-top"><a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a><a class="small u" href="${esc(link)}">${esc(label)} ↗</a></header>`;
-export const flowProgress = (step: number): Html => `<ol class="flow-progress" aria-label="Team setup">${["Create team", "Save access", "Connect"].map((label, i) => `<li${step === i + 1 ? ' aria-current="step"' : ""}><span>${step > i + 1 ? "✓" : i + 1}</span>${label}</li>`).join("")}</ol>`;
+export const flowProgress = (step: number): Html => `<ol class="flow-progress" aria-label="Team setup">${["Create team", "Save sign-in", "Connect"].map((label, i) => `<li${step === i + 1 ? ' aria-current="step"' : ""}><span>${step > i + 1 ? "✓" : i + 1}</span>${label}</li>`).join("")}</ol>`;
 
 export interface PageEnhancement { nonce: string; script: string; style?: string }
 
@@ -298,7 +298,7 @@ ${v.control ? `    <div class="small muted" style="margin-bottom:12px">${v.tenan
 export function loginPage(error?: string, opts: { needsSetup?: boolean; control?: boolean; team?: string; next?: "connect" | "overview" } = {}): Html {
   return document("Sign in", `${flowHeader(opts.control ? "/join" : "/connect", opts.control ? "Create a team" : "Assistant setup")}
 <div class="flow-wrap"><div class="flow-grid">
-  <section class="flow-intro"><span class="kicker">${opts.control ? "Team administration" : "Your Handoff server"}</span><h1>Back to<br>your team.</h1><p>Manage your people and the assistants connected to Handoff.</p><div class="flow-switch"><div><strong>Just connecting an assistant?</strong><p class="flow-note">You don't need to sign in here.</p></div><a class="u" href="/connect">Setup guide →</a></div></section>
+  <section class="flow-intro"><span class="kicker">${opts.control ? "Team administration" : "Your Handoff server"}</span><h1>Sign in.</h1><p>Manage the members and the assistants connected to Handoff.</p><div class="flow-switch"><div><strong>Just connecting an assistant?</strong><p class="flow-note">You don't need to sign in here.</p></div><a class="u" href="/connect">Setup guide →</a></div></section>
   <form method="post" action="/console/login" class="flow-panel" autocomplete="off">
     <div class="t">${opts.control ? "Team admin sign-in" : "Admin sign-in"}</div>
     ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
@@ -307,8 +307,7 @@ export function loginPage(error?: string, opts: { needsSetup?: boolean; control?
     <div><label class="lbl" for="handle">Username</label><input id="handle" name="handle" class="field" required${opts.control ? "" : " autofocus"} autocapitalize="none" spellcheck="false" placeholder="tim"></div>
     <div><label class="lbl" for="code">Access code</label><input id="code" name="access_code" type="password" class="field" required></div>
     <button type="submit" class="btn primary">Sign in →</button>
-    <div class="flow-note">Use the access code you saved when your account was created. Only team admins can enter.</div>
-    ${opts.control ? `<details class="flow-note"><summary>Playground operator?</summary><p>Leave the team field empty and use your operator account. This opens global administration.</p></details>` : ""}
+    <div class="flow-note">Use the access code you saved when your account was created. Only ${opts.control ? "team admins" : "admins"} can enter.</div>
     ${opts.needsSetup ? `<div class="flow-note">Deployed this server? <a href="/console/setup">Complete the initial setup</a>.</div>` : ""}
   </form>
 </div></div>`);

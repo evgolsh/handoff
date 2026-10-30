@@ -454,7 +454,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <dt>Content</dt><dd>Only what you send: the brief and the files you attach.</dd>
       <dt>Files</dt><dd>PDF, PNG, JPEG, text and Markdown, up to ${cfg.maxAttachmentBytes / 1048576} MiB each; ${cfg.maxAttachmentsPerPacket} files per handoff.</dd>
       <dt>Access</dt><dd>Your handoffs are visible to you and their recipient. A team handoff is visible to every current member, including people added later. A file download link that an assistant gets works for anyone who has it, for 10 minutes.</dd>
-      <dt>Expiry</dt><dd>${cfg.defaultExpiryHours} hours by default. The sender or named recipient can revoke a handoff. Only the sender can revoke a team handoff.</dd>
+      <dt>Expiry</dt><dd>${cfg.defaultExpiryHours % 24 === 0 && cfg.defaultExpiryHours > 24 ? `${cfg.defaultExpiryHours / 24} days` : `${cfg.defaultExpiryHours} hours`} by default. The sender or named recipient can revoke a handoff. Only the sender can revoke a team handoff.</dd>
       <dt>Reading</dt><dd>Reading a packet does not change it, so you can open it in more than one assistant.</dd>
     </dl>
   </details>
