@@ -31,7 +31,6 @@ import { DEPLOY_PATH, DEPLOY_URL } from "./http/header";
 import { handleJoin, joinHeaders, joinPage } from "./http/join";
 import { publicStats } from "./console/stats";
 import { CONSOLE_HEADERS, document as consoleDocument, esc } from "./console/html";
-import { cookieToken, sessionFrom } from "./console/session";
 
 export type Variables = AppVariables & { service: HandoffService };
 
@@ -106,12 +105,8 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   const homeOrConnect = (c: Parameters<typeof home>[0] & { redirect: (to: string, status: 303) => Response }) => (control(c) ? home(c) : c.redirect("/connect", 303));
   app.get("/", (c) => homeOrConnect(c));
   app.get("/use-cases", (c) => homeOrConnect(c));
-  app.get("/connect", async (c) => {
-    // Setup stays inside an admin's workspace; regular members can use the public guide without a console account.
-    const session = await sessionFrom(c.env.DB, cookieToken(c.req.header("cookie")));
-    if (session) return new Response(null, { status: 303, headers: { location: "/console/connect", "cache-control": "no-store" } });
-    return connect(c);
-  });
+  // Public for everyone, signed-in admins included: the console has its own copy at /console/connect.
+  app.get("/connect", (c) => connect(c));
   app.get("/healthz", (c) => c.json({ ok: true }));
 
   // Sign-up and public counters, on the control center only.

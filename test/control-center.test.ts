@@ -163,7 +163,9 @@ describe("the control center", () => {
     for (const flag of ["Secure", "HttpOnly", "SameSite=Strict", "Path=/"]) expect(created.cookie).toContain(flag);
     const cookie = created.cookie!.split(";")[0]!;
     expect(cookie).not.toBe(oldCookie);
-    expect(created.text).toContain(`href="/console/login?team=${team}&amp;next=connect"`);
+    // The browser is signed in, so Continue goes straight to the console's setup page; every other link opens a new tab.
+    expect(created.text).toContain('href="/console/connect">Continue to setup');
+    expect(created.text).toContain('<a class="brand" href="/" target="_blank" rel="noopener">');
     expect(created.headers.get("cache-control")).toBe("no-store");
     const nonce = /script-src 'nonce-([^']+)'/.exec(created.headers.get("content-security-policy")!)![1];
     expect(created.text).toContain(`<script nonce="${nonce}">`);
@@ -172,7 +174,7 @@ describe("the control center", () => {
     const s = withCookie(ctl, cookie);
     expect((await s.page(`/console/login?team=${team}`)).location).toBe("/console/overview");
     expect((await s.page(`/console/login?team=${team}&next=connect`)).location).toBe("/console/connect");
-    expect((await s.page("/connect")).location).toBe("/console/connect");
+    expect((await s.page("/connect")).status).toBe(200);
     const guide = await fetchAs(ctl, "/console/connect", { headers: { cookie } });
     expect(guide.status).toBe(200);
     expect(guide.headers.get("cache-control")).toBe("no-store");
@@ -180,7 +182,8 @@ describe("the control center", () => {
     expect(guide.headers.get("content-security-policy")).toContain("form-action 'self'");
     const guideNonce = /script-src 'nonce-([^']+)'/.exec(guide.headers.get("content-security-policy")!)![1];
     const guideText = await guide.text();
-    expect(guideText.match(/<script\b[^>]*>/g)).toEqual([`<script nonce="${guideNonce}">`]);
+    // Two scripts, both with the response's nonce: the "js" mark in the head and the tabs and copy script at the end.
+    expect(guideText.match(/<script\b[^>]*>/g)).toEqual([`<script nonce="${guideNonce}">`, `<script nonce="${guideNonce}">`]);
     expect(guideText).toContain(`Team <strong>${team}</strong>`);
     expect(guideText).toContain('href="/console/connect" class="on" aria-current="page"');
     expect(guideText).not.toContain(oldTeam);

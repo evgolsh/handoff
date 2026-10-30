@@ -230,8 +230,8 @@ const PAGE_CSS = `
 
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
   .host { padding:24px 28px; display:block; border-radius:12px; }
-  .host + .host { margin-top:16px; }
-  .host[hidden] { display:none; }
+  html:not(.js) .host + .host { margin-top:16px; }
+  .host[hidden],.js:not(.ready) .host[data-later] { display:none; }
   .host-head { display:flex; align-items:center; justify-content:space-between; gap:12px 16px; flex-wrap:wrap; }
   .host-name { font-size:24px; font-weight:500; letter-spacing:-.03em; }
   .host-intro { font-size:14px; line-height:1.6; margin-top:18px; }
@@ -311,6 +311,18 @@ const PAGE_CSS = `
     .kv dd { padding-left:16px; }
   }
   @media(prefers-reduced-motion:no-preference) { .btn,[role=tab] { transition:background-color .15s,border-color .15s,color .15s; } }`;
+
+/** Inside the console, the sidebar takes 220px, so the tabs stack above the panel up to a tablet's width. */
+const CONSOLE_SPLIT_CSS = `@media(max-width:960px) {
+  .shell .connect-content .split { display:flex; flex-direction:column; gap:16px; }
+  .shell .connect-content .split > *,.shell .connect-content .tabs,.shell .connect-content .rail-note { width:100%; }
+  .shell .connect-content .rail { display:contents; }
+  .shell .connect-content .tabs { grid-template-columns:1fr 1fr; padding:4px; border-radius:8px; background:var(--line-soft); }
+  .shell .connect-content [role=tab] { grid-template-columns:18px auto 8px; justify-content:center; min-height:44px; padding:8px 10px; font-size:13px; }
+  .shell .connect-content [role=tab]:last-child { grid-column:1/-1; }
+  .shell .connect-content .panels { order:1; }
+  .shell .connect-content .rail-note { order:2; padding:0 4px; border-top:0; }
+}`;
 
 const CONNECT_SCRIPT = `(function () {
   var list = document.querySelector("[role=tablist]");
@@ -415,7 +427,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
     </div>
   </section>`
     : `<section class="setup-intro" aria-labelledby="connect-title">
-      <p class="eyebrow">${opts.viewer ? "Assistant setup" : control ? "The Handoff playground" : "Your Handoff server"}</p>
+      <p class="eyebrow">Assistant setup</p>
       <h1 id="connect-title">Connect an assistant.</h1>
       <p class="lead">Choose the app you use. Add Handoff, then sign in.</p>
     </section>
@@ -460,7 +472,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   </details>
   <p id="copy-status" class="sr-only" role="status"></p>`;
   if (opts.viewer) return shell("connect", opts.viewer, "Connect an assistant", `<div class="connect-content">${mainBody}</div>`, {
-    nonce, script: CONNECT_SCRIPT, style: `${PAGE_HEADER_CSS}.connect-content {${PAGE_CSS}}`,
+    nonce, script: CONNECT_SCRIPT, style: `${PAGE_HEADER_CSS}.connect-content {${PAGE_CSS}}${CONSOLE_SPLIT_CSS}`,
   });
   return `<!doctype html>
 <html lang="en">

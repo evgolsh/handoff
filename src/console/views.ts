@@ -71,9 +71,9 @@ function clientCell(clients: Map<string, ClientInfo>, id: string | null): Html {
 export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): Html {
   const connected = d.connected > 0;
   return shell("overview", v, "Your team", `
-<header class="team-welcome"><div><span class="kicker">Your workspace</span><h1>${esc(v.tenant)}</h1><p>${connected ? "Your people, your assistants, and the next handoff." : "Your team is ready. Let's connect your first assistant."}</p></div></header>
+<header class="team-welcome"><div><span class="kicker">Your workspace</span><h1>${esc(v.tenant)}</h1><p>${connected ? "Members, connected assistants and live handoffs." : "Your team is ready. Connect your first assistant."}</p></div></header>
 <section class="team-start" aria-label="Get started">
-  <div><span class="kicker">${connected ? "Keep the work moving" : "Start here"}</span><h2>${connected ? "Bring another assistant in." : "Connect your first assistant."}</h2><p>Choose Claude, Codex, ChatGPT or Hermes. Follow the setup steps, then sign in as <strong>${esc(v.handle)}</strong>.</p><a class="btn primary" href="/console/connect">${connected ? "Connect an assistant" : "Choose your assistant"} →</a></div>
+  <div><span class="kicker">${connected ? "Next" : "Start here"}</span><h2>${connected ? "Connect another assistant." : "Connect your first assistant."}</h2><p>Choose Claude, Codex, ChatGPT or Hermes. Follow the setup steps, then sign in as <strong>${esc(v.handle)}</strong>.</p><a class="btn primary" href="/console/connect">${connected ? "Connect an assistant" : "Choose your assistant"} →</a></div>
   <div class="team-steps">
     <div class="team-step"><span>1</span><div><strong>Connect</strong><p>Add Handoff to the assistants you use.</p></div></div>
     <div class="team-step"><span>2</span><div><strong>Send a brief</strong><p>Say “Hand this off” in your first chat.</p></div></div>
@@ -84,8 +84,8 @@ export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): H
   <a href="/console/members"><div><strong>Invite a teammate</strong><p>Add someone and share their sign-in details.</p></div><span aria-hidden="true">↗</span></a>
   <a href="/console/assistants"><div><strong>Manage connections</strong><p>See which assistants your team has connected.</p></div><span aria-hidden="true">↗</span></a>
 </section>
-<section class="team-metrics" aria-label="Your team"><span><strong>${num(d.members)}</strong> ${d.members === 1 ? "member" : "members"}</span><span><strong>${num(d.connected)}</strong> connected assistants</span><span><strong>${num(d.packetsLive)}</strong> active handoffs</span></section>
-<div class="team-limits">Shared playground · ${plural(cfg.defaultExpiryHours, "hour")} expiry · ${bytes(cfg.maxAttachmentBytes)} per file · <a class="u" href="/deploy" target="_blank" rel="noopener">Self-host for private work ↗</a></div>`);
+<section class="team-metrics" aria-label="Your team"><span><strong>${num(d.members)}</strong> ${d.members === 1 ? "member" : "members"}</span><span><strong>${num(d.connected)}</strong> connected ${d.connected === 1 ? "assistant" : "assistants"}</span><span><strong>${num(d.packetsLive)}</strong> active ${d.packetsLive === 1 ? "handoff" : "handoffs"}</span></section>
+<div class="team-limits">Shared playground · ${cfg.defaultExpiryHours}-hour expiry · ${cfg.maxAttachmentBytes / 1048576} MiB per file · <a class="u" href="/deploy" target="_blank" rel="noopener">Self-host for private work ↗</a></div>`);
 }
 
 export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {
@@ -226,7 +226,7 @@ ${cards}
 
 export function membersPage(v: Viewer, data: { rows: MemberRow[]; teamPackets: number }, now: number, note: { text: string; ok: boolean } | null): Html {
   if (v.tenant) return shell("members", v, "Members", `
-<header class="team-welcome"><div><span class="kicker">${plural(data.rows.length, "member")}</span><h1>Your people.</h1><p>Bring someone into the team, or manage their access.</p></div></header>
+<header class="team-welcome"><div><span class="kicker">${plural(data.rows.length, "member")}</span><h1>Members.</h1><p>Add a teammate, or manage their access.</p></div></header>
 ${note ? flash(note.text, note.ok) : ""}
 <div class="team-management"><section class="people-list" aria-label="Team members">
 ${data.rows.map(m => `<article class="person-row"><div><strong>${esc(m.handle)}</strong> ${m.admin ? '<span class="chip">admin</span>' : ""} ${m.handle === v.handle ? '<span class="chip">you</span>' : ""}<p>${m.assistants ? `${plural(m.assistants, "assistant")} connected` : "No assistants connected yet"}</p></div><details class="person-actions"><summary>Manage</summary><div><a href="/console/members/${esc(m.handle)}/reset">Reset access code</a>${m.handle === v.handle ? "" : `<a class="danger" href="/console/members/${esc(m.handle)}/remove">Remove member</a>`}</div></details></article>`).join("")}
@@ -302,7 +302,7 @@ export function codePage(v: Viewer, handle: string, code: string, kind: "added" 
   <div class="secret" aria-label="access code">${esc(code)}</div>
   <button type="button" class="btn primary" data-copy="${esc(invitation)}">${self ? "Copy sign-in details" : "Copy invitation"}</button>
   <div class="small muted">${self ? "Keep these in your password manager." : `Send this invitation to ${esc(handle)} in private. It includes everything they need to connect.`} The code is shown only once.</div>
-  <a class="u small" href="${esc(publicUrl)}/connect">View assistant setup instructions ↗</a>
+  <a class="u small" href="${esc(publicUrl)}/connect" target="_blank" rel="noopener">View assistant setup instructions ↗</a>
   ${
     kind === "reset"
       ? `<div class="small warn">Every assistant of ${esc(handle)} was signed out. Each one asks to sign in again at its next call.${self ? " Your console session ended too: sign in again with the new code." : ""}</div>`
@@ -403,7 +403,7 @@ export function assistantsPage(v: Viewer, d: AssistantsData, now: number, note: 
   if (v.tenant) return shell("assistants", v, "Connections", `
 <header class="team-welcome"><div><span class="kicker">Your team's assistants</span><h1>Connections.</h1><p>See who's connected, and sign out an assistant when you need to.</p></div></header>
 ${flash(note)}
-${d.rows.length ? `<section class="people-list" aria-label="Assistant connections">${d.rows.map(r => `<article class="person-row"><div><strong>${esc(r.client?.name ?? r.announced?.name ?? "Assistant")}</strong> <span class="chip ${r.connected ? "ok" : ""}">${r.connected ? "connected" : "signed out"}</span><p>${esc(r.subject)} · ${r.client?.host ? `${esc(r.client.host)} · ` : ""}Last used ${when(r.last_seen, now)}</p></div>${r.connected ? `<a class="btn sm" href="/console/assistants/disconnect?member=${encodeURIComponent(r.subject)}&amp;client=${encodeURIComponent(r.client_id)}">Disconnect…</a>` : ""}</article>`).join("")}</section><div><a class="btn primary" href="/console/connect">Connect another assistant →</a></div>` : `<section class="empty-connections"><h2>Your first connection starts here.</h2><p>Choose an assistant and follow its setup steps.</p><a class="btn primary" href="/console/connect">Connect an assistant →</a></section>`}
+${d.rows.length ? `<section class="people-list" aria-label="Assistant connections">${d.rows.map(r => `<article class="person-row"><div><strong>${esc(r.client?.name ?? r.announced?.name ?? "Assistant")}</strong> <span class="chip ${r.connected ? "ok" : ""}">${r.connected ? "connected" : "signed out"}</span><p>${esc(r.subject)} · ${r.client?.host ? `${esc(r.client.host)} · ` : ""}Last used ${when(r.last_seen, now)}</p></div>${r.connected ? `<a class="btn sm" href="/console/assistants/disconnect?member=${encodeURIComponent(r.subject)}&amp;client=${encodeURIComponent(r.client_id)}">Disconnect…</a>` : ""}</article>`).join("")}</section><div><a class="btn primary" href="/console/connect">Connect another assistant →</a></div>` : `<section class="empty-connections"><h2>No assistants connected yet.</h2><p>Choose an assistant and follow its setup steps.</p><a class="btn primary" href="/console/connect">Connect an assistant →</a></section>`}
 <details class="troubleshooting"><summary>Sign-in troubleshooting</summary><div class="grid2"><div class="panel"><div class="t">Tokens refused · ${WINDOW_DAYS} days</div>${rejected}</div><div class="panel"><div class="t">Wrong sign-in codes · ${WINDOW_DAYS} days</div>${bad}</div></div></details>`);
 
   return shell(

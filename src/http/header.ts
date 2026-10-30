@@ -65,16 +65,16 @@ export const PAGE_HEADER_CSS = `
 
 export function pageHeader(current: "connect" | "use-cases" = "connect", opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
-  const menu = `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">${opts.mode === "private" ? "Console" : "Manage team"}</a>${active && opts.mode !== "private" ? '<a href="/join">Try the playground</a>' : ""}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
+  const menu = `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${opts.mode === "private" ? `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>` : ""}${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">${opts.mode === "private" ? "Console" : "Manage team"}</a>${active && opts.mode !== "private" ? '<a href="/join">Try the playground</a>' : ""}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
   if (opts.mode === "private") {
     // A private install: its own Connect page and console, and where to read about Handoff.
     return `<a href="#main" class="skip-link">Skip to content</a>
   <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff">${BRAND_ICON}<span>Handoff</span></a>
     <nav class="page-nav" aria-label="Handoff">
       <a class="nav-link nav-secondary" href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>
-      ${active ? '<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>' : ""}
+      ${active ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}
       <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
-      <a class="nav-link" href="/console">Console</a>
+      <a class="nav-link nav-secondary" href="/console">Console</a>
       ${menu}
     </nav></header>`;
   }
