@@ -39,7 +39,7 @@ export interface AttachmentRow {
   fail_reason: string | null;
   created_at: string;
   ready_at: string | null;
-  /** See migrations/0002: NULL, 'upload:<nonce>' or 'delete'. */
+  /** attachments.claim: NULL, 'upload:<nonce>' or 'delete'. */
   claim: string | null;
 }
 

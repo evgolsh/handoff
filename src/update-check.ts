@@ -34,7 +34,7 @@ async function setting(db: D1Database, key: string): Promise<string | null> {
     const row = await db.prepare("SELECT value FROM instance WHERE key = ?").bind(key).first<{ value: string }>();
     return row?.value ?? null;
   } catch {
-    return null; // Before migration 0007.
+    return null; // A database without the instances_seen table.
   }
 }
 

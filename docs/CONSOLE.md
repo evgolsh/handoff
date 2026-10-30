@@ -97,14 +97,14 @@ Each action asks first on a page of its own, except Add and Run cleanup.
 
 ## Where the numbers come from
 
-The `events` table (migration 0005) records, per request: tool calls (tool name, member, client, outcome
+The `events` table records, per request: tool calls (tool name, member, client, outcome
 code, time taken), MCP initialize (the client's announced name and version), refused tokens (the reason),
 sign-ins at `/authorize` (ok or wrong code), token grants, cleanup runs, and console actions. No arguments,
 titles, briefs, file names, codes or tokens. Events from requests without a valid token (refused tokens,
 wrong codes) are capped at 60 per minute per Worker isolate, so a flood cannot fill the table. Events are
 kept 30 days.
 
-`access_revocations` (migration 0005) holds the revocations of the last 9 hours: an access token for that
+`access_revocations` holds the revocations of the last 9 hours: an access token for that
 member and client issued at or before the revocation is refused (`src/auth/verify.ts`). Access tokens live
 8 hours, so older rows do nothing and cleanup removes them.
 

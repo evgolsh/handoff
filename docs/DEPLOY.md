@@ -9,12 +9,11 @@ Before opening an instance to people outside your machine:
 - Add the Cloudflare WAF rate rule (see Operations).
 - Verify member isolation with a second member username (`npm run member:add -- tom`).
 
-Deploy order: D1 migrations before the Worker. `npm run deploy` does both, in that order (the Deploy to
-Cloudflare button runs it too).
-Migration 0002 adds `attachments.claim`. Migration 0003 adds `packets.recipient` and
-the sign-in tables (members, clients, codes, refresh tokens, signing key); 0004 adds the console tables
-(admins, sessions, login limits); 0005 adds `events`, `access_revocations` and `oauth_clients.last_used_at`;
-0006 adds `oauth_clients.fetched_at` (client metadata documents).
+Deploy order: schema before the Worker. `npm run deploy` does both, in that order (the Deploy to Cloudflare
+button runs it too). The schema is one file, `migrations/0001_schema.sql`, applied once to a new database
+through wrangler's migrations mechanism; a later schema change is a new numbered file after it, applied by the
+next deploy. (Servers from before 2026-10-30 carry the eight files that built the same schema and a record
+that marks the single file as applied.)
 
 Logs: invocation logs are off in `wrangler.jsonc`, because request URLs carry upload and download tickets.
 The Worker's own error lines carry the route template, never the URL.
@@ -38,7 +37,7 @@ Three ways, each into your own Cloudflare account:
 npx wrangler login
 npx wrangler d1 create handoff            # put its database_id into wrangler.jsonc
 npx wrangler kv namespace create FILES    # put its id into wrangler.jsonc
-npm run deploy                            # migrations, then the Worker
+npm run deploy                            # schema, then the Worker
 ```
 
 ### Files
