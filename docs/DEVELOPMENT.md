@@ -34,7 +34,7 @@ curl -s http://localhost:8787/mcp -H 'authorization: Bearer dev-alice' \
 - `src/http/routes.ts`: upload and download endpoints. `src/http/connect.ts`: the Connect page.
 - `src/console/`: the operators' console at `/console` (`docs/CONSOLE.md`). `src/store/events.ts` and `src/store/telemetry.ts`: what it reads (events, revocations); `src/cleanup.ts`: the hourly cleanup.
 - `src/mcp/server.ts`: the five tools and the server instructions.
-- `migrations/`: D1 schema.
+- `migrations/`: the D1 schema, one file; a schema change is a new numbered file after it.
 - `plugin/`: the OpenAI plugin package.
 - `test/`: the suite. `test/fixtures/test-private-jwk.json` is a test-only signing key: the tests pass it as
   `OAUTH_SIGNING_JWK`, so `test/helpers.ts` can mint the same tokens the Worker issues.

@@ -4,7 +4,7 @@
  *   1. Checks Cloudflare login (`wrangler whoami` -> `wrangler login` if needed)
  *   2. Ensures the D1 database (wrangler.jsonc's, or yours named `handoff`) and the file store exist: the KV namespace
  *      wrangler.jsonc binds as FILES (or, if wrangler.jsonc binds an R2 bucket instead, that bucket)
- *   3. Applies remote D1 migrations
+ *   3. Creates the tables (migrations/0001_schema.sql, through wrangler d1 migrations apply)
  *   4. Deploys the Worker and prints the live /connect URL
  *   5. Seeds initial members (default: --members owner,teammate) if `members` is empty, and makes the first
  *      one an admin of the console (/console)

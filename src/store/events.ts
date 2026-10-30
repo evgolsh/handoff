@@ -45,7 +45,7 @@ export async function recordEvent(db: D1Database, e: HandoffEvent, opts: { unaut
       )
       .run();
   } catch {
-    // Missing table (before migration 0005) or a D1 hiccup: the call itself goes on.
+    // Missing table or a D1 hiccup: the call itself goes on.
   }
 }
 
@@ -79,7 +79,7 @@ export async function revokedSince(db: D1Database, subject: string, clientId: st
       .first<{ at: string | null }>();
     return row?.at ? Date.parse(row.at) : null;
   } catch {
-    // Before migration 0005 there is nothing to revoke.
+    // Without the table there is nothing to revoke.
     return null;
   }
 }
@@ -89,11 +89,11 @@ export async function markClientUsed(db: D1Database, clientId: string): Promise<
   try {
     await db.prepare("UPDATE oauth_clients SET last_used_at = ? WHERE client_id = ?").bind(nowIso(), clientId).run();
   } catch {
-    // Before migration 0005.
+    // Without the table.
   }
 }
 
-/** Removes update checks from instances not heard from in 90 days (src/update-check.ts). 0 before migration 0007. */
+/** Removes update checks from instances not heard from in 90 days (src/update-check.ts). 0 without the table. */
 async function pruneInstances(db: D1Database, now: Date): Promise<number> {
   try {
     const r = await db.prepare("DELETE FROM instances_seen WHERE last_seen < ?").bind(new Date(now.getTime() - 90 * 86_400_000).toISOString()).run();
