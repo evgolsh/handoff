@@ -133,6 +133,11 @@ ensureD1AndStore();
 console.log("Applying D1 migrations...");
 execFileSync("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--remote"], { stdio: "inherit" });
 
+// The static files (fonts, demo) are built, not committed: a fresh clone has no public/ folder, and wrangler
+// refuses to deploy without it. npm run deploy does this through its predeploy script.
+console.log("Building static files...");
+execFileSync("node", ["scripts/assets.mjs"], { stdio: "inherit" });
+
 console.log("Deploying Handoff Worker...");
 const deployOut = run("npx", ["wrangler", "deploy"]);
 process.stdout.write(deployOut);

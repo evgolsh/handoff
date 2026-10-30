@@ -12,7 +12,7 @@ Three ways.
 
 **Deploy button.** Needs a Cloudflare account and a GitHub or GitLab account (Cloudflare copies the repo into it). The form asks for one secret, `HANDOFF_SETUP_CODE`: pick anything 12 characters or longer. After the deploy, open `/console/setup` on your Worker, enter that code and your username. You are the admin.
 
-**Ask your AI.** Tell Claude Code, Codex or Hermes: "Deploy https://github.com/evgolsh/handoff for me and tom". It follows `llms-install.md`. Needs Node and a Cloudflare login, no GitHub.
+**Ask your AI.** Works with an assistant that runs commands on your computer: Claude Code, the Codex CLI or Hermes. Tell it: "Deploy https://github.com/evgolsh/handoff for me and tom". It follows `llms-install.md`. Needs Node and a Cloudflare login, no GitHub. Claude and ChatGPT in the browser or desktop app cannot do this: they have no access to your computer, and will only print the terminal steps.
 
 **Terminal.**
 
