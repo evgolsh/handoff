@@ -5,12 +5,16 @@
  * It deletes the Worker, the D1 database and the file store (KV namespace, or R2 bucket) that wrangler.jsonc
  * names, after you type the Worker's name to confirm. Packets, files and members are gone for good.
  * Afterwards, `npm run setup` starts from scratch (it writes new ids into wrangler.jsonc).
+ *
+ * Each wrangler command runs in your terminal: `wrangler delete` asks once more before it removes the Worker
+ * (it has no flag to skip that question; its --force would also break Workers bound to this one). A resource
+ * that is already gone is reported and skipped. Any other failure stops the run with wrangler's message and a
+ * non-zero exit, so a Worker is never left behind quietly.
  */
 import fs from "node:fs";
 import readline from "node:readline/promises";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
-const run = (args, opts = {}) => execFileSync("npx", ["wrangler", ...args], { encoding: "utf8", stdio: ["inherit", "pipe", "pipe"], ...opts });
 const cfg = fs.readFileSync("wrangler.jsonc", "utf8");
 const pick = (re) => re.exec(cfg)?.[1] ?? null;
 const worker = pick(/"name"\s*:\s*"([^"]+)"/);
@@ -21,7 +25,7 @@ const bucket = pick(/"bucket_name"\s*:\s*"([^"]+)"/);
 
 let who = "";
 try {
-  who = run(["whoami"]);
+  who = execFileSync("npx", ["wrangler", "whoami"], { encoding: "utf8", stdio: ["inherit", "pipe", "pipe"] });
 } catch {
   console.error("Not signed in to Cloudflare. Run: npx wrangler login");
   process.exit(1);
@@ -42,18 +46,27 @@ if (typed !== worker) {
   process.exit(1);
 }
 
-// Each wrangler command runs in the terminal, so anything it asks is visible and answerable.
-function step(label, args) {
-  try {
-    execFileSync("npx", ["wrangler", ...args], { stdio: "inherit" });
+// wrangler's questions and progress go to the terminal; its errors are captured so a not-found answer
+// (the Cloudflare API code, or wrangler's own lookup message) can be told from a real failure.
+function step(label, args, notFound) {
+  const res = spawnSync("npx", ["wrangler", ...args], { encoding: "utf8", stdio: ["inherit", "inherit", "pipe"] });
+  const err = (res.stderr ?? "").replace(/\x1b\[[0-9;]*m/g, "");
+  if (res.status === 0) {
+    if (err.trim()) process.stderr.write(err);
     console.log(`Deleted  ${label}`);
-  } catch {
-    console.error(`Could not delete ${label} (already gone, or see wrangler's message above).`);
+    return;
   }
+  if (notFound.test(err)) {
+    console.log(`Skipped  ${label}: not in this account (already gone)`);
+    return;
+  }
+  process.stderr.write(err.trim() ? err : `wrangler stopped (exit code ${res.status ?? res.signal}).\n`);
+  console.error(`\nCould not delete ${label}. Nothing after it was touched; fix the cause above and run npm run teardown again.`);
+  process.exit(1);
 }
 
-step(`Worker ${worker}`, ["delete", worker, "--skip-confirmation"]);
-if (dbId) step(`D1 database ${dbName}`, ["d1", "delete", dbName, "--skip-confirmation"]);
-if (kvId) step(`KV namespace ${kvId}`, ["kv", "namespace", "delete", "--namespace-id", kvId]);
-if (bucket) step(`R2 bucket ${bucket}`, ["r2", "bucket", "delete", bucket]);
+step(`Worker ${worker}`, ["delete", worker], /\[code: 10007\]/);
+if (dbId) step(`D1 database ${dbName}`, ["d1", "delete", dbName, "--skip-confirmation"], /\[code: 7404\]|Couldn't find a D1 DB/);
+if (kvId) step(`KV namespace ${kvId}`, ["kv", "namespace", "delete", "--namespace-id", kvId, "--skip-confirmation"], /\[code: 10013\]/);
+if (bucket) step(`R2 bucket ${bucket}`, ["r2", "bucket", "delete", bucket], /\[code: 10006\]/);
 console.log("\nDone. To start again: npm run setup -- --members=<you>,<teammate>");
