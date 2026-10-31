@@ -136,8 +136,9 @@ deploy, and send again.
 ## Operations
 
 - `npm run teardown` removes the deployment that `wrangler.jsonc` names from the signed-in Cloudflare account: the
-  Worker, the D1 database and the KV namespace or R2 bucket, after you type the Worker's name. Everything in them
-  is gone for good. `npm run setup` then starts from scratch.
+  Worker, the D1 database and the KV namespace or R2 bucket, after you type the Worker's name (wrangler asks once
+  more before the Worker goes). A resource that is already gone is skipped; any other failure stops the run with
+  wrangler's message. Everything in them is gone for good. `npm run setup` then starts from scratch.
 
 - Cleanup runs hourly at minute 17 (`triggers.crons`): staging and failed uploads older than 24 hours,
   ready files unattached for 7 days, packets expired or revoked more than 7 days ago, expired tickets.
