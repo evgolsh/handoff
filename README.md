@@ -23,7 +23,7 @@ npm install
 npm run setup -- --members=tim,tom   # your username first
 ```
 
-`npm run setup` signs you in to Cloudflare, creates the D1 database and the KV namespace for files, creates the tables, deploys, creates the members with access codes (shown once) and prints your `/connect` and `/console` URLs. Later: `npm run deploy`.
+`npm run setup` signs you in to Cloudflare, creates the D1 database and the KV namespace for files, creates the tables, deploys, creates the members with access codes (shown once) and prints your `/connect` and `/console` URLs. Later: `npm run deploy`. To remove everything from your account and start over: `npm run teardown`.
 
 ## Try it first
 
