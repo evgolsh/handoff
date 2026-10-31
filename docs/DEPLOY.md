@@ -11,7 +11,7 @@ Before opening an instance to people outside your machine:
 
 Deploy order: schema before the Worker. `npm run deploy` does both, in that order (the Deploy to Cloudflare
 button runs it too). The schema is one file, `migrations/0001_schema.sql`, applied once to a new database
-through wrangler's migrations mechanism; a later schema change is a new numbered file after it, applied by the
+through wrangler's migrations mechanism (every statement is IF NOT EXISTS, so a database that already has the tables is left alone); a later schema change is a new numbered file after it, applied by the
 next deploy. (Servers from before 2026-10-30 carry the eight files that built the same schema and a record
 that marks the single file as applied.)
 
