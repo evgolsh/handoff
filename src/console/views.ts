@@ -85,7 +85,7 @@ export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): H
   <a href="/console/assistants"><div><strong>Manage connections</strong><p>See which assistants your team has connected.</p></div><span aria-hidden="true">↗</span></a>
 </section>
 <section class="team-metrics" aria-label="Your team"><span><strong>${num(d.members)}</strong> ${d.members === 1 ? "member" : "members"}</span><span><strong>${num(d.connected)}</strong> connected ${d.connected === 1 ? "assistant" : "assistants"}</span><span><strong>${num(d.packetsLive)}</strong> active ${d.packetsLive === 1 ? "handoff" : "handoffs"}</span></section>
-<div class="team-limits">Shared playground · ${cfg.defaultExpiryHours}-hour expiry · ${cfg.maxAttachmentBytes / 1048576} MiB per file · <a class="u" href="/deploy" target="_blank" rel="noopener">Self-host for private work ↗</a></div>`);
+<div class="team-limits">Shared playground · ${cfg.defaultExpiryHours}-hour expiry · ${cfg.maxAttachmentBytes / 1048576} MiB per file · <a class="u" href="/#install" target="_blank" rel="noopener">Self-host for private work ↗</a></div>`);
 }
 
 export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {

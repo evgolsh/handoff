@@ -1,159 +1,171 @@
 # Deploy and connect
 
-The Worker is its own OAuth 2.1 server (`src/auth/builtin.ts`), backed by Cloudflare D1 (packets, attachment
-records, members, OAuth clients/codes/tokens, console sessions, events) and a file store: Workers KV by default,
-or an R2 bucket (see "Files"). Members sign in with a username and an access code; there is no external identity
-provider.
+Start with the [README walkthrough](../README.md#start-with-your-own-deployment): deploy once, save codes, sign in to the Handoff console, connect your assistants, then invite teammates. A local coding agent can follow the [agent guide](../llms-install.md).
 
-Before opening an instance to people outside your machine:
-- Add the Cloudflare WAF rate rule (see Operations).
-- Verify member isolation with a second member username (`npm run member:add -- tom`).
+Handoff runs on Cloudflare Workers with D1 for members, packets and OAuth state, and Workers KV for files by default. The Worker is its own OAuth 2.1 server; no external identity provider is needed. Default private installs need no payment method or R2 subscription, within Cloudflare's free-plan limits.
 
-Deploy order: schema before the Worker. `npm run deploy` does both, in that order (the Deploy to Cloudflare
-button runs it too). The schema is one file, `migrations/0001_schema.sql`, applied once to a new database
-through wrangler's migrations mechanism (every statement is IF NOT EXISTS, so a database that already has the tables is left alone); a later schema change is a new numbered file after it, applied by the
-next deploy. (Servers from before 2026-10-30 carry the eight files that built the same schema and a record
-that marks the single file as applied.)
+## CLI setup
 
-Logs: invocation logs are off in `wrangler.jsonc`, because request URLs carry upload and download tickets.
-The Worker's own error lines carry the route template, never the URL.
+Prerequisites: **Node.js 22+**, npm, Git CLI and a Cloudflare account. Wrangler 4.152.0 declares Node `>=22.0.0`. No GitHub account or fork is required to clone this public repository.
 
-Known issues:
-- Cloudflare's bot filter answers 403 (error 1010) to some default HTTP client user agents, such as
-  Python urllib, before the Worker runs. Check this if a host fails with 403 and no Worker log line.
-
-## 1. Cloudflare
-
-Three ways, each into your own Cloudflare account:
-
-- The Deploy to Cloudflare button (README). It needs a GitHub or GitLab account (Cloudflare copies the repository
-  into it). It reads `wrangler.jsonc`, creates the database and the KV namespace, asks for the secrets in
-  `.dev.vars.example` (only `HANDOFF_SETUP_CODE`; the form shows no description for a secret, so the 12-character
-  minimum is only in the README) and runs `npm run deploy`. Cold-tested 2026-10-30: see the README for its limits.
-- `npm run setup` (scripts/deploy.mjs): see the README.
-- By hand:
+Replace `tim` with your own username, first in the list. Add `tom` only if you want to seed that teammate now:
 
 ```sh
-npx wrangler login
-npx wrangler d1 create handoff            # put its database_id into wrangler.jsonc
-npx wrangler kv namespace create FILES    # put its id into wrangler.jsonc
-npm run deploy                            # schema, then the Worker
+git clone https://github.com/evgolsh/handoff.git
+cd handoff
+npm install
+npm run setup -- --members=tim,tom
 ```
+
+For yourself only, use `--members=tim`. Always supply the `--members=...` form: omitting it seeds the script's placeholder users `owner,teammate`. Usernames must be unique, 1 to 63 lowercase letters, digits, dots, underscores or hyphens, starting with a letter or digit; `team` and `all` are reserved.
+
+### What setup does
+
+[`scripts/deploy.mjs`](../scripts/deploy.mjs):
+
+1. Checks `npx wrangler whoami`; opens `npx wrangler login` if authentication is needed. You sign in and approve Cloudflare access yourself.
+2. Reuses the configured D1 database if its ID belongs to the selected account. Otherwise it reuses or creates that account's database named `handoff` and writes its ID into `wrangler.jsonc`.
+3. Does the same for the configured `FILES` KV namespace, falling back to `handoff-FILES`. An explicitly configured R2 bucket takes a separate path; R2 is not needed for the default install.
+4. Applies D1 migrations, builds static assets and deploys the Worker.
+5. **Only if the members table is empty**, seeds the requested usernames and grants the first valid seeded username admin access.
+6. Prints the deployment's `/mcp`, `/connect` and `/console` URLs, and any newly created access codes **once**.
+
+Save codes privately in a password manager. Open the printed `/console` URL and sign in with your first username and code. **Do not use `/console/setup` or set `HANDOFF_SETUP_CODE` for this CLI flow**: the admin already exists.
+
+For an account with Workers ready, Cloudflare login/consent is normally the only Cloudflare browser step; resource provisioning is automated. **Fresh accounts may also need Workers onboarding and a `workers.dev` subdomain.** Setup captures Wrangler's deploy output, so interactive subdomain-registration prompts may not be visible. If deployment reports this requirement or stops there, complete Workers onboarding in Cloudflare, then retry from the same clone with its saved bindings. Do not assume a fully unattended cold-account install. Account creation, account selection and consent remain your responsibility; an agent cannot approve these on your behalf.
+
+### Remote terminal or headless coding agent
+
+Sign Wrangler in before running setup if its normal localhost browser callback cannot reach the terminal host:
+
+```sh
+npx wrangler login --device
+npx wrangler whoami
+npm run setup -- --members=tim
+```
+
+Open the URL and complete the device-code approval yourself. The installed Wrangler 4.152.0 supports `--device` (verify with `npx wrangler login --help` if using a different version). Setup itself does not select device login; it uses normal `wrangler login` when unauthenticated. `--browser=false` suppresses browser launch but does not replace the localhost callback with device authentication.
+
+### Existing deployments and reruns
+
+**Stop before setup if this account already has a Worker named `handoff`, or resources named `handoff` / `handoff-FILES`, unless you intend to reuse that deployment.** Setup is not an isolated-instance wizard and does not ask before redeploying an existing Worker. Check the selected account, Worker name and bindings first. If you have several Cloudflare accounts, resolve which one Wrangler will use before provisioning anything.
+
+- Setup writes resource IDs into `wrangler.jsonc`. Keep that clone and its config; do not replace the bindings with the repository's example values.
+- `--members` is initial seeding, not member synchronization. With existing members it adds nobody, resets no codes and grants no new admin. Use Members, `member:add`, or `admin` instead.
+- Rerunning setup redeploys and applies pending migrations. It is not a database reset and does not reprint old codes.
+- A partially failed seed may leave members but no admin. Inspect the failure; use `npm run admin -- tim` to grant an existing intended member access. Reset a lost code separately, with consent.
+- Do not assume changing only the Worker name creates an independent install: the script's fallback database and KV names are fixed. Review a separate configuration before attempting multiple deployments in one account.
+
+## Console, members and assistant connections
+
+The **Handoff console** at your deployment's `/console` manages people, connections and service health. The **Cloudflare dashboard** manages the underlying account, resources, billing, domains and build settings. Everyday Handoff use does not require opening Cloudflare.
+
+In the Handoff console:
+
+1. Open **Members** to add a teammate or manage codes. The first CLI-seeded member is the admin; ordinary members can connect assistants but cannot sign in to the admin console.
+2. Open **Connect an assistant** (`/console/connect`). Teammates use the public `/connect` guide without needing admin access.
+3. Add **your own deployment URL ending in `/mcp`**, sign in with your Handoff username and code, and approve access in each assistant. All of one person's assistants use that person's same username. Different people get different usernames and codes on the same deployment.
+4. Send a self-handoff in one assistant and read it in a second connected as you. Then send to a teammate's username. The [README](../README.md#4-try-a-handoff-to-yourself-then-to-a-teammate) has prompts.
+
+The Connect page records tested hosts and limitations. Do not infer universal MCP-host or file-transfer compatibility. Each host controls its own connector availability and approval prompts; Handoff cannot automate those approvals.
+
+Terminal alternatives, from the deployment clone:
+
+```sh
+npm run member:add -- tom
+npm run admin -- tim
+```
+
+`member:add` creates a new member **or rotates an existing member's code**. A reset invalidates the old code and signs out that member's assistants; resetting your own code also ends your console session. Give each person only their own code privately. `admin` grants console access to an existing member; `npm run admin -- tim --revoke` removes it. See [Console](CONSOLE.md) for the actions and access rules.
+
+### Host-specific notes
+
+Use `/connect` on your deployment for copyable steps and status. For Claude Code, the command is `claude mcp add --transport http --scope user handoff YOUR_URL/mcp`, followed by `/mcp` and **Authenticate**; replace `YOUR_URL` with your actual HTTPS origin. The [agent guide](../llms-install.md#4-connect-assistants) includes CLI commands for other hosts.
+
+- Claude web/desktop file uploads also need your server hostname in Claude's Settings > Capabilities > allowed domains. Without that, uploads can fail with 403 even when text handoffs work.
+- ChatGPT's custom MCP server/plugin availability depends on the plan or workspace. Follow the Connect page for the ChatGPT and Codex app route, rather than assuming the Codex CLI command configures the app.
+- Repository plugin manifests may point at the project's hosted endpoint. Replace that with your own `/mcp` URL before using them for a private install; see [the plugin package](../plugin/README.md).
+
+## Deploy Button alternative
+
+[Deploy to Cloudflare](https://handoff.infraworks.net/deploy) is the secondary, dashboard-based route. It needs a Cloudflare account **and a GitHub or GitLab account**. Cloudflare copies the repository, provisions bindings and runs `npm run deploy` through its build flow.
+
+1. Set `HANDOFF_SETUP_CODE` in the deploy form to a private random secret of at least 12 characters. This field is described in [`.dev.vars.example`](../.dev.vars.example).
+2. After deployment, open **your Worker's `/console/setup`**. Enter that setup code and your chosen Handoff username.
+3. Save the new **member access code**, shown once, and continue into the Handoff console. Use that member code for future console and assistant sign-ins, not the setup code.
+4. Add teammates in Members and follow Connect as above. They do not deploy again.
+
+The setup page works only while there is no admin and the configured secret is at least 12 characters. After an admin exists it redirects to console login. If the secret was omitted, follow the setup page's Cloudflare secret instructions or use the CLI member/admin commands from a clone configured for this deployment. Do not point an unconfigured fresh clone at existing data.
+
+## Configuration
 
 ### Files
 
-Files live in Workers KV (`kv_namespaces`, binding `FILES`): it is part of the Workers free plan, so a self-hosted
-install needs no payment method on Cloudflare. KV's limits fit Handoff's: 25 MiB per value, which is the file limit,
-and on the free plan 1 GB per account and 1,000 uploads per day.
+Default files live in Workers KV (`FILES`). Cloudflare's free allowance includes 1 GB storage and 1,000 writes per day; KV's 25 MiB value limit matches Handoff's per-file limit. Free-plan quotas still apply.
 
-R2 is the alternative for larger teams: Cloudflare asks for a payment method before it creates a bucket (R2 is a
-metered service with a free allowance). To use it, create the bucket and bind it instead of, or next to, the
-namespace:
+R2 is optional for larger workloads, not part of onboarding. It requires enabling R2 with a payment method. To use it, create a bucket and bind it as `BLOBS` instead of, or alongside, KV:
 
 ```jsonc
 "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "handoff-attachments" }]
 ```
 
-`FILE_STORE` names the store: `kv` (the default) or `r2`. Unset, the Worker uses the R2 bucket when one is bound,
-otherwise KV. The adapters implement one contract, `BlobStore` in `src/store/blobs.ts` (put, get, delete, ping),
-so another store (S3, GCS) is one more adapter built from its own secrets. Files already stored are not moved
-when the store changes: copy them, or let them expire with their packets.
+`FILE_STORE=kv` or `FILE_STORE=r2` selects explicitly. If unset, the Worker uses R2 when bound, otherwise KV. Switching stores does not migrate existing files: copy them deliberately or let their packets expire first. The common adapter contract is `BlobStore` in [`src/store/blobs.ts`](../src/store/blobs.ts).
 
-`PUBLIC_URL` is not set: the Worker uses the origin each request came to (the workers.dev address, or a custom
-domain), and that origin is the OAuth issuer. `wrangler.jsonc` has no `vars` at all, so the Deploy to Cloudflare
-button asks for nothing but the `HANDOFF_SETUP_CODE` secret. The optional variables (set under `vars`, or in the
-dashboard): `PUBLIC_URL` to pin one origin when the Worker has several (no trailing slash; changing it signs every
-assistant out), `HANDOFF_ENV=dev` for local development only, `MAX_ATTACHMENT_BYTES` (default 25 MiB),
-`IMPORT_HOST_ALLOWLIST` (section 4), `HANDOFF_UPDATE_CHECK=off` (README, "Update check"), and `FILE_STORE` ("Files").
+### URL and optional variables
 
-## 2. Sign-in and members
+By default `PUBLIC_URL` is unset and the Worker uses the request's origin as its OAuth issuer. `wrangler.jsonc` has no required `vars`. Optional settings can be kept under `vars` in your deployment config; preserve them on updates.
 
-The Worker is the OAuth 2.1 authorization server for its own MCP endpoint (`src/auth/builtin.ts`): RFC 8414
-metadata, RFC 7591 dynamic client registration, PKCE S256, ES256 access tokens (8 hours) and rotating
-refresh tokens (30 days). The issuer is `PUBLIC_URL`; the audience is `PUBLIC_URL/mcp`. There is no outside
-identity provider and nothing to configure for it.
+| Setting | Purpose |
+|---|---|
+| `PUBLIC_URL` | Pin one public HTTPS origin, with no trailing slash, when using several addresses. Changing it signs assistants out. |
+| `FILE_STORE` | Select `kv` or `r2`. |
+| `MAX_ATTACHMENT_BYTES` | Per-file limit, default 25 MiB. |
+| `IMPORT_HOST_ALLOWLIST` | Allow server-side file imports from specified hosts; empty disables imports. |
+| `HANDOFF_UPDATE_CHECK=off` | Disable the daily update check. |
+| `HANDOFF_ENV=dev` | Local development only, never production. |
 
-Assistants either register (RFC 7591) or, like Claude Code, use an https `client_id` that names their client
-metadata document (`src/auth/clients.ts`). The Worker fetches that document when it first sees it (no
-redirects, 5 KB, 5 seconds), keeps it for a day, and returns the sign-in only to a redirect address the
-document lists; a loopback address matches on any port (RFC 8252). A document it cannot use is logged as
-"client document unusable" in the console's recent activity.
+For ChatGPT file imports, an `import_rejected` error may name the uncontacted host because imports are disabled. Review that host before adding it, or a deliberate `*.` parent-domain pattern, to `IMPORT_HOST_ALLOWLIST` and redeploying. Do not broadly allow arbitrary hosts just to make a test pass.
 
-First admin: `npm run setup` makes one. A server deployed with the button has none; open
-`PUBLIC_URL/console/setup`, enter the `HANDOFF_SETUP_CODE` secret and a username, and that member becomes the
-admin (code shown once). The page is open only while no admin exists and the secret is 12 characters or
-more; guesses count against the console's sign-in limit (10 per 10 minutes per address). Without the secret,
-the page says how to set it in the dashboard, or to use `npm run member:add` and `npm run admin`.
+### Sign-in and schema
 
-Members are the people who may sign in. Add one, or give a member a new code, in the console
-(`PUBLIC_URL/console`, Members) or on the deployment computer:
+The Worker publishes OAuth metadata, supports RFC 7591 client registration and HTTPS client metadata documents, uses PKCE S256, and issues ES256 access tokens (8 hours) with rotating refresh tokens (30 days). The issuer is the public origin; the audience is that origin plus `/mcp`. HTTPS client metadata is fetched with no redirects, a 5 KB limit and a 5-second timeout, and cached for a day. Loopback redirect ports may vary under RFC 8252.
 
-```sh
-npm run member:add -- tom              # prints a new access code once; --local for the local D1
-npm run admin -- tim                   # lets member tim open the console (--revoke to undo)
-```
+The signing key is generated on first use and stored in D1 (`oauth_keys`) unless `OAUTH_SIGNING_JWK` supplies an ES256 private JWK. Replacing the key or changing the public origin invalidates existing assistant authentication.
 
-Give the username and code to that person privately. Each of their assistants signs in with them. A new code
-stops the old one and signs out every assistant of that member at once; they sign in again with the new code.
-`docs/CONSOLE.md` describes the console.
+Deploy applies D1 migrations before the Worker. New databases start from `migrations/0001_schema.sql`; later changes use subsequent numbered migrations. Older installations can retain their historical migration records. Do not delete migration history to force a retry.
 
-Signing key: generated on first use and kept in D1 (`oauth_keys`), unless the `OAUTH_SIGNING_JWK` secret
-holds an ES256 private JWK. A new key, or a new `PUBLIC_URL`, signs every assistant out.
+## Updates and recovery
 
-The Ops page shows the deployed version from the `version_metadata` binding (`CF_VERSION_METADATA` in
-`wrangler.jsonc`).
+Use the **same deployment clone**:
 
-Check: `curl PUBLIC_URL/.well-known/oauth-protected-resource` names `PUBLIC_URL` as the authorization
-server, `curl PUBLIC_URL/.well-known/oauth-authorization-server` lists the endpoints, and
-`curl -i PUBLIC_URL/mcp -X POST` returns 401 with a `WWW-Authenticate` header that names the metadata URL.
+1. Inspect `git status` and `git diff -- wrangler.jsonc`. Preserve your resource IDs, Worker name, variables and any other local configuration in a private backup or a deliberate stash before pulling.
+2. Run `git pull --ff-only`. If Git reports local changes or a conflict, stop and reconcile them; do not discard your configuration or blindly accept upstream bindings. If you stashed the config, restore it and inspect the result before deploying.
+3. Run `npm install`, then `npm run deploy`.
+4. Open your console's Ops page and check the version and health. Confirm an existing assistant can still read its inbox.
 
-## 3. Hosts and the plugin package
+`npm run deploy` builds assets, applies migrations and deploys using your existing bindings. It does not provision a fresh database or reseed members. The console's Ops page reports available updates.
 
-`plugin/mcp.json` names this deployment's endpoint. For another deployment, replace
-`https://handoff.infraworks.net/mcp` there with `PUBLIC_URL/mcp`.
+For a lost access code, reset it in Members or run `npm run member:add -- tim` from the configured clone. This is an intentional rotation, not a way to retrieve the old code. For a failed setup, read the failing Wrangler step, check account and bindings, and repair that cause. **Teardown is not a normal retry step.**
 
-The Connect page (`PUBLIC_URL/connect`) has the steps for each host and says which were tested.
-Codex desktop: install the `plugin/` folder as a local plugin (`plugin/README.md` has the tested
-commands) and sign in when it asks. Claude Code: `claude mcp add --transport http --scope user
-handoff PUBLIC_URL/mcp`, then `/mcp` and Authenticate. Hermes Agent: `hermes mcp add handoff --url
-PUBLIC_URL/mcp --auth oauth`, then `hermes mcp login handoff`. ChatGPT: Plugins, add a custom MCP server with
-the endpoint URL and OAuth, "Create as a plugin", install it from the personal plugins view, then in a
-Work chat type `@` and pick Handoff. claude.ai: add a custom connector with the endpoint URL. To attach files
-from Claude (web or desktop), also add the server's host to the allowed domains in Claude's Settings >
-Capabilities: Claude uploads from its sandbox, and without the domain the upload fails with 403 while text
-handoffs still work. Each host opens the sign-in page: enter the username and access code.
+### Optional destructive removal
 
-Check: the five tools `handoff_send`, `handoff_inbox`, `handoff_read`, `handoff_revoke`,
-`handoff_upload_url` appear in the host.
-
-## 4. ChatGPT file imports
-
-ChatGPT file imports (`files`) are off while `IMPORT_HOST_ALLOWLIST` is empty. In the first ChatGPT
-test, a send with a file fails with `import_rejected: file import is off on this server ...; download_url
-host <host> was not contacted`. Put that host (or `*.` and its parent domain) in `IMPORT_HOST_ALLOWLIST`,
-deploy, and send again.
+Only when you intend to permanently remove the deployment, run `npm run teardown` from its configured clone. It deletes the named Worker, D1 database and KV namespace or R2 bucket from the authenticated account. Members, packets and files are lost. It asks you to type the Worker name; Wrangler also asks before deleting the Worker. Already-missing resources are skipped; other failures stop the run. Review the account and all targets before confirming. This is not required for updates, new members or code resets.
 
 ## Operations
 
-- `npm run teardown` removes the deployment that `wrangler.jsonc` names from the signed-in Cloudflare account: the
-  Worker, the D1 database and the KV namespace or R2 bucket, after you type the Worker's name (wrangler asks once
-  more before the Worker goes). A resource that is already gone is skipped; any other failure stops the run with
-  wrangler's message. Everything in them is gone for good. `npm run setup` then starts from scratch.
+- Cleanup runs hourly at minute 17: staged/failed uploads older than 24 hours, ready unattached files after 7 days, packets expired or revoked over 7 days ago, and expired tickets. Each run is bounded to 5 batches of 200 rows per kind; backlog continues on the next run. Ops can trigger cleanup too.
+- The daily update check sends a random instance ID, version and coarse usage buckets, as described in [the README](../README.md#update-check). `HANDOFF_UPDATE_CHECK=off` disables it. `UPDATE_CHECK_URL` changes the receiver; `UPDATE_CHECK_RECEIVER=1` is for an intentional receiving deployment.
+- `HANDOFF_MODE=control` belongs to the project's shared playground, adding team signup, team consoles and operator views. Leave it unset for a private installation.
+- Invocation logs are disabled because URLs can contain upload/download tickets. Application errors use route templates, not signed URLs. Console activity does not expose briefs, filenames, codes or tokens.
+- Limits include 25 MiB per file, 10 files per packet and 50 unattached files per account. The Worker has no general per-request rate limiter. If serving through a Cloudflare zone you control, consider a WAF rate-limiting rule for `/mcp` and `/v1/*`, for example 120 requests per minute per IP, subject to your plan. Zone-level WAF configuration is not a required CLI setup step and does not imply coverage of a bare `workers.dev` URL.
+- Cloudflare's bot filter can return 403/error 1010 to some default HTTP clients before the Worker runs. If no Worker event appears, check this before diagnosing member authentication.
 
-- Cleanup runs hourly at minute 17 (`triggers.crons`): staging and failed uploads older than 24 hours,
-  ready files unattached for 7 days, packets expired or revoked more than 7 days ago, expired tickets.
-  One run removes at most 5 batches of 200 rows of each kind; if it stops early, its log line has
-  `"backlog": true` and level `warn`, and the next run continues. A failed run logs a `cleanup` error
-  line and is recorded as failed.
-- The update check runs from the same cron once a day (README, "Update check"): a random instance id, the
-  version and two size buckets go to the project's hosted instance, which answers with the latest version
-  for the Ops page. `HANDOFF_UPDATE_CHECK=off` turns it off. `UPDATE_CHECK_URL` points it elsewhere;
-  `UPDATE_CHECK_RECEIVER=1` makes a deployment the receiving end (the project's hosted instance only).
-- `HANDOFF_MODE=control` is set only on the project's control center (README, "Two modes"). It adds `/join`,
-  `/stats`, a team field on the sign-in pages, per-team consoles and the operator's Tenants page, and makes the
-  deployment the update-check receiver. A private install never sets it.
-- Logs are structured JSON through Workers observability. Signed URLs and file bytes are never logged.
-- Limits in the Worker: 25 MiB per file, 10 files per packet, 50 files per account outside packets
-  (429 `quota_exceeded` beyond that). There is no per-request rate limit in the Worker: put a
-  Cloudflare WAF rate-limiting rule on `/mcp` and `/v1/*` (dashboard: Security, WAF, Rate limiting
-  rules), for example 120 requests per minute per IP.
+For read-only deployment checks, replace `YOUR_URL` below with the actual HTTPS origin:
+
+```sh
+curl YOUR_URL/.well-known/oauth-protected-resource
+curl YOUR_URL/.well-known/oauth-authorization-server
+curl -i -X POST YOUR_URL/mcp
+```
+
+The metadata should name your own origin; an unauthenticated MCP POST should return 401 with a `WWW-Authenticate` header referencing resource metadata. These checks alone do not prove an authenticated handoff works.

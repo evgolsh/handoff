@@ -1,8 +1,10 @@
 import { BRAND_ICON } from "./style";
 import { CONTROL_CENTER_URL } from "../env";
-import { CLOUDFLARE_ICON, GITHUB_ICON } from "./assistant-icons";
+import { GITHUB_ICON } from "./assistant-icons";
 
 export const GITHUB_URL = "https://github.com/evgolsh/handoff";
+/** Installation guidance lives on the project site, not a private server's root. */
+export const INSTALL_URL = `${CONTROL_CENTER_URL}/#install`;
 export const DEPLOY_URL = "https://deploy.workers.cloudflare.com/?url=https://github.com/evgolsh/handoff";
 /** The pages link here: the Worker counts the click (an anonymous "visit" event) and redirects to DEPLOY_URL. */
 export const DEPLOY_PATH = "/deploy";
@@ -87,7 +89,7 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
       <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
       ${active ? `<a class="site-button nav-secondary" href="/join">Try the playground</a>` : ""}
       ${menu}
-      <a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span class="deploy-label-long">Deploy to Cloudflare</span><span class="deploy-label-short">Deploy</span> <span aria-hidden="true">↗</span></a>
+      <a class="site-button primary" href="/#install"><span class="deploy-label-long">Install Handoff</span><span class="deploy-label-short">Install</span></a>
     </nav></header>`;
 }
 
@@ -99,5 +101,5 @@ export function pageFooter(opts: { active?: boolean; mode?: "private" | "control
       ? `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">Console</a>`
       : `<a href="/">Home</a>${active ? '<a href="/join">Try the playground</a><a href="/connect">Assistant setup</a>' : ""}<a href="/console">Manage team</a>`;
   return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
-    <nav aria-label="Footer">${links}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare</a></nav></footer>`;
+    <nav aria-label="Footer">${links}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${opts.mode === "private" ? INSTALL_URL : "/#install"}">Install Handoff</a></nav></footer>`;
 }
