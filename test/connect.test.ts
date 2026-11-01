@@ -7,7 +7,7 @@ import { ORIGIN } from "./helpers";
 const control = { ...env, HANDOFF_MODE: "control" };
 const home = (path = "/") => worker.fetch(new Request(`${ORIGIN}${path}`), control, createExecutionContext());
 import { FONT_FILES } from "../src/http/style";
-import { DEPLOY_PATH, GITHUB_URL } from "../src/http/header";
+import { DEPLOY_PATH, INSTALL_URL, GITHUB_URL } from "../src/http/header";
 
 describe("connect page", () => {
   beforeEach(async () => {
@@ -99,7 +99,16 @@ describe("connect page", () => {
 
     const html = await res.text();
     expect(html).toContain("Your next chat.");
-    expect(html).toContain(`class="site-button primary" href="${DEPLOY_PATH}"`);
+    expect(html).toContain('class="site-button primary" href="#install"');
+    expect(html).toContain('class="site-button primary" href="/#install"');
+    expect(html).not.toContain(`class="site-button primary" href="${DEPLOY_PATH}"`);
+    expect(html).toContain('id="install"');
+    expect(html).toContain("npm run setup -- --members=tim,tom");
+    expect(html).toContain("Ask Claude Code");
+    expect(html).toContain("Node.js 22+");
+    expect(html).toContain("Open your Handoff console");
+    expect(html).toContain("Use the Deploy button instead");
+    expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
     expect(html).toContain('class="site-button" href="/join">Try the playground');
     expect(html).not.toContain('class="site-button primary" href="/join"');
     expect(html).toContain("MIT licensed · Runs on your Cloudflare account");
@@ -126,7 +135,7 @@ describe("connect page", () => {
     expect(new Uint8Array(await vid.arrayBuffer()).slice(4, 8)).toEqual(new TextEncoder().encode("ftyp"));
   });
 
-  it("hides Connect on the home page and sends /connect to setup or Deploy when the instance is not active", async () => {
+  it("hides Connect on inactive instances and offers setup or CLI installation guidance", async () => {
     await env.DB.prepare("DELETE FROM admin_members").run();
 
     const homeHtml = await (await home()).text();
@@ -140,7 +149,8 @@ describe("connect page", () => {
     expect(connectHtml).not.toContain(`data-copy="${ORIGIN}/mcp"`);
     expect(connectHtml).not.toContain('role="tablist"');
     expect(connectHtml).toContain('href="/console/setup">Set up this server');
-    expect(connectHtml).toContain(`href="${DEPLOY_PATH}"`);
+    expect(connectHtml).toContain(`href="${INSTALL_URL}"`);
+    expect(connectHtml).not.toContain(`href="${DEPLOY_PATH}"`);
     expect(connectHtml).toContain(`href="${GITHUB_URL}"`);
   });
 });
