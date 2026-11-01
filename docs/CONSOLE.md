@@ -3,7 +3,7 @@
 `PUBLIC_URL/console` is the admin console: server-rendered pages, with small scripts for assistant setup and copying sign-in details. It replaced the first admin
 console at `/admin` (2026-10-26), which now redirects here. Code: `src/console/`.
 
-A private install has Overview, Members, Assistants and Ops. On the control center (`HANDOFF_MODE=control`,
+A private install has Overview, Connect an assistant, Members, Assistants and Ops. On the control center (`HANDOFF_MODE=control`,
 the shared playground), a team admin has Your team, Connect an assistant, Members and Connections, all limited to that team. The
 operator has Overview and Ops for the whole deployment, Tenants for every team, and Members and Assistants
 for the accounts without a team.
@@ -35,7 +35,7 @@ opens the console only if the browser's session belongs to `acme`, otherwise it 
 `acme`. To change accounts, sign out first.
 
 `/console/connect` keeps assistant setup inside the signed-in workspace and shows the current team and username.
-`/connect` redirects there when an admin session exists; otherwise it stays a public guide for ordinary members.
+`/connect` remains a public guide even when an admin is signed in, so links from the project site do not send them back into the console. Share this public guide with ordinary members.
 The login continuation accepts only `next=connect`; it cannot redirect to an arbitrary URL.
 
 ## Pages

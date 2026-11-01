@@ -1,8 +1,8 @@
 import { shell, type Viewer } from "../console/html";
 import { CONTROL_CENTER_URL, type Config } from "../env";
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "./style";
-import { DEPLOY_PATH, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
-import { CLAUDE_ICON, CLOUDFLARE_ICON, GITHUB_ICON, HERMES_MASK, OPENAI_ICON } from "./assistant-icons";
+import { INSTALL_URL, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
+import { CLAUDE_ICON, GITHUB_ICON, HERMES_MASK, OPENAI_ICON } from "./assistant-icons";
 
 /**
  * The Connect page: how to add Handoff to each assistant. Steps are only those that the host documents or
@@ -417,10 +417,10 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       </article>
       <article class="panel gate-card">
         <p class="eyebrow">02 · Run your own copy</p>
-        <h2>Deploy to Cloudflare</h2>
-        <p>Run your own private Handoff server (Workers, D1, KV, and built-in OAuth 2.1) on your Cloudflare account.</p>
+        <h2>Install Handoff</h2>
+        <p>Ask Claude Code to run setup, or use your terminal. Setup creates your private server and admin on your Cloudflare account; then manage your team in Handoff’s console.</p>
         <div class="gate-actions">
-          <a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">${CLOUDFLARE_ICON}<span>Deploy to Cloudflare</span> <span aria-hidden="true">↗</span></a>
+          <a class="site-button" href="${INSTALL_URL}" target="_blank" rel="noopener"><span>Installation guide</span> <span aria-hidden="true">↗</span></a>
           <a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>
         </div>
       </article>

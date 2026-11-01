@@ -19,7 +19,7 @@ export function joinPage(cfg: Config, opts: { error?: string; team?: string; han
     "Create a team",
     `${flowHeader()}
 <div class="flow-wrap">${flowProgress(1)}<div class="flow-grid">
-  <section class="flow-intro"><span class="kicker">The shared playground</span><h1>Create a team.</h1><p>Create a team for yourself or a few people. Then connect the assistants you use.</p><div class="flow-facts"><span>Free to try</span><span>Up to ${cfg.tenantMembersCap} people</span></div><p class="flow-note">${cfg.defaultExpiryHours}-hour expiry · ${Math.round(cfg.maxAttachmentBytes / 1048576)} MiB per file.<br><a href="/deploy" target="_blank" rel="noopener">Self-host for private work ↗</a></p></section>
+  <section class="flow-intro"><span class="kicker">The shared playground</span><h1>Create a team.</h1><p>Create a team for yourself or a few people. Then connect the assistants you use.</p><div class="flow-facts"><span>Free to try</span><span>Up to ${cfg.tenantMembersCap} people</span></div><p class="flow-note">${cfg.defaultExpiryHours}-hour expiry · ${Math.round(cfg.maxAttachmentBytes / 1048576)} MiB per file.<br><a href="/#install" target="_blank" rel="noopener">Self-host for private work ↗</a></p></section>
   <form method="post" action="/join" class="flow-panel" autocomplete="off">
     ${opts.error ? `<div class="flash" role="alert">${esc(opts.error)}</div>` : ""}
     <div><label class="lbl" for="team">Team name</label><input id="team" name="team" class="field" required autofocus maxlength="32" pattern="[a-z0-9][a-z0-9\\-]{1,30}[a-z0-9]" autocapitalize="none" spellcheck="false" placeholder="acme" value="${esc(opts.team ?? "")}" aria-describedby="team-help"><p class="field-help" id="team-help">3–32 lowercase letters, numbers or hyphens.</p></div>
