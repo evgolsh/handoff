@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { env } from "cloudflare:test";
-import { alice, bob, call, errorText, expectOk, rpc, send, token } from "./helpers";
+import { env, SELF } from "cloudflare:test";
+import { alice, bob, call, errorText, expectOk, ORIGIN, rpc, send, token } from "./helpers";
 
 describe("tool metadata", () => {
   it("declares truthful annotations and the OpenAI file adapter", async () => {
@@ -31,6 +31,21 @@ describe("tool metadata", () => {
     expect(body.result.serverInfo.name).toBe("handoff");
     expect(body.result.instructions).toContain("hand this off");
     expect(body.result.instructions).toContain("continue my handoff");
+  });
+});
+
+describe("the event-stream GET", () => {
+  it("answers 405 so the client does not reconnect every second, signed in or not", async () => {
+    // A 200 stream that the stateless Worker closes at once made Claude Code reconnect about once a second.
+    const headers = { accept: "text/event-stream", "mcp-protocol-version": "2025-06-18" };
+    const signedIn = await SELF.fetch(`${ORIGIN}/mcp`, { headers: { ...headers, authorization: `Bearer ${await alice()}` } });
+    expect(signedIn.status).toBe(405);
+    expect(signedIn.headers.get("allow")).toBe("POST, DELETE");
+    expect(((await signedIn.json()) as { error: string }).error).toBe("method_not_allowed");
+    const anonymous = await SELF.fetch(`${ORIGIN}/mcp`, { headers });
+    expect(anonymous.status).toBe(405);
+    // POST still serves MCP.
+    expect((await rpc(await alice(), "tools/list")).status).toBe(200);
   });
 });
 
