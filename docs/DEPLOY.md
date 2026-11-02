@@ -168,4 +168,4 @@ curl YOUR_URL/.well-known/oauth-authorization-server
 curl -i -X POST YOUR_URL/mcp
 ```
 
-The metadata should name your own origin; an unauthenticated MCP POST should return 401 with a `WWW-Authenticate` header referencing resource metadata. These checks alone do not prove an authenticated handoff works.
+The metadata should name your own origin; an unauthenticated MCP POST should return 401 with a `WWW-Authenticate` header referencing resource metadata. A GET on `/mcp` returns 405: the Worker keeps no session and sends no server-initiated messages, and that answer stops MCP clients from reopening an event stream every second. These checks alone do not prove an authenticated handoff works.

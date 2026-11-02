@@ -168,6 +168,12 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   app.get("/.well-known/oauth-protected-resource", (c) => metadata(c));
   app.get("/.well-known/oauth-protected-resource/mcp", (c) => metadata(c));
 
+  // No server-initiated messages: the Worker handles one request at a time and keeps no session. A GET would
+  // open the standalone event stream and close it at once, and the client would reconnect every second, for
+  // ever (seen as about 80,000 requests a day per connected Claude Code). 405 tells it not to (MCP, Streamable
+  // HTTP transport: "the server MAY respond with 405 if it does not offer an SSE stream at this endpoint").
+  app.get("/mcp", (c) => c.json({ error: "method_not_allowed", message: "this server sends no server-initiated messages; send MCP requests with POST" }, 405, { allow: "POST, DELETE" }));
+
   app.all("/mcp", requireAuth, async (c) => {
     const principal = c.get("principal");
     const started = Date.now();
