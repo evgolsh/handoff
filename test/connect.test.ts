@@ -83,7 +83,7 @@ describe("connect page", () => {
     expect(res.headers.get("cache-control")).toBe("no-cache");
     const html = await res.text();
     expect(html).toContain('<meta name="robots" content="noindex">');
-    expect(html).toContain("Hand your work<br><span>to someone else’s assistant.</span>");
+    expect(html).toContain("Hand your work to <span>someone else’s assistant.</span>");
     expect(html).toContain("No AI inside · No API keys · $0 on Cloudflare’s free plan · MIT licensed");
     expect(html).toContain("What runs on your account");
     expect(html).toContain("30 days by default on your own install, 24 hours on the playground");

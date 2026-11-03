@@ -133,6 +133,8 @@ const PAGE_CSS = `
     .closing { align-items:start; flex-direction:column; padding:30px; margin-bottom:48px; }
   }
   @media(min-width:761px) and (max-height:720px) { .hero { padding-block:24px; } .principles article { padding-block:16px; } }
+  .hero.compact h1 { font-size:clamp(34px,3.4vw,50px); line-height:1.08; }
+  @media(max-width:760px) { .hero.compact h1 { font-size:clamp(32px,8.5vw,44px); max-width:none; } }
   @media(max-width:380px) { .hero-actions { gap:12px; } .handoff-example { padding:14px; } .packet { padding:16px; } .case,.case.featured { padding:22px; } .closing { padding:24px; } .ownership dl > div { grid-template-columns:90px minmax(0,1fr); gap:16px; } }
 `;
 
@@ -161,8 +163,8 @@ const COPY = {
   b: {
     description: "Hand your work to someone else’s AI assistant, with a brief and the original files. Open-source MCP server on your own Cloudflare free plan. No AI inside, no API keys.",
     eyebrow: "Open-source MCP server",
-    title: "Hand your work<br><span>to someone else’s assistant.</span>",
-    lead: "Your assistant writes a brief of what you decided and what comes next, and attaches the original files. Your teammate says “continue the handoff from tim” in Claude, ChatGPT or Codex and picks up from there. It works for you too, in another assistant or on another computer.",
+    title: "Hand your work to <span>someone else’s assistant.</span>",
+    lead: "Your assistant writes a brief of what you decided and what comes next, and attaches the original files. Your teammate says “continue the handoff from tim” in their own assistant and picks up from there.",
     facts: "No AI inside · No API keys · $0 on Cloudflare’s free plan · MIT licensed",
     closingFacts: "On your Cloudflare account, on the free plan, no card. No AI inside. MIT licensed.",
   },
@@ -190,8 +192,8 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; variant?: Ho
   const ownershipA = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What gets shared</p><h2 id="ownership-title">Share the work you choose.</h2></div>
     <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>Expiry</dt><dd>${expiry}</dd></div></dl>
   </section>`;
-  const ownershipB = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs on your account</p><h2 id="ownership-title">Handoff stores the brief and files, and runs no model on them.</h2></div>
-    <dl><div><dt>Five MCP tools</dt><dd>Send, inbox, read, revoke, and a link for uploading files. That is everything an assistant can do with Handoff.</dd></div><div><dt>No AI inside</dt><dd>Handoff makes no model calls. There is no token bill and no API key to create or paste.</dd></div><div><dt>Its own sign-in</dt><dd>One Worker with built-in OAuth 2.1. Each person signs in with a username and access code. No identity provider to set up.</dd></div><div><dt>Storage</dt><dd>Briefs in a D1 database, files in Workers KV. Expired handoffs are deleted every hour.</dd></div><div><dt>What you send</dt><dd>A prepared brief and the files you pick, to yourself, a named teammate or your whole team. Your conversation is not exported.</dd></div><div><dt>Expiry</dt><dd>${expiry}</dd></div><div><dt>Free plan</dt><dd>Cloudflare’s free plan allows 100,000 requests and 1,000 new files a day, and 1 GB of stored files. No card. Handoff has no paid tier.</dd></div><div><dt>Update check</dt><dd>Once a day your install asks for the latest version. It sends a random id, the version and rough member and handoff counts, and nothing else. Set <code>HANDOFF_UPDATE_CHECK=off</code> to turn it off.</dd></div></dl>
+  const ownershipB = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs on your account</p><h2 id="ownership-title">No model reads your handoffs.</h2></div>
+    <dl><div><dt>No AI inside</dt><dd>Handoff makes no model calls. No token bill, and no API key to create or paste.</dd></div><div><dt>Five MCP tools</dt><dd>Send, inbox, read, revoke, and a link for uploading files. Each person signs in with a username and access code.</dd></div><div><dt>Storage</dt><dd>Briefs in D1, files in Workers KV. ${expiry}</dd></div><div><dt>Free plan</dt><dd>100,000 requests and 1,000 new files a day, and 1 GB of stored files. No card. Handoff has no paid tier.</dd></div><div><dt>Update check</dt><dd>Once a day: a random id, the version and rough counts, nothing else. <code>HANDOFF_UPDATE_CHECK=off</code> turns it off.</dd></div></dl>
   </section>`;
   const closing = playground
     ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>${copy.closingFacts}</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
@@ -207,7 +209,7 @@ ${FAVICON_LINK}${FONT_PRELOAD}
 <style>${BASE_CSS}${PAGE_HEADER_CSS}${PAGE_CSS}</style></head><body>
 ${pageHeader("use-cases", { active, mode: cfg.mode })}
 <main id="main" class="site-width">
-  <section class="hero" aria-labelledby="hero-title">
+  <section class="hero${b ? " compact" : ""}" aria-labelledby="hero-title">
     <div><p class="eyebrow">${copy.eyebrow}</p>
       <h1 id="hero-title">${copy.title}</h1>
       <p class="hero-lead">${copy.lead}</p>
