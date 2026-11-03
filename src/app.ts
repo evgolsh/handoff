@@ -21,7 +21,7 @@ import { blobStore } from "./store/blobs";
 import { uploadRoutes } from "./http/routes";
 import { buildMcpServer } from "./mcp/server";
 import { connectHeaders, connectPage } from "./http/connect";
-import { useCasesHeaders, useCasesPage } from "./http/use-cases";
+import { useCasesHeaders, useCasesPage, type HomeVariant } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
 import { mcpCallsIn, recordMcpCalls } from "./store/telemetry";
 import { base64url } from "./domain/ids";
@@ -91,9 +91,10 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
 
   // Public home and Connect pages. A deployed instance is "active" once it has an admin (so members can sign in).
   const isActive = (c: { env: Env }) => hasAdmin(c.env.DB).then((yes) => yes, () => false);
-  const home = async (c: { get: (k: "cfg") => Variables["cfg"]; env: Env }) => {
+  const home = async (c: { get: (k: "cfg") => Variables["cfg"]; env: Env }, variant: HomeVariant = "a") => {
     const active = await isActive(c);
-    return new Response(useCasesPage(c.get("cfg"), { active }), { headers: useCasesHeaders() });
+    const headers = variant === "b" ? { ...useCasesHeaders(), "cache-control": "no-cache", "x-robots-tag": "noindex" } : useCasesHeaders();
+    return new Response(useCasesPage(c.get("cfg"), { active, variant }), { headers });
   };
   const connect = async (c: { get: (k: "cfg") => Variables["cfg"]; env: Env }) => {
     const nonce = newNonce();
@@ -105,6 +106,8 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   const homeOrConnect = (c: Parameters<typeof home>[0] & { redirect: (to: string, status: 303) => Response }) => (control(c) ? home(c) : c.redirect("/connect", 303));
   app.get("/", (c) => homeOrConnect(c));
   app.get("/use-cases", (c) => homeOrConnect(c));
+  // Draft homepage copy, unlinked and kept out of search, to compare with "/" before it replaces it.
+  app.get("/b", (c) => (control(c) ? home(c, "b") : c.notFound()));
   // Public for everyone, signed-in admins included: the console has its own copy at /console/connect.
   app.get("/connect", (c) => connect(c));
   app.get("/healthz", (c) => c.json({ ok: true }));

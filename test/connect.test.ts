@@ -76,6 +76,25 @@ describe("connect page", () => {
     expect(html).not.toMatch(/https:\/\/fonts\.|googleapis/);
   });
 
+  it("the control center serves the draft homepage copy at /b, kept out of search; a private install has no /b", async () => {
+    const res = await home("/b");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-robots-tag")).toBe("noindex");
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    const html = await res.text();
+    expect(html).toContain('<meta name="robots" content="noindex">');
+    expect(html).toContain("Hand your work<br><span>to someone else’s assistant.</span>");
+    expect(html).toContain("No AI inside · No API keys · $0 on Cloudflare’s free plan · MIT licensed");
+    expect(html).toContain("What runs on your account");
+    expect(html).toContain("30 days by default on your own install, 24 hours on the playground");
+    expect(html).not.toContain("Your next chat.");
+    expect(html).not.toContain("—");
+    expect(html).toContain('id="install"');
+    expect(html).toContain('class="site-button" href="/join">Try the playground');
+    expect(await (await home("/")).text()).not.toContain("noindex");
+    expect((await SELF.fetch(`${ORIGIN}/b`)).status).toBe(404);
+  });
+
   it("the sign-in page uses the same fonts and the light and dark palette", async () => {
     const html = await (await SELF.fetch(`${ORIGIN}/authorize`)).text();
     expect(html).toContain("/fonts/ibm-plex-sans-latin-400-normal.woff2");

@@ -146,8 +146,32 @@ function renderCase(c: (typeof USE_CASES)[number], i: number): string {
     </div></article>`;
 }
 
-export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): string {
+/** "b" is the draft copy at /b on the control center, for comparing with the live homepage before it replaces it. */
+export type HomeVariant = "a" | "b";
+
+const COPY = {
+  a: {
+    description: "Pass a prepared brief and original files to your next AI assistant, a teammate, or your family. Private handoffs on your own Cloudflare account.",
+    eyebrow: "Across assistants. Across computers.",
+    title: "Your next chat.<br><span>Already up to speed.</span>",
+    lead: "Pass the decisions, the brief, and the original files to your next assistant. Or give a teammate’s assistant everything it needs to continue.",
+    facts: "MIT licensed · Runs on your Cloudflare account",
+    closingFacts: "Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.",
+  },
+  b: {
+    description: "Hand your work to someone else’s AI assistant, with a brief and the original files. Open-source MCP server on your own Cloudflare free plan. No AI inside, no API keys.",
+    eyebrow: "Open-source MCP server",
+    title: "Hand your work<br><span>to someone else’s assistant.</span>",
+    lead: "Your assistant writes a brief of what you decided and what comes next, and attaches the original files. Your teammate says “continue the handoff from tim” in Claude, ChatGPT or Codex and picks up from there. It works for you too, in another assistant or on another computer.",
+    facts: "No AI inside · No API keys · $0 on Cloudflare’s free plan · MIT licensed",
+    closingFacts: "On your Cloudflare account, on the free plan, no card. No AI inside. MIT licensed.",
+  },
+};
+
+export function useCasesPage(cfg: Config, opts: { active?: boolean; variant?: HomeVariant } = {}): string {
   const active = opts.active ?? true;
+  const b = opts.variant === "b";
+  const copy = COPY[b ? "b" : "a"];
   const playground = cfg.mode === "control" && active;
   const heroActions = playground
     ? `<a class="site-button primary" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button" href="/join">Try the playground <span aria-hidden="true">↗</span></a><a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>`
@@ -155,31 +179,38 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): stri
     ? `<a class="site-button primary" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>`
     : `<a class="site-button primary" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>View on GitHub</span> <span aria-hidden="true">↗</span></a><a class="text-link" href="#use-cases">Explore the use cases <span aria-hidden="true">↓</span></a>`;
   const heroNote = playground
-    ? `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · Already on the playground? <a href="/connect">Connect your assistants ↗</a></p>`
+    ? `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts} · Already on the playground? <a href="/connect">Connect your assistants ↗</a></p>`
     : active
-    ? `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · <a href="#use-cases">Explore the use cases ↓</a></p>`
-    : `<p class="hero-note"><span aria-hidden="true"></span>MIT licensed · Runs on your Cloudflare account · Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
+    ? `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts} · <a href="#use-cases">Explore the use cases ↓</a></p>`
+    : `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts} · Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
   const examplesLink = active
     ? `<a href="/connect">Setup for each assistant ↗</a>`
     : `<a href="#install">Install your own on Cloudflare ↓</a>`;
+  const expiry = `Handoffs expire after ${PRIVATE_DEFAULT_EXPIRY_HOURS / 24} days by default on your own install${cfg.mode === "control" ? `, ${cfg.defaultExpiryHours} hours on the playground` : ""}. You can revoke a handoff before then.`;
+  const ownershipA = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What gets shared</p><h2 id="ownership-title">Share the work you choose.</h2></div>
+    <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>Expiry</dt><dd>${expiry}</dd></div></dl>
+  </section>`;
+  const ownershipB = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs on your account</p><h2 id="ownership-title">Handoff stores the brief and files, and runs no model on them.</h2></div>
+    <dl><div><dt>Five MCP tools</dt><dd>Send, inbox, read, revoke, and a link for uploading files. That is everything an assistant can do with Handoff.</dd></div><div><dt>No AI inside</dt><dd>Handoff makes no model calls. There is no token bill and no API key to create or paste.</dd></div><div><dt>Its own sign-in</dt><dd>One Worker with built-in OAuth 2.1. Each person signs in with a username and access code. No identity provider to set up.</dd></div><div><dt>Storage</dt><dd>Briefs in a D1 database, files in Workers KV. Expired handoffs are deleted every hour.</dd></div><div><dt>What you send</dt><dd>A prepared brief and the files you pick, to yourself, a named teammate or your whole team. Your conversation is not exported.</dd></div><div><dt>Expiry</dt><dd>${expiry}</dd></div><div><dt>Free plan</dt><dd>Cloudflare’s free plan allows 100,000 requests and 1,000 new files a day, and 1 GB of stored files. No card. Handoff has no paid tier.</dd></div><div><dt>Update check</dt><dd>Once a day your install asks for the latest version. It sends a random id, the version and rough member and handoff counts, and nothing else. Set <code>HANDOFF_UPDATE_CHECK=off</code> to turn it off.</dd></div></dl>
+  </section>`;
   const closing = playground
-    ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
+    ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>${copy.closingFacts}</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
     : active
     ? `<section class="closing" aria-label="Connect to Handoff"><div><h2>Keep the work moving.</h2><p>Plan in one AI. Build in another.</p></div><div class="closing-actions"><a class="site-button" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="#install"><span>Install your own</span> <span aria-hidden="true">↓</span></a></div></section>`
-    : `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a></div></section>`;
+    : `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>${copy.closingFacts}</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a></div></section>`;
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Handoff</title>
-<meta name="description" content="Pass a prepared brief and original files to your next AI assistant, a teammate, or your family. Private handoffs on your own Cloudflare account.">
-<link rel="canonical" href="${esc(cfg.publicUrl)}/">
+<meta name="description" content="${esc(copy.description)}">
+${b ? `<meta name="robots" content="noindex">\n` : ""}<link rel="canonical" href="${esc(cfg.publicUrl)}/">
 ${FAVICON_LINK}${FONT_PRELOAD}
 <style>${BASE_CSS}${PAGE_HEADER_CSS}${PAGE_CSS}</style></head><body>
 ${pageHeader("use-cases", { active, mode: cfg.mode })}
 <main id="main" class="site-width">
   <section class="hero" aria-labelledby="hero-title">
-    <div><p class="eyebrow">Across assistants. Across computers.</p>
-      <h1 id="hero-title">Your next chat.<br><span>Already up to speed.</span></h1>
-      <p class="hero-lead">Pass the decisions, the brief, and the original files to your next assistant. Or give a teammate’s assistant everything it needs to continue.</p>
+    <div><p class="eyebrow">${copy.eyebrow}</p>
+      <h1 id="hero-title">${copy.title}</h1>
+      <p class="hero-lead">${copy.lead}</p>
       <div class="hero-actions">${heroActions}</div>
       ${heroNote}
     </div>
@@ -187,17 +218,22 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
       <div class="example-top"><span class="example-mark">${BRAND_ICON} A HANDOFF</span></div>
       <div class="packet"><div class="packet-person"><span class="avatar" aria-hidden="true">T</span><div>tim <small>acme · Prepared in <b class="app">${CLAUDE_ICON}Claude Code</b></small></div></div>
         <h2>Q3 review, ready for the next step.</h2>
-        <dl><dt>Goal</dt><dd>Finish the client’s quarterly review.</dd><dt>Decided</dt><dd>Keep the two flagged invoices separate.</dd><dt>Next step</dt><dd>Check the dates and draft the reply.</dd></dl>
+        <dl>${b ? "<dt>For</dt><dd>tom</dd>" : ""}<dt>Goal</dt><dd>Finish the client’s quarterly review.</dd><dt>Decided</dt><dd>Keep the two flagged invoices separate.</dd><dt>Next step</dt><dd>Check the dates and draft the reply.</dd></dl>
         <ul class="file-tags" aria-label="Example original files"><li>vat-q3-summary.pdf</li><li>flagged-invoices.md</li></ul>
       </div>
       <div class="handoff-path" aria-hidden="true"><i></i> BRIEF + ORIGINAL FILES <span>↓</span><i></i></div>
-      <div class="receive"><span class="receive-symbol" aria-hidden="true">↳</span><div><strong>“Continue my handoff.”</strong><p>Pick up in <b class="app">${OPENAI_ICON}Codex</b>, on another computer.</p></div></div>
+      <div class="receive"><span class="receive-symbol" aria-hidden="true">↳</span><div>${b
+        ? `<strong>“Continue the handoff from tim.”</strong><p>tom picks up in <b class="app">${OPENAI_ICON}Codex</b>, on another computer.</p>`
+        : `<strong>“Continue my handoff.”</strong><p>Pick up in <b class="app">${OPENAI_ICON}Codex</b>, on another computer.</p>`}</div></div>
     </div>
   </section>
-  <section class="principles" aria-label="What travels with your work">
+  <section class="principles" aria-label="What travels with your work">${b ? `
+    <article><h2>The brief and the original files.</h2><p>Decisions, constraints and the next step, with PDFs and images attached and checked byte for byte.</p></article>
+    <article><h2>Everyone keeps their own assistant.</h2><p>Claude, ChatGPT, Codex, Claude Code or Hermes. Each person signs in with their own username.</p></article>
+    <article><h2>No AI inside.</h2><p>Handoff makes no model calls and needs no API keys. One Worker, a database and a file store on your Cloudflare account. Free plan, no card.</p></article>` : `
     <article><h2>The context, intact.</h2><p>Your prepared brief keeps the decisions, constraints, and next step together.</p></article>
     <article><h2>The original files.</h2><p>PDFs, images, and text travel with the brief, with checksums to verify the bytes.</p></article>
-    <article><h2>Your own place to keep it.</h2><p>Run Handoff on your Cloudflare account. You choose who joins your team.</p></article>
+    <article><h2>Your own place to keep it.</h2><p>Run Handoff on your Cloudflare account. You choose who joins your team.</p></article>`}
   </section>
   <section id="install" class="section" aria-labelledby="install-title">
     <div class="section-head"><div><p class="eyebrow">Install once for your team</p><h2 id="install-title">Terminal first.<br>Then your Handoff console.</h2></div><p>Workers, D1 and KV on your Cloudflare account. Free plan, no payment method for the default install.</p></div>
@@ -232,9 +268,7 @@ npm run setup -- --members=tim,tom</code></pre>
       Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
       </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
   </section>
-  <section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What gets shared</p><h2 id="ownership-title">Share the work you choose.</h2></div>
-    <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>Expiry</dt><dd>Handoffs expire after ${PRIVATE_DEFAULT_EXPIRY_HOURS / 24} days by default on your own install${cfg.mode === "control" ? `, ${cfg.defaultExpiryHours} hours on the playground` : ""}. You can revoke a handoff before then.</dd></div></dl>
-  </section>
+  ${b ? ownershipB : ownershipA}
   ${closing}
 </main>${pageFooter({ active, mode: cfg.mode })}</body></html>`;
 }
