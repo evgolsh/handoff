@@ -76,25 +76,11 @@ describe("connect page", () => {
     expect(html).not.toMatch(/https:\/\/fonts\.|googleapis/);
   });
 
-  it("the control center serves the draft homepage copy at /b, kept out of search; a private install has no /b", async () => {
+  it("/b, where the homepage draft was reviewed, now redirects to the homepage; a private install has no /b", async () => {
     const res = await home("/b");
-    expect(res.status).toBe(200);
-    expect(res.headers.get("x-robots-tag")).toBe("noindex");
-    expect(res.headers.get("cache-control")).toBe("no-cache");
-    const html = await res.text();
-    expect(html).toContain('<meta name="robots" content="noindex">');
-    expect(html).toContain("Hand your work to <span>someone else’s assistant.</span>");
-    expect(html).toContain("It makes no AI calls and needs no API keys.");
-    expect(html).toContain("Cowork</b>");
-    expect(html).toContain("ChatGPT</b>.</p>");
-    expect(html).toContain("What runs on your account");
-    expect(html).toContain("30 days by default on your own install, 24 hours on the playground");
-    expect(html).not.toContain("Your next chat.");
-    expect(html).not.toContain("—");
-    expect(html).toContain('id="install"');
-    expect(html).toContain('class="site-button" href="/join">Try the playground');
-    expect(await (await home("/")).text()).not.toContain("noindex");
-    expect((await SELF.fetch(`${ORIGIN}/b`)).status).toBe(404);
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/");
+    expect((await SELF.fetch(`${ORIGIN}/b`, { redirect: "manual" })).status).toBe(404);
   });
 
   it("the sign-in page uses the same fonts and the light and dark palette", async () => {
@@ -119,20 +105,31 @@ describe("connect page", () => {
     expect(csp).not.toContain("script-src");
 
     const html = await res.text();
-    expect(html).toContain("Your next chat.");
+    expect(html).toContain("Hand your work to <span>someone else’s assistant.</span>");
+    expect(html).toContain("It makes no AI calls and needs no API keys.");
+    // The invoice example: prepared in Cowork, picked up in ChatGPT.
+    expect(html).toContain("Cowork</b>");
+    expect(html).toContain("ChatGPT</b>.</p>");
+    expect(html).toContain("What runs on your account");
+    expect(html).not.toContain("noindex");
+    expect(html).not.toContain("—");
     expect(html).toContain('class="site-button primary" href="#install"');
     expect(html).toContain('class="site-button primary" href="/#install"');
-    expect(html).not.toContain(`class="site-button primary" href="${DEPLOY_PATH}"`);
+    // Three equal ways to install: the Deploy button (no terminal), a coding assistant, or the commands.
+    expect(html).toContain(`class="site-button primary" href="${DEPLOY_PATH}"`);
+    expect(html).toContain("From your browser");
+    expect(html).toContain("works on Windows");
+    expect(html).toContain("GitHub or GitLab account");
     expect(html).toContain('id="install"');
     expect(html).toContain("npm run setup -- --members=tim,tom");
-    expect(html).toContain("Ask Claude Code");
+    expect(html).toContain("Ask a coding assistant");
+    expect(html).toContain("Claude Code, Codex, Gemini CLI, Hermes or any assistant");
     expect(html).toContain("Node.js 22+");
-    expect(html).toContain("Open your Handoff console");
-    expect(html).toContain("Use the Deploy button instead");
+    expect(html).toContain("Sign in to your Handoff console");
+    expect(html).toContain("/console/setup</code> on your new server");
     expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
     expect(html).toContain('class="site-button" href="/join">Try the playground');
     expect(html).not.toContain('class="site-button primary" href="/join"');
-    expect(html).toContain("MIT licensed · Runs on your Cloudflare account");
     // The homepage is the brand link: no "Use cases" item in the menu or footer.
     expect(html).not.toContain(">Use cases</a>");
     expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
