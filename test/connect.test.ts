@@ -84,7 +84,9 @@ describe("connect page", () => {
     const html = await res.text();
     expect(html).toContain('<meta name="robots" content="noindex">');
     expect(html).toContain("Hand your work to <span>someone else’s assistant.</span>");
-    expect(html).toContain("No AI inside · No API keys · $0 on Cloudflare’s free plan · MIT licensed");
+    expect(html).toContain("It makes no AI calls and needs no API keys.");
+    expect(html).toContain("Cowork</b>");
+    expect(html).toContain("ChatGPT</b>.</p>");
     expect(html).toContain("What runs on your account");
     expect(html).toContain("30 days by default on your own install, 24 hours on the playground");
     expect(html).not.toContain("Your next chat.");

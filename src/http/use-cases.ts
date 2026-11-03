@@ -28,6 +28,16 @@ const USE_CASES = [
     receive:"Continue the team handoff.", files:["console-mock.png", "copy-spec.md"] },
 ];
 
+/** B's titles: plain sentences in place of A's two-part slogans. */
+const B_CASES: Record<string, { title: string; description?: string }> = {
+  "household-last-mile": { title: "Your partner finishes the paperwork.",
+    description: "Sort out the details in Cowork, then send your partner the notes and the PDFs. They finish in ChatGPT on their own computer." },
+  "micro-team-relay": { title: "A teammate starts with your decisions." },
+  "adversarial-review": { title: "A second assistant reviews the work." },
+  "home-server-to-laptop": { title: "Continue on another computer." },
+  "pm-designer-to-engineer": { title: "One brief for the whole team." },
+};
+
 const PAGE_CSS = `
   p,h1,h2,h3 { margin:0; }
   .hero { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); align-items:center; gap:clamp(40px,5vw,80px); padding-block:clamp(36px,3.5vw,56px); }
@@ -133,15 +143,23 @@ const PAGE_CSS = `
     .closing { align-items:start; flex-direction:column; padding:30px; margin-bottom:48px; }
   }
   @media(min-width:761px) and (max-height:720px) { .hero { padding-block:24px; } .principles article { padding-block:16px; } }
-  .hero.compact h1 { font-size:clamp(34px,3.4vw,50px); line-height:1.08; }
-  @media(max-width:760px) { .hero.compact h1 { font-size:clamp(32px,8.5vw,44px); max-width:none; } }
   @media(max-width:380px) { .hero-actions { gap:12px; } .handoff-example { padding:14px; } .packet { padding:16px; } .case,.case.featured { padding:22px; } .closing { padding:24px; } .ownership dl > div { grid-template-columns:90px minmax(0,1fr); gap:16px; } }
 `;
 
-function renderCase(c: (typeof USE_CASES)[number], i: number): string {
+/** Loaded only on /b, so the stylesheet of "/" stays as it was. */
+const B_CSS = `
+  .hero.compact h1 { font-size:clamp(34px,3.4vw,50px); line-height:1.08; }
+  .hero.compact .handoff-example { padding:0; border:0; background:none; }
+  .hero.compact .example-top { margin-bottom:10px; }
+  @media(max-width:760px) { .hero.compact h1 { font-size:clamp(32px,8.5vw,44px); max-width:none; } }
+`;
+
+function renderCase(c: (typeof USE_CASES)[number], i: number, b = false): string {
+  const title = b ? B_CASES[c.id]?.title ?? c.title : c.title;
+  const description = b ? B_CASES[c.id]?.description ?? c.description : c.description;
   return `<article class="case${i === 0 ? " featured" : ""}" id="${c.id}">
     <div><p class="eyebrow"><span class="case-number">0${i + 1}</span>${esc(c.label)}</p>
-      <h3>${esc(c.title)}</h3><p class="case-description">${esc(c.description)}</p></div>
+      <h3>${esc(title)}</h3><p class="case-description">${esc(description)}</p></div>
     <div class="exchange"><p class="exchange-label">You ask your assistant</p><blockquote>“${esc(c.send)}”</blockquote>
       <ul class="file-tags" aria-label="Example attachments">${c.files.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
       <div class="pickup"><span class="exchange-label">The next chat starts here</span><p>“${esc(c.receive)}”</p></div>
@@ -158,15 +176,17 @@ const COPY = {
     title: "Your next chat.<br><span>Already up to speed.</span>",
     lead: "Pass the decisions, the brief, and the original files to your next assistant. Or give a teammate’s assistant everything it needs to continue.",
     facts: "MIT licensed · Runs on your Cloudflare account",
+    sep: " · ",
     closingFacts: "Your own Cloudflare account. Built-in OAuth 2.1. MIT licensed.",
   },
   b: {
     description: "Hand your work to someone else’s AI assistant, with a brief and the original files. Open-source MCP server on your own Cloudflare free plan. No AI inside, no API keys.",
     eyebrow: "Open-source MCP server",
     title: "Hand your work to <span>someone else’s assistant.</span>",
-    lead: "Your assistant writes a brief of what you decided and what comes next, and attaches the original files. Your teammate says “continue the handoff from tim” in their own assistant and picks up from there.",
-    facts: "No AI inside · No API keys · $0 on Cloudflare’s free plan · MIT licensed",
-    closingFacts: "On your Cloudflare account, on the free plan, no card. No AI inside. MIT licensed.",
+    lead: "You sort out the details in Claude. Your partner says “continue the handoff from tim” in ChatGPT and gets your notes and the original files.",
+    facts: "Runs on your own Cloudflare account, on the free plan. It makes no AI calls and needs no API keys.",
+    sep: " ",
+    closingFacts: "On your Cloudflare account, on the free plan, with no card. MIT licensed.",
   },
 };
 
@@ -181,10 +201,10 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; variant?: Ho
     ? `<a class="site-button primary" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>`
     : `<a class="site-button primary" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>View on GitHub</span> <span aria-hidden="true">↗</span></a><a class="text-link" href="#use-cases">Explore the use cases <span aria-hidden="true">↓</span></a>`;
   const heroNote = playground
-    ? `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts} · Already on the playground? <a href="/connect">Connect your assistants ↗</a></p>`
+    ? `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts}${copy.sep}Already on the playground? <a href="/connect">Connect your assistants ↗</a></p>`
     : active
-    ? `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts} · <a href="#use-cases">Explore the use cases ↓</a></p>`
-    : `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts} · Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
+    ? `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts}${copy.sep}<a href="#use-cases">Explore the use cases ↓</a></p>`
+    : `<p class="hero-note"><span aria-hidden="true"></span>${copy.facts}${copy.sep}Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
   const examplesLink = active
     ? `<a href="/connect">Setup for each assistant ↗</a>`
     : `<a href="#install">Install your own on Cloudflare ↓</a>`;
@@ -192,9 +212,16 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; variant?: Ho
   const ownershipA = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What gets shared</p><h2 id="ownership-title">Share the work you choose.</h2></div>
     <dl><div><dt>One task at a time</dt><dd>Send a prepared brief and selected files. Your whole conversation is not exported.</dd></div><div><dt>Your recipients</dt><dd>Send to yourself, a named teammate, or everyone in your team.</dd></div><div><dt>Expiry</dt><dd>${expiry}</dd></div></dl>
   </section>`;
-  const ownershipB = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs on your account</p><h2 id="ownership-title">No model reads your handoffs.</h2></div>
+  const ownershipB = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs on your account</p><h2 id="ownership-title">Handoff is storage with a sign-in.</h2></div>
     <dl><div><dt>No AI inside</dt><dd>Handoff makes no model calls. No token bill, and no API key to create or paste.</dd></div><div><dt>Five MCP tools</dt><dd>Send, inbox, read, revoke, and a link for uploading files. Each person signs in with a username and access code.</dd></div><div><dt>Storage</dt><dd>Briefs in D1, files in Workers KV. ${expiry}</dd></div><div><dt>Free plan</dt><dd>100,000 requests and 1,000 new files a day, and 1 GB of stored files. No card. Handoff has no paid tier.</dd></div><div><dt>Update check</dt><dd>Once a day: a random id, the version and rough counts, nothing else. <code>HANDOFF_UPDATE_CHECK=off</code> turns it off.</dd></div></dl>
   </section>`;
+  const exampleB = `<div class="packet"><div class="packet-person"><span class="avatar" aria-hidden="true">T</span><div>tim <small>acme · Prepared in <b class="app">${CLAUDE_ICON}Cowork</b></small></div></div>
+        <h2>Q3 VAT for the bakery</h2>
+        <dl><dt>For</dt><dd>tom</dd><dt>Goal</dt><dd>Send the bakery its Q3 VAT figures.</dd><dt>Decided</dt><dd>Fix the two flagged invoices, each one separately.</dd><dt>Next step</dt><dd>Check the dates and draft the reply.</dd></dl>
+        <ul class="file-tags" aria-label="Example original files"><li>vat-q3-summary.pdf</li><li>flagged-invoices.md</li></ul>
+      </div>
+      <div class="handoff-path" aria-hidden="true"><i></i> BRIEF + ORIGINAL FILES <span>↓</span><i></i></div>
+      <div class="receive"><span class="receive-symbol" aria-hidden="true">↳</span><div><strong>“Continue the handoff from tim.”</strong><p>tom picks it up in <b class="app">${OPENAI_ICON}ChatGPT</b>.</p></div></div>`;
   const closing = playground
     ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>${copy.closingFacts}</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
     : active
@@ -206,7 +233,7 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; variant?: Ho
 <meta name="description" content="${esc(copy.description)}">
 ${b ? `<meta name="robots" content="noindex">\n` : ""}<link rel="canonical" href="${esc(cfg.publicUrl)}/">
 ${FAVICON_LINK}${FONT_PRELOAD}
-<style>${BASE_CSS}${PAGE_HEADER_CSS}${PAGE_CSS}</style></head><body>
+<style>${BASE_CSS}${PAGE_HEADER_CSS}${PAGE_CSS}${b ? B_CSS : ""}</style></head><body>
 ${pageHeader("use-cases", { active, mode: cfg.mode })}
 <main id="main" class="site-width">
   <section class="hero${b ? " compact" : ""}" aria-labelledby="hero-title">
@@ -218,27 +245,27 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
     </div>
     <div class="handoff-example" aria-label="Example of a handoff from one assistant to another">
       <div class="example-top"><span class="example-mark">${BRAND_ICON} A HANDOFF</span></div>
-      <div class="packet"><div class="packet-person"><span class="avatar" aria-hidden="true">T</span><div>tim <small>acme · Prepared in <b class="app">${CLAUDE_ICON}Claude Code</b></small></div></div>
+      ${b ? exampleB : `<div class="packet"><div class="packet-person"><span class="avatar" aria-hidden="true">T</span><div>tim <small>acme · Prepared in <b class="app">${CLAUDE_ICON}Claude Code</b></small></div></div>
         <h2>Q3 review, ready for the next step.</h2>
-        <dl>${b ? "<dt>For</dt><dd>tom</dd>" : ""}<dt>Goal</dt><dd>Finish the client’s quarterly review.</dd><dt>Decided</dt><dd>Keep the two flagged invoices separate.</dd><dt>Next step</dt><dd>Check the dates and draft the reply.</dd></dl>
+        <dl><dt>Goal</dt><dd>Finish the client’s quarterly review.</dd><dt>Decided</dt><dd>Keep the two flagged invoices separate.</dd><dt>Next step</dt><dd>Check the dates and draft the reply.</dd></dl>
         <ul class="file-tags" aria-label="Example original files"><li>vat-q3-summary.pdf</li><li>flagged-invoices.md</li></ul>
       </div>
       <div class="handoff-path" aria-hidden="true"><i></i> BRIEF + ORIGINAL FILES <span>↓</span><i></i></div>
-      <div class="receive"><span class="receive-symbol" aria-hidden="true">↳</span><div>${b
-        ? `<strong>“Continue the handoff from tim.”</strong><p>tom picks up in <b class="app">${OPENAI_ICON}Codex</b>, on another computer.</p>`
-        : `<strong>“Continue my handoff.”</strong><p>Pick up in <b class="app">${OPENAI_ICON}Codex</b>, on another computer.</p>`}</div></div>
+      <div class="receive"><span class="receive-symbol" aria-hidden="true">↳</span><div><strong>“Continue my handoff.”</strong><p>Pick up in <b class="app">${OPENAI_ICON}Codex</b>, on another computer.</p></div></div>`}
     </div>
   </section>
   <section class="principles" aria-label="What travels with your work">${b ? `
-    <article><h2>The brief and the original files.</h2><p>Decisions, constraints and the next step, with PDFs and images attached and checked byte for byte.</p></article>
-    <article><h2>Everyone keeps their own assistant.</h2><p>Claude, ChatGPT, Codex, Claude Code or Hermes. Each person signs in with their own username.</p></article>
-    <article><h2>No AI inside.</h2><p>Handoff makes no model calls and needs no API keys. One Worker, a database and a file store on your Cloudflare account. Free plan, no card.</p></article>` : `
+    <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte.</p></article>
+    <article><h2>Their own assistant.</h2><p>Your partner can use ChatGPT while you use Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.</p></article>
+    <article><h2>Storage, not AI.</h2><p>Handoff keeps the brief and files and deletes them after 30 days. It makes no model calls and needs no API keys.</p></article>` : `
     <article><h2>The context, intact.</h2><p>Your prepared brief keeps the decisions, constraints, and next step together.</p></article>
     <article><h2>The original files.</h2><p>PDFs, images, and text travel with the brief, with checksums to verify the bytes.</p></article>
     <article><h2>Your own place to keep it.</h2><p>Run Handoff on your Cloudflare account. You choose who joins your team.</p></article>`}
   </section>
   <section id="install" class="section" aria-labelledby="install-title">
-    <div class="section-head"><div><p class="eyebrow">Install once for your team</p><h2 id="install-title">Terminal first.<br>Then your Handoff console.</h2></div><p>Workers, D1 and KV on your Cloudflare account. Free plan, no payment method for the default install.</p></div>
+    <div class="section-head">${b
+      ? `<div><p class="eyebrow">Install</p><h2 id="install-title">Claude Code can set it up for you.</h2></div><p>It runs on Workers, D1 and KV in your Cloudflare account. The free plan is enough, with no card.</p>`
+      : `<div><p class="eyebrow">Install once for your team</p><h2 id="install-title">Terminal first.<br>Then your Handoff console.</h2></div><p>Workers, D1 and KV on your Cloudflare account. Free plan, no payment method for the default install.</p>`}</div>
     <div class="install-grid">
       <article class="install-card"><h3>Ask Claude Code</h3><p>Or another coding assistant that can run commands on your computer. Give it this request with your own usernames:</p>
         <blockquote>Deploy https://github.com/evgolsh/handoff to my Cloudflare account. Follow llms-install.md. My username is tim; add tom as a teammate. Ask me to approve the Cloudflare login, then help me connect my assistants.</blockquote>
@@ -260,12 +287,12 @@ npm run setup -- --members=tim,tom</code></pre>
     <p class="install-note">Prefer the Cloudflare dashboard? <a href="${DEPLOY_PATH}" target="_blank" rel="noopener">Use the Deploy button instead ↗</a>. This alternative needs a GitHub or GitLab account and a setup code; finish at <code>/console/setup</code>. The terminal path creates your admin for you.</p>
   </section>
   <section id="use-cases" class="section" aria-labelledby="cases-title">
-    <div class="section-head"><div><p class="eyebrow">Use cases</p><h2 id="cases-title">A better place to pick up.</h2></div><p>For your next assistant, your partner, or the people building alongside you.</p></div>
-    <div class="cases">${USE_CASES.map(renderCase).join("\n")}</div>
+    <div class="section-head"><div><p class="eyebrow">Use cases</p><h2 id="cases-title">${b ? "What people hand off." : "A better place to pick up."}</h2></div><p>${b ? "To a partner, a teammate, or to yourself on another computer." : "For your next assistant, your partner, or the people building alongside you."}</p></div>
+    <div class="cases">${USE_CASES.map((c, i) => renderCase(c, i, b)).join("\n")}</div>
     <p class="examples-note">${examplesLink}</p>
   </section>
   <section class="watch" id="walkthrough" aria-labelledby="watch-title">
-    <div class="watch-copy"><p class="eyebrow">The idea in 38 seconds</p><h2 id="watch-title">See the work change hands.</h2><p>Prepare the context, send the brief and files, then continue in another assistant.</p></div>
+    <div class="watch-copy"><p class="eyebrow">${b ? "Demo, 38 seconds" : "The idea in 38 seconds"}</p><h2 id="watch-title">${b ? "Watch one handoff from start to finish." : "See the work change hands."}</h2><p>Prepare the context, send the brief and files, then continue in another assistant.</p></div>
     <figure class="video-frame"><video controls playsinline preload="metadata" src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
       Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
       </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
