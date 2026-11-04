@@ -120,7 +120,7 @@ describe("connect page", () => {
     expect(html).toContain(`class="deploy-button" href="${DEPLOY_PATH}"`);
     expect(html).toContain('<img src="/img/deploy-to-cloudflare.svg" width="184" height="39" alt="Deploy to Cloudflare">');
     expect(html).toContain("From your browser");
-    expect(html).toContain("works on Windows");
+    expect(html).toContain("<strong>Cloudflare account</strong> and a <strong>GitHub or GitLab account</strong>");
     expect(html).toContain("HANDOFF_SETUP_CODE");
     expect(html).toContain("GitHub or GitLab account");
     expect(html).toContain('id="install"');
