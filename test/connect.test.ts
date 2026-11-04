@@ -116,9 +116,11 @@ describe("connect page", () => {
     expect(html).toContain('class="site-button primary" href="#install"');
     expect(html).toContain('class="site-button primary" href="/#install"');
     // Three equal ways to install: the Deploy button (no terminal), a coding assistant, or the commands.
-    expect(html).toContain(`class="site-button" href="${DEPLOY_PATH}"`);
-    expect(html).not.toContain(`class="site-button primary" href="${DEPLOY_PATH}"`);
+    // The browser route uses Cloudflare's own button graphic, served from this origin (the CSP allows no other).
+    expect(html).toContain(`class="deploy-button" href="${DEPLOY_PATH}"`);
+    expect(html).toContain('<img src="/img/deploy-to-cloudflare.svg" width="184" height="39" alt="Deploy to Cloudflare">');
     expect(html).toContain("From your browser");
+    expect(html).toContain("works on Windows");
     expect(html).toContain("HANDOFF_SETUP_CODE");
     expect(html).toContain("GitHub or GitLab account");
     expect(html).toContain('id="install"');
@@ -127,7 +129,7 @@ describe("connect page", () => {
     expect(html).toContain("Claude Code, Codex, Gemini CLI, Hermes or any assistant");
     expect(html).toContain("Node.js 22+");
     expect(html).toContain("Sign in to your Handoff console");
-    expect(html).toContain("/console/setup</code> on your new Worker");
+    expect(html).toContain("/console/setup</code> on your new server");
     expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
     expect(html).toContain('class="site-button" href="/join">Try the playground');
     expect(html).not.toContain('class="site-button primary" href="/join"');
