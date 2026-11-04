@@ -147,6 +147,8 @@ describe("connect page", () => {
     expect(html).toContain(`href="${DEPLOY_PATH}"`);
     expect(html).toBe(await (await home("/use-cases")).text());
     expect(html).toContain('src="/demo/handoff-demo.mp4"');
+    // Browsers autoplay only muted video; playsinline keeps iPhones from opening it full screen. The video has no sound.
+    expect(html).toContain('<video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4"');
     expect(html).toContain('id="household-last-mile"');
     expect(html).toContain('id="micro-team-relay"');
     expect(html).toContain('id="adversarial-review"');
