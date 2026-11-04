@@ -53,8 +53,9 @@ const PAGE_CSS = `
   .packet dt { color:var(--muted); } .packet dd { margin:0; }
   .file-tags { display:flex; gap:6px; flex-wrap:wrap; list-style:none; margin:0; padding:0; }
   .file-tags li { font:10px/1.5 var(--mono); padding:6px 8px; border:1px solid var(--line); border-radius:4px; overflow-wrap:anywhere; }
-  .handoff-path { display:flex; align-items:center; justify-content:center; gap:10px; height:36px; color:var(--muted); font:10px var(--mono); }
-  .handoff-path i { height:1px; width:32px; background:var(--line); }
+  .handoff-path { display:flex; align-items:center; justify-content:center; gap:10px; height:40px; color:var(--accent); font:500 11px var(--mono); letter-spacing:.06em; }
+  .handoff-path span { font-size:14px; }
+  .handoff-path i { height:1px; width:40px; background:var(--accent); opacity:.5; }
   .receive { padding:14px 18px; background:var(--panel); border:1px solid var(--line); border-radius:8px; display:flex; gap:12px; align-items:center; }
   .receive-symbol { color:var(--ok); font-size:22px; }
   .receive strong { display:block; font-size:13px; font-weight:500; }
