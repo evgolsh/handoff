@@ -21,7 +21,8 @@
     "predeploy": "npm run assets",
     "deploy:playground": "wrangler d1 migrations apply DB --remote -c wrangler.playground.jsonc && wrangler deploy -c wrangler.playground.jsonc",
     "predeploy:playground": "npm run assets",
-    "teardown": "node scripts/teardown.mjs"
+    "teardown": "node scripts/teardown.mjs",
+    "video": "npm run assets && node scripts/demo-video/render.mjs"
   },
   "license": "MIT",
   "cloudflare": {

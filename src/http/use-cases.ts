@@ -1,5 +1,5 @@
 import { PRIVATE_DEFAULT_EXPIRY_HOURS, type Config } from "../env";
-import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "./style";
+import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FILE_ICON, FONT_PRELOAD } from "./style";
 import { DEPLOY_PATH, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
 import { CLAUDE_ICON, GITHUB_ICON, OPENAI_ICON } from "./assistant-icons";
 
@@ -28,7 +28,6 @@ const USE_CASES = [
     receive:"Continue the team handoff.", files:["console-mock.png", "copy-spec.md"] },
 ];
 
-const FILE_ICON = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.5h5l3.5 3.5v9.5h-8.5z"/><path d="M9 1.5V5h3.5"/></svg>`;
 const fileTags = (files: string[], label: string): string =>
   `<ul class="file-tags" aria-label="${label}">${files.map((f) => `<li>${FILE_ICON}${esc(f)}</li>`).join("")}</ul>`;
 
@@ -249,7 +248,7 @@ npm run setup -- --members=tim,tom</code></pre>
     <p class="examples-note">${examplesLink}</p>
   </section>
   <section class="watch" id="walkthrough" aria-labelledby="watch-title">
-    <div class="watch-copy"><p class="eyebrow">Demo, 38 seconds</p><h2 id="watch-title">Watch one handoff from start to finish.</h2><p>Prepare the context, send the brief and files, then continue in another assistant.</p></div>
+    <div class="watch-copy"><p class="eyebrow">Demo, 31 seconds</p><h2 id="watch-title">Watch one handoff from start to finish.</h2><p>tim hands off the brief and two files in Cowork on a Mac. tom continues in ChatGPT on Windows.</p></div>
     <figure class="video-frame"><video controls playsinline preload="metadata" src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
       Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
       </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
