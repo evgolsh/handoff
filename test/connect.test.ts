@@ -109,7 +109,11 @@ describe("connect page", () => {
     expect(html).toContain("It makes no AI calls and needs no API keys.");
     // The invoice example: prepared in Cowork, picked up in ChatGPT.
     expect(html).toContain("Cowork</b>");
-    expect(html).toContain("ChatGPT</b>.</p>");
+    expect(html).toContain("ChatGPT</b><span>tom</span>");
+    // The example reads as two chats: the send step in tim's, the read step and the reply in tom's.
+    expect(html).toContain("<span>Send a handoff</span><b>Q3 VAT for the bakery</b>");
+    expect(html).toContain('<p class="msg-user">Continue the handoff from tim.</p>');
+    expect(html).toContain("vat-q3-summary.pdf</code> first");
     expect(html).toContain("What runs on your account");
     expect(html).not.toContain("noindex");
     expect(html).not.toContain("—");

@@ -19,7 +19,7 @@ const USE_CASES = [
     send:"Hand this design and migration off for a security review.",
     receive:"Read my handoff and check the migration for edge cases.", files:["migration.sql", "threat-model.md"] },
   { id:"home-server-to-laptop", label:"Across computers", title:"Continue on another computer.",
-    description:"Let an agent on your home server prepare the research. Open the brief and original report in your laptop’s assistant when you’re ready.",
+    description:"Let an assistant on your home server prepare the research. Open the brief and original report in your laptop’s assistant when you’re ready.",
     send:"Hand off the benchmark findings and report.pdf.",
     receive:"Continue my handoff.", files:["report.pdf", "findings.md"] },
   { id:"pm-designer-to-engineer", label:"Product to engineering", title:"One brief for the whole team.",
@@ -27,6 +27,10 @@ const USE_CASES = [
     send:"Hand this off to the team with the mockup and copy spec.",
     receive:"Continue the team handoff.", files:["console-mock.png", "copy-spec.md"] },
 ];
+
+const FILE_ICON = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.5h5l3.5 3.5v9.5h-8.5z"/><path d="M9 1.5V5h3.5"/></svg>`;
+const fileTags = (files: string[], label: string): string =>
+  `<ul class="file-tags" aria-label="${label}">${files.map((f) => `<li>${FILE_ICON}${esc(f)}</li>`).join("")}</ul>`;
 
 const PAGE_CSS = `
   p,h1,h2,h3 { margin:0; }
@@ -42,24 +46,22 @@ const PAGE_CSS = `
   .example-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; font:10px var(--mono); color:var(--muted); }
   .example-mark { display:flex; align-items:center; gap:8px; }
   .example-mark svg { width:20px; height:20px; }
-  .packet { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px 20px; box-shadow:0 12px 28px #00000006; }
-  .packet-person { display:flex; align-items:center; gap:10px; font-size:13px; }
-  .avatar { display:grid; place-items:center; width:32px; height:32px; background:var(--ground); border:1px solid var(--line); border-radius:50%; font:12px var(--mono); }
-  .packet-person small { display:block; color:var(--muted); font-size:11px; }
+  .chat { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 18px 16px; box-shadow:0 12px 28px #00000006; display:flex; flex-direction:column; gap:10px; }
+  .chat-app { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--line-soft); font-size:11px; color:var(--muted); }
   .app { display:inline-flex; align-items:center; gap:5px; color:var(--ink); font-weight:600; white-space:nowrap; vertical-align:bottom; }
   .app svg { flex:none; width:1.15em; height:1.15em; }
-  .packet h2 { font-size:19px; font-weight:500; letter-spacing:-.02em; margin-top:14px; }
-  .packet dl { margin:12px 0 14px; font-size:12px; display:grid; grid-template-columns:64px minmax(0,1fr); gap:6px 10px; }
-  .packet dt { color:var(--muted); } .packet dd { margin:0; }
+  .msg-user { align-self:flex-end; max-width:85%; padding:7px 12px; background:var(--ground); border:1px solid var(--line-soft); border-radius:14px 14px 4px 14px; font-size:13px; line-height:1.45; }
+  .tool-step { display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; font-size:12px; color:var(--muted); }
+  .tool-step svg { width:14px; height:14px; flex:none; }
+  .tool-step b { color:var(--ink); font-weight:500; }
+  .msg-assistant { font-size:13px; line-height:1.55; }
+  .msg-assistant code { font:500 12px var(--mono); white-space:nowrap; }
   .file-tags { display:flex; gap:6px; flex-wrap:wrap; list-style:none; margin:0; padding:0; }
-  .file-tags li { font:10px/1.5 var(--mono); padding:6px 8px; border:1px solid var(--line); border-radius:4px; overflow-wrap:anywhere; }
+  .file-tags li { display:inline-flex; align-items:center; gap:6px; font:500 11px/1.5 var(--mono); color:var(--ink); padding:5px 9px; background:var(--ground); border:1px solid var(--line); border-radius:4px; overflow-wrap:anywhere; }
+  .file-tags svg { width:13px; height:13px; flex:none; color:var(--accent); }
   .handoff-path { display:flex; align-items:center; justify-content:center; gap:10px; height:40px; color:var(--accent); font:500 11px var(--mono); letter-spacing:.06em; }
   .handoff-path span { font-size:14px; }
   .handoff-path i { height:1px; width:40px; background:var(--accent); opacity:.5; }
-  .receive { padding:14px 18px; background:var(--panel); border:1px solid var(--line); border-radius:8px; display:flex; gap:12px; align-items:center; }
-  .receive-symbol { color:var(--ok); font-size:22px; }
-  .receive strong { display:block; font-size:13px; font-weight:500; }
-  .receive p { font-size:12px; color:var(--muted); margin-top:2px; }
   .principles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
   .principles article { padding:22px 32px; border-left:1px solid var(--line); }
   .principles article:first-child { padding-left:0; border-left:0; } .principles article:last-child { padding-right:0; }
@@ -118,7 +120,7 @@ const PAGE_CSS = `
   .closing .site-button:hover { background:var(--accent); color:var(--ground); border-color:var(--accent); }
   @media(max-width:1000px) {
     .hero { gap:32px; }
-    .packet { padding:16px 18px; } .watch { gap:32px; }
+    .chat { padding:12px 16px 14px; } .watch { gap:32px; }
     .case { padding:26px; } .case.featured { padding:30px; gap:32px; }
   }
   @media(max-width:760px) {
@@ -138,7 +140,7 @@ const PAGE_CSS = `
     .closing { align-items:start; flex-direction:column; padding:30px; margin-bottom:48px; }
   }
   @media(min-width:761px) and (max-height:720px) { .hero { padding-block:24px; } .principles article { padding-block:16px; } }
-  @media(max-width:380px) { .hero-actions { gap:12px; } .packet { padding:16px; } .case,.case.featured { padding:22px; } .closing { padding:24px; } .ownership dl > div { grid-template-columns:90px minmax(0,1fr); gap:16px; } }
+  @media(max-width:380px) { .hero-actions { gap:12px; } .chat { padding:12px 14px; } .case,.case.featured { padding:22px; } .closing { padding:24px; } .ownership dl > div { grid-template-columns:90px minmax(0,1fr); gap:16px; } }
 `;
 
 function renderCase(c: (typeof USE_CASES)[number], i: number): string {
@@ -146,7 +148,7 @@ function renderCase(c: (typeof USE_CASES)[number], i: number): string {
     <div><p class="eyebrow"><span class="case-number">0${i + 1}</span>${esc(c.label)}</p>
       <h3>${esc(c.title)}</h3><p class="case-description">${esc(c.description)}</p></div>
     <div class="exchange"><p class="exchange-label">You ask your assistant</p><blockquote>“${esc(c.send)}”</blockquote>
-      <ul class="file-tags" aria-label="Example attachments">${c.files.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+      ${fileTags(c.files, "Example attachments")}
       <div class="pickup"><span class="exchange-label">The next chat starts here</span><p>“${esc(c.receive)}”</p></div>
     </div></article>`;
 }
@@ -174,13 +176,18 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): stri
   const ownership = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs on your account</p><h2 id="ownership-title">Handoff is storage with a sign-in.</h2></div>
     <dl><div><dt>No AI inside</dt><dd>Handoff makes no model calls. No token bill, and no API key to create or paste.</dd></div><div><dt>Five MCP tools</dt><dd>Send, inbox, read, revoke, and a link for uploading files. Each person signs in with a username and access code.</dd></div><div><dt>Storage</dt><dd>Briefs in D1, files in Workers KV. ${expiry}</dd></div><div><dt>Free plan</dt><dd>100,000 requests and 1,000 new files a day, and 1 GB of stored files. No card. Handoff has no paid tier.</dd></div><div><dt>Update check</dt><dd>Once a day: a random id, the version and rough counts, nothing else. <code>HANDOFF_UPDATE_CHECK=off</code> turns it off.</dd></div></dl>
   </section>`;
-  const example = `<div class="packet"><div class="packet-person"><span class="avatar" aria-hidden="true">T</span><div>tim <small>acme · Prepared in <b class="app">${CLAUDE_ICON}Cowork</b></small></div></div>
-        <h2>Q3 VAT for the bakery</h2>
-        <dl><dt>For</dt><dd>tom</dd><dt>Goal</dt><dd>Send the bakery its Q3 VAT figures.</dd><dt>Decided</dt><dd>Fix the two flagged invoices, each one separately.</dd><dt>Next step</dt><dd>Check the dates and draft the reply.</dd></dl>
-        <ul class="file-tags" aria-label="Example original files"><li>vat-q3-summary.pdf</li><li>flagged-invoices.md</li></ul>
+  const example = `<div class="chat"><div class="chat-app"><b class="app">${CLAUDE_ICON}Cowork</b><span>tim</span></div>
+        <p class="msg-user">Hand this off to tom. He’ll finish the VAT reply.</p>
+        <p class="tool-step">${BRAND_ICON}<span>Send a handoff</span><b>Q3 VAT for the bakery</b></p>
+        <p class="msg-assistant">Sent to tom with both files.</p>
+        ${fileTags(["vat-q3-summary.pdf", "flagged-invoices.md"], "Example original files")}
       </div>
       <div class="handoff-path" aria-hidden="true"><i></i> BRIEF + ORIGINAL FILES <span>↓</span><i></i></div>
-      <div class="receive"><span class="receive-symbol" aria-hidden="true">↳</span><div><strong>“Continue the handoff from tim.”</strong><p>tom picks it up in <b class="app">${OPENAI_ICON}ChatGPT</b>.</p></div></div>`;
+      <div class="chat"><div class="chat-app"><b class="app">${OPENAI_ICON}ChatGPT</b><span>tom</span></div>
+        <p class="msg-user">Continue the handoff from tim.</p>
+        <p class="tool-step">${BRAND_ICON}<span>Read a handoff</span><b>Q3 VAT for the bakery, 2 files</b></p>
+        <p class="msg-assistant">The brief says to fix the two flagged invoices separately. I’ll check their dates in <code>vat-q3-summary.pdf</code> first, then draft the reply.</p>
+      </div>`;
   const closing = playground
     ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>${CLOSING_FACTS}</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
     : active
