@@ -65,22 +65,17 @@ const PAGE_CSS = `
   .principles h2 { font-size:15px; font-weight:500; margin-bottom:6px; }
   .principles p { font-size:13px; color:var(--muted); max-width:36ch; }
   .section { padding-block:80px; }
-  .install-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
-  .install-card { min-width:0; padding:28px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
-  .install-card h3 { font-size:22px; margin-bottom:12px; }
+  .install-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+  .install-card { min-width:0; padding:28px; border:1px solid var(--line); border-radius:8px; background:var(--panel); display:flex; flex-direction:column; gap:12px; }
+  .install-card h3 { font-size:22px; margin:0; }
   .install-card p,.install-steps { font-size:14px; color:var(--muted); }
-  .install-card pre { max-width:100%; overflow-x:auto; padding:16px; background:var(--ground); border:1px solid var(--line); border-radius:6px; font:12px/1.8 var(--mono); }
-  .install-card blockquote { margin:16px 0; padding-left:16px; border-left:2px solid var(--accent); overflow-wrap:anywhere; font-size:14px; }
+  .install-card pre { max-width:100%; overflow-x:auto; margin:4px 0; padding:16px; background:var(--ground); border:1px solid var(--line); border-radius:6px; font:11px/1.8 var(--mono); }
+  .install-card blockquote { margin:4px 0; padding-left:16px; border-left:2px solid var(--accent); overflow-wrap:anywhere; font-size:14px; }
+  .install-card .site-button { align-self:flex-start; margin:4px 0; }
   .install-steps { padding-left:24px; margin-block:24px; }
   .install-steps li { margin-block:12px; }
   .install-steps strong { color:var(--ink); }
   .install-note { font-size:13px; color:var(--muted); margin-top:16px; }
-  .install-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
-  .install-card { display:flex; flex-direction:column; gap:12px; }
-  .install-card h3 { margin:0; }
-  .install-card blockquote,.install-card pre { margin:4px 0; }
-  .install-card pre { font-size:11px; }
-  .install-card .site-button { align-self:flex-start; margin:4px 0; }
   @media(max-width:1180px) { .install-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .install-card:last-child { grid-column:1/-1; } }
   @media(max-width:760px) { .install-grid { grid-template-columns:1fr; } .install-card { padding:20px; } }
   .section-head { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:36px; }
@@ -216,9 +211,9 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
   <section id="install" class="section" aria-labelledby="install-title">
     <div class="section-head"><div><p class="eyebrow">Install</p><h2 id="install-title">Install it once for your whole team.</h2></div><p>It runs on Workers, D1 and KV in your Cloudflare account, on the free plan with no card. Teammates only sign in.</p></div>
     <div class="install-grid">
-      <article class="install-card"><h3>From your browser</h3><p>No terminal, so it works on Windows, a Mac or a Chromebook. You need a Cloudflare account and a GitHub or GitLab account: Cloudflare copies the code there and deploys it from your copy.</p>
-        <a class="site-button primary" href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare <span aria-hidden="true">↗</span></a>
-        <p>The form asks for a setup code. Choose one of 12 characters or more. When the deploy finishes, open <code>/console/setup</code> on your new server and enter it with your username.</p></article>
+      <article class="install-card"><h3>From your browser</h3><p>Nothing to install on your computer. You need a Cloudflare account and a GitHub or GitLab account. Cloudflare copies the repository to your account, creates the database and file store, and deploys the Worker.</p>
+        <a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare <span aria-hidden="true">↗</span></a>
+        <p>The form asks for a <code>HANDOFF_SETUP_CODE</code> secret: enter any code of 12 characters or more. After deployment, open <code>/console/setup</code> on your new Worker and enter that code with your username to become the admin and get your access code.</p></article>
       <article class="install-card"><h3>Ask a coding assistant</h3><p>Claude Code, Codex, Gemini CLI, Hermes or any assistant that can run commands on your computer. Give it this request with your own usernames:</p>
         <blockquote>Deploy https://github.com/evgolsh/handoff to my Cloudflare account. Follow llms-install.md. My username is tim; add tom as a teammate. Ask me to approve the Cloudflare login, then help me connect my assistants.</blockquote>
         <p>You approve the Cloudflare login. No GitHub account needed.</p></article>
@@ -230,8 +225,8 @@ npm run setup -- --members=tim,tom</code></pre>
         <p>Replace <code>tim,tom</code> with your usernames, yours first. Setup creates the storage, deploys the server and makes you the admin.</p></article>
     </div>
     <ol class="install-steps">
-      <li><strong>Sign in to your Handoff console.</strong> After a browser deploy, <code>/console/setup</code> makes you the admin and shows your access code once. After a terminal install, sign in at the printed <code>/console</code> URL with the code setup printed. Keep access codes private.</li>
-      <li><strong>Add your teammates.</strong> In Members, give each person a username and an access code. Teammates need no Cloudflare or GitHub account.</li>
+      <li><strong>Sign in to your Handoff console.</strong> After a browser deploy, <code>/console/setup</code> creates your admin account and shows your access code once. After a terminal install, sign in at the printed <code>/console</code> URL with the access code setup printed. Save access codes privately.</li>
+      <li><strong>Add your teammates.</strong> After a browser deploy, or when adding more people later, create their usernames in Members and share each person’s access code privately. Teammates need no Cloudflare or GitHub account.</li>
       <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server.</li>
       <li><strong>Try a handoff.</strong> Say “Hand this off” in one assistant, then “Continue my handoff” in another. To send to your teammate, say “Hand this off to tom”.</li>
     </ol>

@@ -418,7 +418,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <article class="panel gate-card">
         <p class="eyebrow">02 · Run your own copy</p>
         <h2>Install Handoff</h2>
-        <p>Ask Claude Code to run setup, or use your terminal. Setup creates your private server and admin on your Cloudflare account; then manage your team in Handoff’s console.</p>
+        <p>Ask Claude Code, another coding assistant, or deploy from your browser or terminal. Setup creates your private server on your Cloudflare account; then manage your team in Handoff’s console.</p>
         <div class="gate-actions">
           <a class="site-button" href="${INSTALL_URL}" target="_blank" rel="noopener"><span>Installation guide</span> <span aria-hidden="true">↗</span></a>
           <a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>
