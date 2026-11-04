@@ -71,7 +71,9 @@ const PAGE_CSS = `
   .install-card p,.install-steps { font-size:14px; color:var(--muted); }
   .install-card pre { max-width:100%; overflow-x:auto; margin:4px 0; padding:16px; background:var(--ground); border:1px solid var(--line); border-radius:6px; font:11px/1.8 var(--mono); }
   .install-card blockquote { margin:4px 0; padding-left:16px; border-left:2px solid var(--accent); overflow-wrap:anywhere; font-size:14px; }
-  .install-card .site-button { align-self:flex-start; margin:4px 0; }
+  .install-card .deploy-button { align-self:flex-start; margin:4px 0; line-height:0; border-radius:4px; }
+  .deploy-button img { display:block; width:184px; height:39px; }
+  .deploy-button:hover img { filter:brightness(1.25); }
   .install-steps { padding-left:24px; margin-block:24px; }
   .install-steps li { margin-block:12px; }
   .install-steps strong { color:var(--ink); }
@@ -211,9 +213,9 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
   <section id="install" class="section" aria-labelledby="install-title">
     <div class="section-head"><div><p class="eyebrow">Install</p><h2 id="install-title">Install it once for your whole team.</h2></div><p>It runs on Workers, D1 and KV in your Cloudflare account, on the free plan with no card. Teammates only sign in.</p></div>
     <div class="install-grid">
-      <article class="install-card"><h3>From your browser</h3><p>Nothing to install on your computer. You need a Cloudflare account and a GitHub or GitLab account. Cloudflare copies the repository to your account, creates the database and file store, and deploys the Worker.</p>
-        <a class="site-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener">Deploy to Cloudflare <span aria-hidden="true">↗</span></a>
-        <p>The form asks for a <code>HANDOFF_SETUP_CODE</code> secret: enter any code of 12 characters or more. After deployment, open <code>/console/setup</code> on your new Worker and enter that code with your username to become the admin and get your access code.</p></article>
+      <article class="install-card"><h3>From your browser</h3><p>No terminal and nothing to install, so it works on Windows, a Mac or a Chromebook. You need a Cloudflare account and a GitHub or GitLab account, where Cloudflare keeps your copy of the code. It also creates the database and file store and deploys your server.</p>
+        <a class="deploy-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener"><img src="/img/deploy-to-cloudflare.svg" width="184" height="39" alt="Deploy to Cloudflare"></a>
+        <p>The form asks for a secret named <code>HANDOFF_SETUP_CODE</code>. Choose any code of 12 characters or more. When the deploy finishes, open <code>/console/setup</code> on your new server and enter that code with your username. You become the admin and get your access code.</p></article>
       <article class="install-card"><h3>Ask a coding assistant</h3><p>Claude Code, Codex, Gemini CLI, Hermes or any assistant that can run commands on your computer. Give it this request with your own usernames:</p>
         <blockquote>Deploy https://github.com/evgolsh/handoff to my Cloudflare account. Follow llms-install.md. My username is tim; add tom as a teammate. Ask me to approve the Cloudflare login, then help me connect my assistants.</blockquote>
         <p>You approve the Cloudflare login. No GitHub account needed.</p></article>

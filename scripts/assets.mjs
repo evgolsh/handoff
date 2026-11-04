@@ -23,10 +23,15 @@ if (existsSync("docs/handoff-demo.mp4")) {
   copyFileSync("docs/handoff-demo.mp4", "public/demo/handoff-demo.mp4");
 }
 
+// Cloudflare's own "Deploy to Cloudflare" button (deploy.workers.cloudflare.com/button), served from here
+// because the pages' CSP allows images only from this origin.
+mkdirSync("public/img", { recursive: true });
+copyFileSync("docs/deploy-to-cloudflare.svg", "public/img/deploy-to-cloudflare.svg");
+
 // Font file names carry no version, so cache them for a week rather than for ever.
 writeFileSync(
   "public/_headers",
-  "/fonts/*\n  Cache-Control: public, max-age=604800\n/demo/*\n  Cache-Control: public, max-age=86400\n",
+  "/fonts/*\n  Cache-Control: public, max-age=604800\n/demo/*\n  Cache-Control: public, max-age=86400\n/img/*\n  Cache-Control: public, max-age=86400\n",
 );
 
-console.log("public/ updated: fonts, demo, _headers");
+console.log("public/ updated: fonts, demo, img, _headers");
