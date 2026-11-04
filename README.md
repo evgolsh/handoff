@@ -22,7 +22,7 @@ You need a **Cloudflare account** and a **GitHub or GitLab account**. Cloudflare
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://handoff.infraworks.net/deploy)
 
-Set `HANDOFF_SETUP_CODE` to a code of 12 or more characters. After the deploy, open `/console/setup` on your new server and enter it with your username. See [Deploy button details](docs/DEPLOY.md#deploy-button-alternative).
+Set `HANDOFF_SETUP_CODE` to a code of 12 or more characters. After the deploy, open `/console/setup` on your new server and enter it with your username. See [Deploy button details](docs/DEPLOY.md#from-your-browser).
 
 ### Ask a coding assistant
 

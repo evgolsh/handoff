@@ -191,7 +191,7 @@ The first command adds a member **or resets an existing member's code and signs 
 
 Keep the same deployment clone and preserve `wrangler.jsonc`: it now contains the user's resource IDs and may include custom settings. Before updating, inspect `git status` and `git diff -- wrangler.jsonc`; privately back up or deliberately stash local configuration. Pull with `git pull --ff-only`, restore/reconcile the configuration without accepting upstream resource IDs blindly, run `npm install`, then `npm run deploy`. Check Ops and an existing assistant connection afterward. See [updates and recovery](docs/DEPLOY.md#updates-and-recovery).
 
-The [Deploy Button](docs/DEPLOY.md#deploy-button-alternative) is a secondary route for a user choosing Cloudflare's dashboard/Git integration. It needs GitHub or GitLab as well as Cloudflare, and a `HANDOFF_SETUP_CODE` secret of at least 12 characters. Only that route uses `/console/setup` to create the first admin and reveal a separate member access code. Do not mix this bootstrap into a successful CLI install.
+The [Deploy button](docs/DEPLOY.md#from-your-browser) is the browser route, for a user without a terminal or who prefers Cloudflare's dashboard and Git integration. It needs GitHub or GitLab as well as Cloudflare, and a `HANDOFF_SETUP_CODE` secret of at least 12 characters. Only that route uses `/console/setup` to create the first admin and reveal a separate member access code. Do not mix this bootstrap into a successful CLI install.
 
 ## Completion report
 
