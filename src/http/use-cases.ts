@@ -233,7 +233,7 @@ npm run setup -- --members=tim,tom</code></pre>
       <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server.</li>
       <li><strong>Try a handoff.</strong> Say “Hand this off” in one assistant, then “Continue my handoff” in another. To send to your teammate, say “Hand this off to tom”.</li>
     </ol>
-    <p class="install-note">From a terminal, a new Cloudflare account may need its <code>workers.dev</code> address registered first; setup links to the page. If the account already has a Worker named <code>handoff</code>, check it first: setup redeploys it. <a href="${GITHUB_URL}#start-with-your-own-deployment" target="_blank" rel="noopener">Full setup guide ↗</a></p>
+    <p class="install-note">From a terminal, a new Cloudflare account may need its <code>workers.dev</code> address registered first; setup links to the page. If the account already has a Worker named <code>handoff</code>, check it first: setup redeploys it. <a href="${GITHUB_URL}#install" target="_blank" rel="noopener">Full setup guide ↗</a></p>
   </section>
   <section id="use-cases" class="section" aria-labelledby="cases-title">
     <div class="section-head"><div><p class="eyebrow">Use cases</p><h2 id="cases-title">What people hand off.</h2></div><p>To a partner, a teammate, or to yourself on another computer.</p></div>

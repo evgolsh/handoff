@@ -1,6 +1,6 @@
 # Deploy and connect
 
-Start with the [README walkthrough](../README.md#start-with-your-own-deployment): deploy once, save codes, sign in to the Handoff console, connect your assistants, then invite teammates. A local coding agent can follow the [agent guide](../llms-install.md).
+Start with the [README walkthrough](../README.md#install): deploy once, save codes, sign in to the Handoff console, connect your assistants, then invite teammates. A local coding agent can follow the [agent guide](../llms-install.md).
 
 Handoff runs on Cloudflare Workers with D1 for members, packets and OAuth state, and Workers KV for files by default. The Worker is its own OAuth 2.1 server; no external identity provider is needed. Default private installs need no payment method or R2 subscription, within Cloudflare's free-plan limits.
 
@@ -65,7 +65,7 @@ In the Handoff console:
 1. Open **Members** to add a teammate or manage codes. The first CLI-seeded member is the admin; ordinary members can connect assistants but cannot sign in to the admin console.
 2. Open **Connect an assistant** (`/console/connect`). Teammates use the public `/connect` guide without needing admin access.
 3. Add **your own deployment URL ending in `/mcp`**, sign in with your Handoff username and code, and approve access in each assistant. All of one person's assistants use that person's same username. Different people get different usernames and codes on the same deployment.
-4. Send a self-handoff in one assistant and read it in a second connected as you. Then send to a teammate's username. The [README](../README.md#4-try-a-handoff-to-yourself-then-to-a-teammate) has prompts.
+4. Send a self-handoff in one assistant and read it in a second connected as you. Then send to a teammate's username. The [README](../README.md#after-you-install) has prompts.
 
 The Connect page records tested hosts and limitations. Do not infer universal MCP-host or file-transfer compatibility. Each host controls its own connector availability and approval prompts; Handoff cannot automate those approvals.
 
