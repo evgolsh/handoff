@@ -30,6 +30,7 @@ describe("tool metadata", () => {
     });
     expect(body.result.serverInfo.name).toBe("handoff");
     expect(body.result.instructions).toContain("hand this off");
+    expect(body.result.instructions).toContain("when the next step of a task must run on another computer or in another assistant");
     expect(body.result.instructions).toContain("continue my handoff");
   });
 });
