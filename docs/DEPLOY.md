@@ -1,10 +1,25 @@
 # Deploy and connect
 
-Start with the [README walkthrough](../README.md#install): deploy once, save codes, sign in to the Handoff console, connect your assistants, then invite teammates. A local coding agent can follow the [agent guide](../llms-install.md).
+There are three ways to install Handoff, and each one creates the same private server on your Cloudflare account: [from your browser](#from-your-browser) with the Deploy button, [with a coding assistant](#ask-a-coding-assistant), or by [running setup yourself](#run-it-yourself). The [README](../README.md#install) has the short version. Install once for your whole team; teammates and new assistants only sign in.
 
 Handoff runs on Cloudflare Workers with D1 for members, packets and OAuth state, and Workers KV for files by default. The Worker is its own OAuth 2.1 server; no external identity provider is needed. Default private installs need no payment method or R2 subscription, within Cloudflare's free-plan limits.
 
-## CLI setup
+## From your browser
+
+You need a **Cloudflare account** and a **GitHub or GitLab account**. [Deploy to Cloudflare](https://handoff.infraworks.net/deploy) copies the repository to your GitHub or GitLab account, creates the D1 database and KV namespace, and runs `npm run deploy` through Cloudflare's build flow.
+
+1. In the deploy form, set `HANDOFF_SETUP_CODE` to a private random code of 12 or more characters. [`.dev.vars.example`](../.dev.vars.example) describes it.
+2. After the deploy, open `/console/setup` on your new server. Enter the setup code and your username.
+3. Save the **access code** it shows once. You and your assistants sign in with it. The setup code only creates the first admin.
+4. Add teammates in Members and connect assistants as described [below](#console-members-and-assistant-connections). Nobody deploys again.
+
+The setup page works only while there is no admin and the secret has 12 or more characters. Once an admin exists, it redirects to the console login. If the secret is missing, follow the setup page's instructions for adding it in Cloudflare, or use the CLI member and admin commands from a clone configured for this deployment. Do not point an unconfigured fresh clone at existing data.
+
+## Ask a coding assistant
+
+Claude Code, Codex, Gemini CLI, Hermes or any assistant that can run commands on your computer can install Handoff. Give it the request in the [README](../README.md#ask-a-coding-assistant). It follows [llms-install.md](../llms-install.md), which runs the same setup as [Run it yourself](#run-it-yourself) and checks for an existing deployment first. You approve the Cloudflare login and each assistant connection yourself.
+
+## Run it yourself
 
 Prerequisites: **Node.js 22+**, npm, Git CLI and a Cloudflare account. Wrangler 4.152.0 declares Node `>=22.0.0`. No GitHub account or fork is required to clone this public repository.
 
@@ -32,9 +47,9 @@ For yourself only, use `--members=tim`. Always supply the `--members=...` form: 
 
 Save codes privately in a password manager. Open the printed `/console` URL and sign in with your first username and code. **Do not use `/console/setup` or set `HANDOFF_SETUP_CODE` for this CLI flow**: the admin already exists.
 
-For an account with Workers ready, Cloudflare login/consent is normally the only Cloudflare browser step; resource provisioning is automated. **Fresh accounts may also need Workers onboarding and a `workers.dev` subdomain.** Setup captures Wrangler's deploy output, so interactive subdomain-registration prompts may not be visible. If deployment reports this requirement or stops there, complete Workers onboarding in Cloudflare, then retry from the same clone with its saved bindings. Do not assume a fully unattended cold-account install. Account creation, account selection and consent remain your responsibility; an agent cannot approve these on your behalf.
+For an account with Workers ready, Cloudflare login/consent is normally the only Cloudflare browser step; resource provisioning is automated. **Fresh accounts may also need Workers onboarding and a `workers.dev` subdomain.** Setup captures Wrangler's deploy output, so interactive subdomain-registration prompts may not be visible. If deployment reports this requirement or stops there, complete Workers onboarding in Cloudflare, then retry from the same clone with its saved bindings. Do not assume a fully unattended cold-account install. Account creation, account selection and consent remain your responsibility; an assistant cannot approve these on your behalf.
 
-### Remote terminal or headless coding agent
+### Remote terminal or headless coding assistant
 
 Sign Wrangler in before running setup if its normal localhost browser callback cannot reach the terminal host:
 
@@ -62,7 +77,7 @@ The **Handoff console** at your deployment's `/console` manages people, connecti
 
 In the Handoff console:
 
-1. Open **Members** to add a teammate or manage codes. The first CLI-seeded member is the admin; ordinary members can connect assistants but cannot sign in to the admin console.
+1. Open **Members** to add a teammate or manage codes. The first member, seeded by setup or created at `/console/setup`, is the admin; ordinary members can connect assistants but cannot sign in to the admin console.
 2. Open **Connect an assistant** (`/console/connect`). Teammates use the public `/connect` guide without needing admin access.
 3. Add **your own deployment URL ending in `/mcp`**, sign in with your Handoff username and code, and approve access in each assistant. All of one person's assistants use that person's same username. Different people get different usernames and codes on the same deployment.
 4. Send a self-handoff in one assistant and read it in a second connected as you. Then send to a teammate's username. The [README](../README.md#after-you-install) has prompts.
@@ -80,22 +95,11 @@ npm run admin -- tim
 
 ### Host-specific notes
 
-Use `/connect` on your deployment for copyable steps and status. For Claude Code, the command is `claude mcp add --transport http --scope user handoff YOUR_URL/mcp`, followed by `/mcp` and **Authenticate**; replace `YOUR_URL` with your actual HTTPS origin. The [agent guide](../llms-install.md#4-connect-assistants) includes CLI commands for other hosts.
+Use `/connect` on your deployment for copyable steps and status. For Claude Code, the command is `claude mcp add --transport http --scope user handoff YOUR_URL/mcp`, followed by `/mcp` and **Authenticate**; replace `YOUR_URL` with your actual HTTPS origin. The [install guide for coding assistants](../llms-install.md#4-connect-assistants) includes CLI commands for other hosts.
 
 - Claude web/desktop file uploads also need your server hostname in Claude's Settings > Capabilities > allowed domains. Without that, uploads can fail with 403 even when text handoffs work.
 - ChatGPT's custom MCP server/plugin availability depends on the plan or workspace. Follow the Connect page for the ChatGPT and Codex app route, rather than assuming the Codex CLI command configures the app.
 - Repository plugin manifests may point at the project's hosted endpoint. Replace that with your own `/mcp` URL before using them for a private install; see [the plugin package](../plugin/README.md).
-
-## Deploy Button alternative
-
-[Deploy to Cloudflare](https://handoff.infraworks.net/deploy) is the secondary, dashboard-based route. It needs a Cloudflare account **and a GitHub or GitLab account**. Cloudflare copies the repository, provisions bindings and runs `npm run deploy` through its build flow.
-
-1. Set `HANDOFF_SETUP_CODE` in the deploy form to a private random secret of at least 12 characters. This field is described in [`.dev.vars.example`](../.dev.vars.example).
-2. After deployment, open **your Worker's `/console/setup`**. Enter that setup code and your chosen Handoff username.
-3. Save the new **member access code**, shown once, and continue into the Handoff console. Use that member code for future console and assistant sign-ins, not the setup code.
-4. Add teammates in Members and follow Connect as above. They do not deploy again.
-
-The setup page works only while there is no admin and the configured secret is at least 12 characters. After an admin exists it redirects to console login. If the secret was omitted, follow the setup page's Cloudflare secret instructions or use the CLI member/admin commands from a clone configured for this deployment. Do not point an unconfigured fresh clone at existing data.
 
 ## Configuration
 
