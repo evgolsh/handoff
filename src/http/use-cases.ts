@@ -249,7 +249,7 @@ npm run setup -- --members=tim,tom</code></pre>
   </section>
   <section class="watch" id="walkthrough" aria-labelledby="watch-title">
     <div class="watch-copy"><p class="eyebrow">Demo, 31 seconds</p><h2 id="watch-title">Watch one handoff from start to finish.</h2><p>tim hands off the brief and two files in Cowork on a Mac. tom continues in ChatGPT on Windows.</p></div>
-    <figure class="video-frame"><video controls playsinline preload="metadata" src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
+    <figure class="video-frame"><video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
       Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
       </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
   </section>
