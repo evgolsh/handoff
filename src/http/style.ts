@@ -72,6 +72,10 @@ export const BASE_CSS = `${FACES.map(
 export const BRAND_ICON =
   '<svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="59" height="59" rx="13"/><path d="M17 25h28m-8-8 8 8-8 8M47 39H19m8-8-8 8 8 8"/></svg>';
 
+/** A document outline for file names (homepage example, use cases, demo video). */
+export const FILE_ICON =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.5h5l3.5 3.5v9.5h-8.5z"/><path d="M9 1.5V5h3.5"/></svg>';
+
 const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${PALETTE.light.ink}"/><path d="M17 25h28m-8-8 8 8-8 8M47 39H19m8-8-8 8 8 8" fill="none" stroke="${PALETTE.light.ground}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 export const FAVICON_LINK = `<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${encodeURIComponent(FAVICON_SVG)}">`;
