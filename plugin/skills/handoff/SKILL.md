@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Hand the current work to the user's other AI assistant ("hand this off"), or pick up work sent from another assistant ("continue my handoff"). Uses the Handoff tools handoff_send, handoff_inbox, handoff_read, handoff_upload_url and handoff_revoke.
+description: Hand the current work to the user's other AI assistant, computer, or teammate ("hand this off", or when the next step must run on another machine), or pick up work sent from another assistant ("continue my handoff"). Uses the Handoff tools handoff_send, handoff_inbox, handoff_read, handoff_upload_url and handoff_revoke.
 ---
 
 # Handoff
@@ -10,7 +10,7 @@ There is no transcript export and no background sync.
 
 ## "Hand this off"
 
-Trigger: the user asks to hand off, pass on, or continue this work in another assistant or send it to a teammate's assistant.
+Trigger: the user asks to hand off, pass on, or continue this work in another assistant or send it to a teammate's assistant, or you finish work on one computer and the next required step must run on another machine or in another assistant.
 
 1. Write the brief from the conversation you have. Keep it to what the next assistant needs:
    - Purpose: what the user is doing and why.
