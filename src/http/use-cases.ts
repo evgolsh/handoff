@@ -248,7 +248,7 @@ npm run setup -- --members=tim,tom</code></pre>
     <p class="examples-note">${examplesLink}</p>
   </section>
   <section class="watch" id="walkthrough" aria-labelledby="watch-title">
-    <div class="watch-copy"><p class="eyebrow">Demo, 31 seconds</p><h2 id="watch-title">Watch one handoff from start to finish.</h2><p>tim hands off the brief and two files in Cowork on a Mac. tom continues in ChatGPT on Windows.</p></div>
+    <div class="watch-copy"><p class="eyebrow">Demo, 29 seconds</p><h2 id="watch-title">From install to the first handoff.</h2><p>tim installs Handoff and tom connects ChatGPT. tim hands off a brief and two files from Cowork on a Mac, and tom continues in ChatGPT on Windows.</p></div>
     <figure class="video-frame"><video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
       Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
       </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>

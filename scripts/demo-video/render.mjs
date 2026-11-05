@@ -1,12 +1,13 @@
-// Renders the homepage walkthrough, docs/handoff-demo.mp4: the story of the homepage example (tim hands off
-// in Cowork, tom continues in ChatGPT), then the three ways to install.
+// Renders the homepage walkthrough, docs/handoff-demo.mp4, in four steps: install Handoff from a terminal,
+// connect ChatGPT, hand off a brief and two files from Cowork, and continue in ChatGPT.
 //
 //   npm run video                          render docs/handoff-demo.mp4 (needs Google Chrome and ffmpeg)
 //   npm run video -- --still=18            write the frame at 18 s to a PNG and print its path
 //
 // The scene is one HTML page animated with CSS. Headless Chrome pauses every animation, sets it to each
 // frame's time and takes a screenshot, so two renders give the same frames. Fonts, colours and icons come
-// from the site's own modules. Set CHROME to use another Chrome binary.
+// from the site's own modules; the terminal shows what npm run setup prints. Set CHROME to use another
+// Chrome binary.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -15,31 +16,34 @@ import { join } from "node:path";
 import { CLAUDE_ICON, OPENAI_ICON } from "../../src/http/assistant-icons.ts";
 import { BASE_CSS, BRAND_ICON, FILE_ICON } from "../../src/http/style.ts";
 
-const W = 960, H = 540, SCALE = 2, FPS = 30, DURATION = 31;
+const W = 960, H = 540, SCALE = 2, FPS = 30, DURATION = 29;
 const OUT = "docs/handoff-demo.mp4";
 const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const URL_ = "https://handoff.acme.workers.dev";
 
 // When each thing happens, in seconds.
 const T = {
-  titleOut: 4.0,
-  stage: 4.2, stageOut: 23.6,
-  cap1: 4.4, cap1Out: 10.0,
-  timAsks: 5.0,
-  send: 6.2, brief1: 6.5, brief2: 6.9, sent: 7.8,
-  sentReply: 8.3, files1: 8.9,
-  cap2: 10.2, cap2Out: 13.4,
-  path: 10.4, travel: 10.7, pathNote: 11.0,
-  cap3: 13.6, cap3Out: 23.4,
-  tomAsks: 14.0,
-  read: 15.0, readDone: 16.0,
-  files2: 16.4, same: 17.0,
-  reply: 17.6,
-  closing: 24.0, route1: 24.4, route2: 24.8, route3: 25.2, end: 26.0,
+  // 1. Install
+  install: 0, cmd1: 0.3, cmd2: 1.5, cmd3: 2.1, out1: 3.1, out2: 3.5, out3: 3.9, out4: 4.3, out5: 4.7,
+  live: 5.5, codes: 6.5, installOut: 8.4,
+  // 2. Connect
+  connect: 8.6, dialog: 8.8, name: 9.2, url: 9.6, oauth: 10.7, create: 11.1,
+  signin: 11.5, user: 11.9, code: 12.3, allow: 12.9, connected: 13.4, connectOut: 14.4,
+  // 3. Send
+  send: 14.6, timAsks: 15.0, sendTool: 15.9, brief1: 16.2, brief2: 16.5, sent: 17.3, sentReply: 17.7, files1: 18.2,
+  path: 19.0, travel: 19.2,
+  // 4. Continue
+  cont: 20.7, tomAsks: 20.9, read: 21.7, readDone: 22.5, files2: 22.8, same: 23.2, reply: 23.7,
 };
 
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const FILES = ["vat-q3-summary.pdf", "flagged-invoices.md"];
 const at = (s) => `--in:${s}s`;
 const io = (a, b) => `--in:${a}s;--out:${b}s`;
+// Monospace text typed out one character at a time.
+const type = (text, start, perSecond = 45) =>
+  `<span class="type" style="${at(start)};--n:${text.length};--d:${(text.length / perSecond).toFixed(2)}s">${esc(text)}</span>`;
+const line = (start, html) => `<div class="in" style="${at(start)}">${html}</div>`;
 const fileTags = (start) =>
   `<ul class="file-tags">${FILES.map((f, i) => `<li class="in" style="${at(start + i * 0.2)}">${FILE_ICON}${f}</li>`).join("")}</ul>`;
 // The assistant's reply appears word by word. A word in backticks is a file name.
@@ -53,24 +57,63 @@ const words = (text, start, step = 0.055) =>
     .join(" ");
 const toolState = (start, done) =>
   `<span class="state"><i class="spin" style="${io(start, done)}"></i><i class="done in" style="${at(done)}">✓</i></span>`;
+const STEPS = [
+  ["Install", T.install, T.connect],
+  ["Connect", T.connect, T.send],
+  ["Send", T.send, T.cont],
+  ["Continue", T.cont, DURATION + 1],
+];
 
 const CSS = `
   html,body { width:${W}px; height:${H}px; overflow:hidden; }
   body { position:relative; }
   p,h1,h2,h3 { margin:0; }
-  .eyebrow { font:11px var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
-  .bar { position:absolute; inset:0 0 auto; height:46px; padding:0 28px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+  .bar { position:absolute; inset:0 0 auto; height:46px; padding:0 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
   .brand { font-size:14px; } .brand svg { width:22px; height:22px; }
   .url { font:12px var(--mono); color:var(--muted); }
-
-  .title { position:absolute; left:72px; right:72px; top:122px; }
-  .title h1 { font-size:46px; font-weight:500; line-height:1.08; letter-spacing:-.05em; margin:14px 0 20px; }
-  .title h1 span { color:var(--muted); }
-  .title .lead { font-size:18px; line-height:1.55; color:var(--muted); max-width:42ch; }
-
+  .steps { display:flex; gap:6px; }
+  .tab { position:relative; padding:5px 11px; border-radius:6px; font-size:12px; color:var(--muted); }
+  .tab b { font:500 11px var(--mono); margin-right:6px; color:var(--faint); }
+  .tab i { position:absolute; inset:0; border:1px solid var(--line); border-radius:6px; background:var(--panel); z-index:-1; }
+  .tab .on { position:absolute; inset:0; padding:5px 11px; color:var(--ink); font-weight:500; }
+  .tab .off { animation:hide .25s var(--in) forwards, show .25s var(--out) forwards; }
+  .tab .on b { color:var(--accent); }
   .caption { position:absolute; left:0; right:0; top:62px; text-align:center; font-size:17px; font-weight:500; letter-spacing:-.01em; }
+  .scene { position:absolute; left:24px; right:24px; top:104px; bottom:24px; }
 
-  .stage { position:absolute; left:24px; right:24px; top:104px; bottom:24px; display:grid; grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr); }
+  .term { height:100%; background:#141413; border-radius:10px; box-shadow:0 12px 28px #0000001a; overflow:hidden; }
+  .term-top { display:flex; align-items:center; gap:7px; padding:10px 14px; background:#1f1f1e; font:11px var(--mono); color:#8f8f8a; }
+  .term-top i { width:10px; height:10px; border-radius:50%; background:#3a3a38; }
+  .term-top span { margin-left:8px; }
+  .term-body { padding:14px 18px; font:12.5px/1.65 var(--mono); color:#d8d8d3; white-space:pre; }
+  .term-body .p { color:#7aa7ff; }
+  .term-body .ok { color:#6cc27a; }
+  .term-body .dim { color:#8f8f8a; }
+  .term-body .hi { color:#ecece8; font-weight:500; }
+  .type { display:inline-block; vertical-align:bottom; overflow:hidden; white-space:pre; width:0;
+          animation:typing var(--d) steps(var(--n), end) var(--in) both; }
+
+  .connect { height:100%; display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:center; }
+  .dialog,.signin { background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px #0000000a; }
+  .dialog { padding:16px 20px 18px; display:flex; flex-direction:column; gap:12px; }
+  .dialog-top { display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--line-soft); font-size:13px; font-weight:600; }
+  .dialog-top svg { width:16px; height:16px; }
+  .field label { display:block; font-size:12px; font-weight:500; margin-bottom:5px; }
+  .input { min-height:34px; padding:8px 11px; border:1px solid var(--line); border-radius:6px; background:var(--ground); font:13px/1.3 var(--mono); }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; min-height:34px; padding:8px 16px; border-radius:6px; background:var(--ink); color:var(--ground); font-size:13px; font-weight:500; }
+  .press { animation:press .35s var(--in) both; }
+  .connected { font-size:13px; font-weight:500; color:var(--ok); }
+  .signin-wrap { display:flex; flex-direction:column; gap:6px; }
+  .signin-wrap .brand { font-size:16px; margin-bottom:2px; display:flex; align-items:center; gap:9px; font-weight:600; }
+  .signin-wrap .tagline { font-size:13px; color:var(--muted); margin-bottom:10px; }
+  .signin { padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .signin .meta { font-size:12.5px; line-height:1.45; color:var(--muted); }
+  .signin .meta strong { color:var(--ink); }
+  .signin .meta code { font:12px var(--mono); }
+  .signin .btn { width:100%; }
+
+  .stage { height:100%; display:grid; grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr); }
   .chat { min-width:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 18px 14px; box-shadow:0 12px 28px #0000000a; display:flex; flex-direction:column; gap:11px; }
   .chat-app { display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px solid var(--line-soft); font-size:12px; color:var(--muted); }
   .app { display:inline-flex; align-items:center; gap:6px; color:var(--ink); font-weight:600; font-size:13px; }
@@ -94,36 +137,27 @@ const CSS = `
   .files-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .same { font-size:12px; font-weight:500; color:var(--ok); }
   .composer { margin-top:auto; padding:9px 14px; border:1px solid var(--line); border-radius:18px; font-size:13px; color:var(--faint); }
-
   .path { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:0 4px; text-align:center; }
   .path-label { font:500 11px/1.5 var(--mono); letter-spacing:.06em; color:var(--accent); }
   .track { position:relative; width:100%; height:30px; }
   .track > i { position:absolute; left:0; right:12px; top:50%; height:1px; background:var(--accent); opacity:.45; }
   .track > b { position:absolute; right:0; top:50%; transform:translateY(-55%); color:var(--accent); font-size:15px; font-weight:400; }
   .token { position:absolute; top:50%; display:flex; gap:3px; align-items:center; padding:5px 7px; background:var(--panel); border:1px solid var(--accent); border-radius:7px; box-shadow:0 4px 12px #1f5fbf26;
-           animation:travel 1.7s var(--in) both cubic-bezier(.55,0,.3,1); }
+           animation:travel 1.5s var(--in) both cubic-bezier(.55,0,.3,1); }
   .token svg:first-child { color:var(--ink); width:14px; height:14px; }
   .path-note { font-size:11px; line-height:1.45; color:var(--muted); }
 
-  .closing { position:absolute; left:72px; right:72px; top:96px; }
-  .closing h2 { font-size:36px; font-weight:500; letter-spacing:-.04em; line-height:1.1; margin:12px 0; }
-  .closing .sub { font-size:16px; color:var(--muted); max-width:54ch; margin-bottom:26px; }
-  .routes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
-  .route { min-height:112px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; display:flex; flex-direction:column; align-items:flex-start; gap:12px; }
-  .route h3 { font-size:16px; font-weight:500; }
-  .route p { font-size:13px; line-height:1.5; color:var(--muted); }
-  .route code { font:12px var(--mono); background:var(--ground); border:1px solid var(--line-soft); border-radius:5px; padding:6px 8px; white-space:nowrap; }
-  .route img { display:block; }
-  .end { margin-top:28px; font:500 18px var(--mono); }
-
-  .in { animation:appear .45s var(--in) both cubic-bezier(.2,.7,.2,1); }
-  .out { animation:vanish .45s var(--out) forwards; }
-  .io { animation:appear .45s var(--in) both cubic-bezier(.2,.7,.2,1), vanish .45s var(--out) forwards; }
-  .w { animation:word .25s var(--in) both; }
+  .in { animation:appear .4s var(--in) both cubic-bezier(.2,.7,.2,1); }
+  .io { animation:appear .4s var(--in) both cubic-bezier(.2,.7,.2,1), vanish .35s var(--out) forwards; }
+  .fade { animation:show .25s var(--in) both, hide .25s var(--out) forwards; }
+  .w { animation:show .25s var(--in) both; }
   @keyframes appear { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
   @keyframes vanish { to { opacity:0; transform:translateY(-6px); } }
-  @keyframes word { from { opacity:0; } to { opacity:1; } }
+  @keyframes show { from { opacity:0; } to { opacity:1; } }
+  @keyframes hide { to { opacity:0; } }
   @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes typing { from { width:0; } to { width:calc(var(--n) * 1ch); } }
+  @keyframes press { 0% { transform:none; } 40% { transform:scale(.95); background:var(--accent); } 100% { transform:none; background:var(--accent); } }
   @keyframes travel {
     0% { left:-44px; opacity:0; transform:translateY(-50%) scale(.8); }
     15% { opacity:1; transform:translateY(-50%) scale(1); }
@@ -132,57 +166,91 @@ const CSS = `
   }
 `;
 
+const steps = STEPS.map(
+  ([name, from, to], i) =>
+    `<span class="tab"><i class="fade" style="${io(from, to)}"></i><span class="off" style="${io(from, to)}"><b>${i + 1}</b>${name}</span><span class="on fade" style="${io(from, to)}"><b>${i + 1}</b>${name}</span></span>`,
+).join("");
+
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Handoff walkthrough</title>
 <style>${BASE_CSS}${CSS}</style></head><body>
-<header class="bar"><span class="brand">${BRAND_ICON}Handoff</span><span class="url">handoff.infraworks.net</span></header>
+<header class="bar"><span class="brand">${BRAND_ICON}Handoff</span><nav class="steps">${steps}</nav><span class="url">handoff.infraworks.net</span></header>
 
-<section class="title out" style="--out:${T.titleOut}s">
-  <p class="eyebrow">Open-source MCP server</p>
-  <h1>Hand your work to<br><span>someone else’s assistant.</span></h1>
-  <p class="lead">You sort out the details in Claude. Your partner says “continue the handoff from tim” in ChatGPT and gets your notes and the original files.</p>
+<p class="caption io" style="${io(T.install + 0.01, T.installOut)}">Install once on your own Cloudflare account. Free plan, no card.</p>
+<section class="scene io" style="${io(T.install + 0.01, T.installOut)}">
+  <div class="term">
+    <div class="term-top"><i></i><i></i><i></i><span>tim’s terminal</span></div>
+    <div class="term-body">${[
+      line(T.cmd1, `<span class="p">$</span> ${type("git clone https://github.com/evgolsh/handoff.git && cd handoff", T.cmd1, 60)}`),
+      line(T.cmd2, `<span class="p">$</span> ${type("npm install", T.cmd2, 30)}`),
+      line(T.cmd3, `<span class="p">$</span> ${type("npm run setup -- --members=tim,tom", T.cmd3, 45)}`),
+      line(T.out1, `<span class="dim">Signing in to Cloudflare...</span>`),
+      line(T.out2, `Database:  handoff`),
+      line(T.out3, `Files:     KV namespace handoff-FILES`),
+      line(T.out4, `Schema:    ready`),
+      line(T.out5, `<span class="dim">Deploying...</span>`),
+      line(T.live, `\n<span class="ok">Handoff is live at ${URL_}</span>`),
+      line(T.live + 0.2, `  Server address for assistants:  <span class="hi">${URL_}/mcp</span>`),
+      line(T.live + 0.4, `  Setup for each assistant:       ${URL_}/connect`),
+      line(T.live + 0.6, `  Console:                        ${URL_}/console`),
+      line(T.codes, `\nSign-in details, shown once. Save them in a password manager:`),
+      line(T.codes + 0.2, `  tim              <span class="hi">••••••••••••••</span>`),
+      line(T.codes + 0.4, `  tom              <span class="hi">••••••••••••••</span>`),
+    ].join("")}</div>
+  </div>
 </section>
 
-<p class="caption io" style="${io(T.cap1, T.cap1Out)}">tim sorts out the Q3 VAT in Cowork, then hands it to tom.</p>
-<p class="caption io" style="${io(T.cap2, T.cap2Out)}">Handoff keeps the brief and the original files. It makes no AI calls.</p>
-<p class="caption io" style="${io(T.cap3, T.cap3Out)}">tom says one sentence in ChatGPT and gets tim’s notes and the PDFs.</p>
-
-<section class="stage io" style="${io(T.stage, T.stageOut)}">
-  <div class="chat">
-    <div class="chat-app"><b class="app">${CLAUDE_ICON}Cowork</b><span>tim, on a Mac</span></div>
-    <p class="msg-user in" style="${at(T.timAsks)}">Hand this off to tom. He’ll finish the VAT reply.</p>
-    <div class="in" style="${at(T.send)}">
-      <p class="tool-step">${toolState(T.send, T.sent)}<span>Send a handoff</span></p>
-      <div class="brief"><b class="in" style="${at(T.brief1)}">Q3 VAT for the bakery</b><p class="in" style="${at(T.brief2)}">Fix the two flagged invoices, each one separately. Then check the dates and draft the reply.</p></div>
+<p class="caption io" style="${io(T.connect, T.connectOut)}">tom adds the server to ChatGPT and signs in with his username and access code.</p>
+<section class="scene io" style="${io(T.connect, T.connectOut)}">
+  <div class="connect">
+    <div class="dialog in" style="${at(T.dialog)}">
+      <div class="dialog-top">${OPENAI_ICON}ChatGPT: Add custom MCP server</div>
+      <div class="field"><label>Name</label><div class="input">${type("Handoff", T.name, 25)}</div></div>
+      <div class="field"><label>Server URL</label><div class="input">${type(`${URL_}/mcp`, T.url, 40)}</div></div>
+      <div class="field"><label>Authentication</label><div class="input"><span class="in" style="${at(T.oauth)}">OAuth</span></div></div>
+      <div class="row"><span class="connected in" style="${at(T.connected)}">✓ Handoff connected</span><span class="btn press" style="${at(T.create)}">Create</span></div>
     </div>
-    <p class="msg-assistant">${words("Sent to tom with both files.", T.sentReply)}</p>
-    ${fileTags(T.files1)}
-    <p class="composer">Reply to Claude</p>
-  </div>
-  <div class="path">
-    <p class="path-label in" style="${at(T.path)}">BRIEF +<br>ORIGINAL FILES</p>
-    <div class="track in" style="${at(T.path)}"><i></i><span class="token" style="${at(T.travel)}">${BRAND_ICON}${FILE_ICON}${FILE_ICON}</span><b>→</b></div>
-    <p class="path-note in" style="${at(T.pathNote)}">Stored on your<br>Cloudflare account</p>
-  </div>
-  <div class="chat">
-    <div class="chat-app"><b class="app">${OPENAI_ICON}ChatGPT</b><span>tom, on Windows</span></div>
-    <p class="msg-user in" style="${at(T.tomAsks)}">Continue the handoff from tim.</p>
-    <p class="tool-step in" style="${at(T.read)}">${toolState(T.read, T.readDone)}<span>Read a handoff</span><b class="in" style="${at(T.readDone)}">Q3 VAT for the bakery, 2 files</b></p>
-    <div class="files-row">${fileTags(T.files2)}<span class="same in" style="${at(T.same)}">✓ Byte for byte</span></div>
-    <p class="msg-assistant">${words("The brief says to fix the two flagged invoices separately. I’ll check their dates in `vat-q3-summary.pdf` first, then draft the reply.", T.reply)}</p>
-    <p class="composer">Ask anything</p>
+    <div class="signin-wrap in" style="${at(T.signin)}">
+      <div class="brand">${BRAND_ICON}<span>Handoff</span></div>
+      <p class="tagline">Hand your work to someone else’s assistant.</p>
+      <div class="signin">
+        <p class="meta"><strong>ChatGPT</strong> asks to use Handoff as you. After you sign in it returns to <code>chatgpt.com</code>.</p>
+        <div class="field"><label>Username</label><div class="input">${type("tom", T.user, 12)}</div></div>
+        <div class="field"><label>Access code</label><div class="input">${type("••••••••••••••", T.code, 40)}</div></div>
+        <span class="btn press" style="${at(T.allow)}">Sign in and allow</span>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="closing in" style="${at(T.closing)}">
-  <p class="eyebrow">Install</p>
-  <h2>Install it once for your whole team.</h2>
-  <p class="sub">Runs on your own Cloudflare account, on the free plan. It makes no AI calls and needs no API keys.</p>
-  <div class="routes">
-    <div class="route in" style="${at(T.route1)}"><h3>From your browser</h3><img src="/img/deploy-to-cloudflare.svg" width="148" height="31" alt=""></div>
-    <div class="route in" style="${at(T.route2)}"><h3>Ask a coding assistant</h3><p>Claude Code, Codex, Gemini CLI or Hermes runs the setup for you.</p></div>
-    <div class="route in" style="${at(T.route3)}"><h3>Run it yourself</h3><code>npm run setup</code></div>
+<p class="caption io" style="${io(T.send, T.cont - 0.2)}">tim sorts out the Q3 VAT in Cowork, then hands it to tom with the files.</p>
+<p class="caption io" style="${io(T.cont, DURATION + 1)}">tom continues in ChatGPT with tim’s notes and the original files.</p>
+<section class="scene in" style="${at(T.send)}">
+  <div class="stage">
+    <div class="chat">
+      <div class="chat-app"><b class="app">${CLAUDE_ICON}Cowork</b><span>tim, on a Mac</span></div>
+      <p class="msg-user in" style="${at(T.timAsks)}">Hand this off to tom. He’ll finish the VAT reply.</p>
+      <div class="in" style="${at(T.sendTool)}">
+        <p class="tool-step">${toolState(T.sendTool, T.sent)}<span>Send a handoff</span></p>
+        <div class="brief"><b class="in" style="${at(T.brief1)}">Q3 VAT for the bakery</b><p class="in" style="${at(T.brief2)}">Fix the two flagged invoices, each one separately. Then check the dates and draft the reply.</p></div>
+      </div>
+      <p class="msg-assistant">${words("Sent to tom with both files.", T.sentReply)}</p>
+      ${fileTags(T.files1)}
+      <p class="composer">Reply to Claude</p>
+    </div>
+    <div class="path">
+      <p class="path-label in" style="${at(T.path)}">BRIEF +<br>ORIGINAL FILES</p>
+      <div class="track in" style="${at(T.path)}"><i></i><span class="token" style="${at(T.travel)}">${BRAND_ICON}${FILE_ICON}${FILE_ICON}</span><b>→</b></div>
+      <p class="path-note in" style="${at(T.path + 0.3)}">Stored on your<br>Cloudflare account</p>
+    </div>
+    <div class="chat">
+      <div class="chat-app"><b class="app">${OPENAI_ICON}ChatGPT</b><span>tom, on Windows</span></div>
+      <p class="msg-user in" style="${at(T.tomAsks)}">Continue the handoff from tim.</p>
+      <p class="tool-step in" style="${at(T.read)}">${toolState(T.read, T.readDone)}<span>Read a handoff</span><b class="in" style="${at(T.readDone)}">Q3 VAT for the bakery, 2 files</b></p>
+      <div class="files-row">${fileTags(T.files2)}<span class="same in" style="${at(T.same)}">✓ Byte for byte</span></div>
+      <p class="msg-assistant">${words("The brief says to fix the two flagged invoices separately. I’ll check their dates in `vat-q3-summary.pdf` first, then draft the reply.", T.reply)}</p>
+      <p class="composer">Ask anything</p>
+    </div>
   </div>
-  <p class="end in" style="${at(T.end)}">handoff.infraworks.net</p>
 </section>
 </body></html>`;
 

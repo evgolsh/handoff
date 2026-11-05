@@ -54,4 +54,4 @@ writeFileSync("test/fixtures/test-private-jwk.json", JSON.stringify(priv, null, 
 
 `npm run video` renders `docs/handoff-demo.mp4`, the walkthrough on the homepage, from [`scripts/demo-video/render.mjs`](../scripts/demo-video/render.mjs). It needs Google Chrome and ffmpeg (`brew install ffmpeg` on macOS), and takes about a minute and a half. The scene is one HTML page that uses the site's fonts, colours and icons; the times of each step are in the `T` table at the top of the script.
 
-To check one moment without rendering the whole video, `npm run video -- --still=18` writes the frame at 18 seconds to a PNG and prints its path. If the length changes, update `DURATION` in the script and the "Demo, 31 seconds" label in `src/http/use-cases.ts`.
+To check one moment without rendering the whole video, `npm run video -- --still=18` writes the frame at 18 seconds to a PNG and prints its path. If the length changes, update `DURATION` in the script, the "Demo, 29 seconds" label in `src/http/use-cases.ts` and the demo link in `README.md`.
