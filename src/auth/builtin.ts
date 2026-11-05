@@ -324,7 +324,7 @@ ${FONT_PRELOAD}
 <body>
 <main>
   <div class="brand">${BRAND_ICON}<span>Handoff</span></div>
-  <p class="tagline">Tell something to a teammate’s agent.</p>
+  <p class="tagline">Hand your work to someone else’s assistant.</p>
   <div class="panel">
     ${errorMsg ? `<p class="err" role="alert">${esc(errorMsg)}</p>` : ""}
     ${body}

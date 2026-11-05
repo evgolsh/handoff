@@ -8,7 +8,7 @@ You sort out the details in Claude. Your partner says "continue the handoff from
 - **Their own assistant.** Your partner can use ChatGPT while you use Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.
 - **Storage, not AI.** Handoff keeps the brief and files and deletes them after 30 days. It makes no model calls and needs no API keys.
 
-Handoff is an open-source MCP server on your own Cloudflare account, on the free plan with no card. MIT licensed. [Watch the 31-second demo](https://handoff.infraworks.net/demo/handoff-demo.mp4).
+Handoff is an open-source MCP server on your own Cloudflare account, on the free plan with no card. MIT licensed. [Watch the 29-second demo](https://handoff.infraworks.net/demo/handoff-demo.mp4).
 
 ## Install
 
