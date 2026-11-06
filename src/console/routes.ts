@@ -295,6 +295,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     await db.batch([
       db.prepare("UPDATE packets SET revoked_at = ? WHERE (owner = ? OR recipient = ?) AND revoked_at IS NULL").bind(at, identity, identity),
       db.prepare("DELETE FROM admin_sessions WHERE handle = ?").bind(identity),
+      db.prepare("DELETE FROM member_sessions WHERE handle = ?").bind(identity),
       db.prepare("DELETE FROM admin_members WHERE handle = ?").bind(identity),
       db.prepare("DELETE FROM members WHERE handle = ?").bind(identity),
     ]);

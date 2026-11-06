@@ -9,7 +9,7 @@ import type { AttachmentRow } from "../store/repository";
 
 type App = Hono<{ Bindings: Env; Variables: AppVariables & { service: HandoffService } }>;
 
-function attachmentResponse(a: AttachmentRow, blob: { body: ReadableStream<Uint8Array>; size: number }): Response {
+export function attachmentResponse(a: AttachmentRow, blob: { body: ReadableStream<Uint8Array>; size: number }): Response {
   const name = encodeURIComponent(a.filename).replace(/['()]/g, escape);
   return new Response(blob.body, {
     status: 200,

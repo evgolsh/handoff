@@ -54,6 +54,43 @@ export interface HostFile {
   file_name?: string;
 }
 
+/** A file of the caller's that no packet carries yet: uploaded on the files page or by an assistant. */
+export interface UnsentFile {
+  attachment_id: string;
+  filename: string;
+  mime_type: string | null;
+  size: number | null;
+  uploaded_at: string;
+  /** The note typed on the files page, if any. */
+  note: string | null;
+}
+
+/** Where a file came from and the uploader's note, from attachments.provenance (JSON). */
+export const WEB_PROVENANCE = "web";
+export function webNote(a: AttachmentRow): string | null {
+  try {
+    const p = a.provenance ? (JSON.parse(a.provenance) as { via?: string; note?: unknown }) : null;
+    return p?.via === WEB_PROVENANCE && typeof p.note === "string" && p.note ? p.note : null;
+  } catch {
+    return null;
+  }
+}
+
+const unsent = (a: AttachmentRow): UnsentFile => ({
+  attachment_id: a.id,
+  filename: a.filename,
+  mime_type: a.mime_type,
+  size: a.size,
+  uploaded_at: a.ready_at ?? a.created_at,
+  note: webNote(a),
+});
+
+/** A name as people say it: no folders, case and surrounding space ignored. */
+const nameKey = (name: string): string => (name.split(/[\\/]/).pop() ?? "").trim().toLowerCase();
+
+/** Longest note the files page stores with an upload. */
+export const MAX_NOTE_CHARS = 200;
+
 export const describe = (a: AttachmentRow): AttachmentDescriptor => ({
   attachment_id: a.id,
   filename: a.filename,
@@ -148,27 +185,70 @@ export class HandoffService {
   }
 
   /**
-   * Sends a packet with files that the host passes as download URLs (OpenAI `files`). The request, every
-   * URL and any earlier send with the same key are checked before anything is downloaded. Files imported by
-   * a call that does not publish them (an error, or a concurrent identical call that won) are deleted at once.
+   * Sends a packet with attachments named in other ways than by id: files that the host passes as download URLs
+   * (OpenAI `files`), and file names of the caller's unsent files (`names`, see resolveNames). The request,
+   * every URL and any earlier send with the same key are checked first, so a retry of a sent request returns
+   * that packet even though its files are no longer unsent. Files imported by a call that does not publish them
+   * (an error, or a concurrent identical call that won) are deleted at once.
    */
-  async sendWithImports(principal: Principal, input: SendInput, files: HostFile[], host: string): Promise<SendResult> {
-    if (files.length === 0) return this.send(principal, input);
-    const withRefs: SendInput = { ...input, hash_refs: [...input.attachment_ids, ...files.map((f) => `file:${f.file_id}`)] };
-    this.validateSend(withRefs, files.length);
+  async sendWithImports(principal: Principal, input: SendInput, files: HostFile[], host: string, names: string[] = []): Promise<SendResult> {
+    if (files.length === 0 && names.length === 0) return this.send(principal, input);
+    const keys = [...new Set(names.map(nameKey))];
+    const withRefs: SendInput = { ...input, hash_refs: [...input.attachment_ids, ...files.map((f) => `file:${f.file_id}`), ...keys.map((k) => `name:${k}`)] };
+    this.validateSend(withRefs, files.length + keys.length);
     for (const f of files) this.validateImportUrl(f.download_url);
     await this.recipientFor(principal.subject, input.to);
     const replay = await this.findReplay(principal.subject, withRefs);
     if (replay) return replay;
+    const named = await this.resolveNames(principal.subject, names);
     const imported: AttachmentRow[] = [];
     let result: SendResult | null = null;
     try {
       for (const f of files) imported.push(await this.importHostFile(principal, f, host));
-      result = await this.send(principal, { ...withRefs, attachment_ids: [...input.attachment_ids, ...imported.map((a) => a.id)] });
+      result = await this.send(principal, { ...withRefs, attachment_ids: [...input.attachment_ids, ...named, ...imported.map((a) => a.id)] });
       return result;
     } finally {
       if (!result || result.replayed) await this.discardUnattached(imported);
     }
+  }
+
+  /**
+   * Turns file names into the ids of the caller's unsent files. Only the caller's own files are searched, never
+   * a teammate's. Each name must match exactly one file (case ignored); otherwise nothing is sent and the error
+   * lists the candidates, so the assistant can ask which one. It never picks the most recent of several.
+   */
+  async resolveNames(owner: string, names: string[]): Promise<string[]> {
+    if (names.length === 0) return [];
+    const files = await this.repo.listUnsentAttachments(owner, 100);
+    const line = (a: AttachmentRow) => {
+      const note = webNote(a);
+      return `${a.id} "${a.filename}" (${a.size ?? "?"} bytes, uploaded ${a.ready_at ?? a.created_at}${note ? `, note: ${JSON.stringify(note)}` : ""})`;
+    };
+    const ids: string[] = [];
+    for (const name of names) {
+      const key = nameKey(name);
+      const matches = files.filter((a) => a.filename.toLowerCase() === key);
+      if (matches.length === 1) {
+        ids.push(matches[0]!.id);
+        continue;
+      }
+      const shown = JSON.stringify(name.trim());
+      if (matches.length === 0) {
+        const list = files.slice(0, 10).map(line);
+        throw new HandoffError(
+          "not_found",
+          `attachment_names: none of your unsent files is named ${shown}. Nothing was sent. ` +
+            (list.length
+              ? `Your unsent files: ${list.join("; ")}. Pass the right one in attachment_ids, or ask the user to upload the file at ${this.cfg.publicUrl}/files.`
+              : `You have no unsent files. Ask the user to upload it at ${this.cfg.publicUrl}/files, or upload it with handoff_upload_url.`),
+        );
+      }
+      throw new HandoffError(
+        "ambiguous",
+        `attachment_names: ${shown} matches ${matches.length} of your unsent files. Nothing was sent. Ask the user which one they mean, then pass its id in attachment_ids: ${matches.map(line).join("; ")}.`,
+      );
+    }
+    return ids;
   }
 
   /** Deletes files that no packet links. A file that a packet does link is left alone. Best effort: cleanup takes what remains. */
@@ -454,6 +534,44 @@ export class HandoffService {
   async readBlobBytes(attachment: AttachmentRow): Promise<Uint8Array> {
     const blob = await this.openBlob(attachment);
     return new Uint8Array(await new Response(blob.body).arrayBuffer());
+  }
+
+  // ---- the member file page (/files) ---------------------------------------
+
+  /** The caller's files that no packet carries yet, newest first. */
+  async unsentFiles(principal: Principal, limit = 20): Promise<UnsentFile[]> {
+    return (await this.repo.listUnsentAttachments(principal.subject, limit)).map(unsent);
+  }
+
+  /**
+   * A file dropped on the files page. Stored like an assistant's upload (same table, store, checks and quota),
+   * owned by the uploader and visible to nobody else until an assistant sends it in a handoff.
+   */
+  async webUpload(principal: Principal, file: { name: string; type: string; bytes: Uint8Array }, note: string): Promise<AttachmentRow> {
+    const cleanNote = note.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, MAX_NOTE_CHARS);
+    if (file.bytes.byteLength > this.cfg.maxAttachmentBytes) throw new HandoffError("too_large", `the file is larger than ${this.cfg.maxAttachmentBytes} bytes`);
+    const row = await this.createUpload(principal, { filename: file.name }, "upload", { via: WEB_PROVENANCE, ...(cleanNote ? { note: cleanNote } : {}) });
+    return this.receiveBytes(row, file.bytes, { mime_type: file.type || null });
+  }
+
+  /** Deletes one of the caller's unsent files. A file that a packet carries is not touched. */
+  async removeUnsent(principal: Principal, attachmentId: string): Promise<AttachmentRow> {
+    const a = await this.getOwnedAttachment(principal, attachmentId);
+    if (!(await this.repo.claimUnattachedForDeletion(a.id, null))) {
+      throw new HandoffError("unavailable", `attachment ${attachmentId} is in a handoff or is already being removed`);
+    }
+    await this.dropClaimed(a);
+    return a;
+  }
+
+  /** The caller's live handoffs (sent or received), newest first, each with its files. */
+  async recentHandoffs(principal: Principal, limit = 20): Promise<Array<PacketSummary & { attachments: AttachmentDescriptor[] }>> {
+    const page = await this.inbox(principal, { limit });
+    const rows = await this.repo.getAttachmentsForPackets(page.packets.map((p) => p.packet_id));
+    return page.packets.map(({ attachment_count: _n, ...p }) => ({
+      ...p,
+      attachments: rows.filter((r) => r.packet_id === p.packet_id && r.state === "ready").map(describe),
+    }));
   }
 
   // ---- server-side import of a host file reference (OpenAI `files`) --------

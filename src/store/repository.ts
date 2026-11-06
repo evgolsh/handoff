@@ -94,6 +94,10 @@ export interface Repository {
   getAttachmentsByIds(owner: string, ids: string[]): Promise<AttachmentRow[]>;
   /** Attachments of this owner that are staging or ready, not being deleted, and linked by no packet. */
   countUnsentAttachments(owner: string): Promise<number>;
+  /** This owner's ready, free attachments that no packet links, newest first. */
+  listUnsentAttachments(owner: string, limit: number): Promise<AttachmentRow[]>;
+  /** The attachments of these packets, each with its packet id, in packet order. */
+  getAttachmentsForPackets(packetIds: string[]): Promise<Array<AttachmentRow & { packet_id: string }>>;
   /** Atomically takes a free staging slot for one writer. False when it is not staging or another actor holds it. */
   claimUpload(id: string, claim: string): Promise<boolean>;
   /** Marks the slot ready and frees the claim, only while this writer still holds it. */

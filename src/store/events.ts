@@ -2,7 +2,7 @@ import { nowIso } from "../domain/ids";
 
 /** What the console shows about activity. Never content: no titles, briefs, file names, codes or tokens. */
 export interface HandoffEvent {
-  kind: "tool" | "initialize" | "auth" | "sign_in" | "token" | "client_metadata" | "console" | "cleanup" | "update_check" | "visit";
+  kind: "tool" | "initialize" | "auth" | "sign_in" | "token" | "client_metadata" | "console" | "files" | "cleanup" | "update_check" | "visit";
   name?: string | null;
   subject?: string | null;
   client_id?: string | null;
@@ -138,8 +138,9 @@ export async function pruneRecords(db: D1Database, now: Date = new Date()): Prom
     db.prepare("DELETE FROM access_revocations WHERE revoked_at < ?").bind(ago(9 * 3_600_000)),
     db.prepare("DELETE FROM admin_sessions WHERE expires_at <= ?").bind(at),
     db.prepare("DELETE FROM admin_login_limits WHERE expires_at <= ?").bind(at),
+    db.prepare("DELETE FROM member_sessions WHERE expires_at <= ?").bind(at),
   ]);
   const n = (i: number) => r[i]?.meta.changes ?? 0;
   const instances = await pruneInstances(db, now);
-  return { events: n(0), oauth_codes: n(1), refresh_tokens: n(2), unused_clients: n(3), revocations: n(4), console_sessions: n(5) + n(6), instances };
+  return { events: n(0), oauth_codes: n(1), refresh_tokens: n(2), unused_clients: n(3), revocations: n(4), console_sessions: n(5) + n(6) + n(7), instances };
 }

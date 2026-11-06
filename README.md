@@ -59,6 +59,12 @@ Replace `tim,tom` with your usernames, yours first. Setup creates the storage, d
 
 The [console guide](docs/CONSOLE.md) covers Members, assistant connections and the Ops page.
 
+## Files page
+
+Each member can open `/files` on your server and sign in with their username and access code. There they upload a file for their assistant to send, such as a scan on their phone, and download the files of their handoffs. An uploaded file is visible only to its uploader until an assistant sends it, and is deleted if it is not sent within 7 days.
+
+Then they say "Hand this off with lease.pdf". The assistant attaches the file by its name. If no file or more than one file has that name, nothing is sent and the assistant asks which one.
+
 ## Updates
 
 Keep the clone you installed from: setup writes your resource IDs into `wrangler.jsonc`. To update, pull the code in that clone, run `npm install`, then `npm run deploy`. Deploy applies database migrations, then deploys the Worker. It does not change members.
@@ -75,8 +81,8 @@ Handoff is storage with a sign-in. The assistant writes a brief: the purpose, de
 
 | Tool | Does |
 |---|---|
-| `handoff_send` | Publish a brief with optional `to` and attachments. Idempotent per `idempotency_key`. |
-| `handoff_inbox` | List unexpired packets, newest first. |
+| `handoff_send` | Publish a brief with optional `to` and attachments, by id or by the name of an unsent file. Idempotent per `idempotency_key`. |
+| `handoff_inbox` | List unexpired packets, newest first, and your unsent files. |
 | `handoff_read` | Read a packet's brief and attachment list, or an attachment as text, image, or a 10-minute download URL. |
 | `handoff_revoke` | Hide a packet and stop its downloads. |
 | `handoff_upload_url` | Create a single-use 15-minute upload URL for a local file. |
@@ -91,6 +97,7 @@ On Cloudflare's free plan there is room for 100,000 requests and 1,000 new files
 - Identity comes from the signed access token (`sub`, ES256, issuer `PUBLIC_URL`, audience `PUBLIC_URL/mcp`). Clients register via RFC 7591 or an HTTPS client metadata document, with redirect validation and PKCE S256. OAuth authorization codes last 10 minutes, access tokens 8 hours, rotating refresh tokens 30 days.
 - A packet is readable by its sender, its named recipient, or every member for a team packet. Everyone else gets "not found". Only the sender revokes a team packet.
 - Attachments are readable only through a live packet. Download URLs last 10 minutes and packet access is rechecked on each fetch.
+- The files page (`/files`) has its own session cookie (HttpOnly, SameSite=Strict, 12 hours), which never opens the console. Its forms check the origin and a per-session CSRF value. A file matched by name is searched only among the caller's own unsent files.
 - Resetting a member's access code or removing them signs out their assistants. Disconnect in the console signs out one connection.
 - Server-side file imports are off until `IMPORT_HOST_ALLOWLIST` names allowed hosts. Imports require HTTPS and public DNS, refuse redirects and bound the size. Signed URLs are not stored or logged.
 - The Worker does not implement a general per-request rate limit. See [Operations](docs/DEPLOY.md#operations) for optional Cloudflare zone-level protection.

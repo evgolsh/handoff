@@ -23,6 +23,7 @@ import { buildMcpServer } from "./mcp/server";
 import { connectHeaders, connectPage } from "./http/connect";
 import { useCasesHeaders, useCasesPage } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
+import { filesRoutes } from "./http/files";
 import { mcpCallsIn, recordMcpCalls } from "./store/telemetry";
 import { base64url } from "./domain/ids";
 import { recordEvent } from "./store/events";
@@ -143,6 +144,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   // The update check's receiving end (src/update-check.ts): 404 unless UPDATE_CHECK_RECEIVER=1.
   app.get("/v1/update-check", (c) => receiveUpdateCheck(c.env, new URL(c.req.url)));
   app.route("/", consoleRoutes());
+  app.route("/", filesRoutes());
 
   // This Worker is its own OAuth 2.1 authorization server (src/auth/builtin.ts): RFC 8414 metadata, RFC 7591
   // registration, the sign-in and consent page, and the PKCE token exchange. Members sign in with a handle and code.

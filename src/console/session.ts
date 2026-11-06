@@ -2,11 +2,22 @@ import { constantTimeEqual } from "../auth/builtin";
 import { newTicketToken, nowIso, sha256Hex } from "../domain/ids";
 
 /**
- * Console sessions. The browser holds a random token in a __Host- cookie (Secure, HttpOnly, SameSite=Strict);
- * D1 keeps only its hash, bound to the member's code hash, so a code reset ends the session. Only members in
- * admin_members can sign in; the operator grants that with `npm run admin`.
+ * Browser sessions. The browser holds a random token in a __Host- cookie (Secure, HttpOnly, SameSite=Strict);
+ * D1 keeps only its hash, bound to the member's code hash, so a code reset ends the session. Two kinds:
+ * the console, where only members in admin_members sign in (the operator grants that with `npm run admin`),
+ * and the member file page (/files), where any member signs in. Each kind has its own cookie and table, so a
+ * member's file-page session never opens the console.
  */
-export const COOKIE = "__Host-handoff-console";
+export interface SessionKind {
+  cookie: string;
+  table: "admin_sessions" | "member_sessions";
+  /** Console sessions also need the admin grant, checked on every request. */
+  adminOnly: boolean;
+}
+export const CONSOLE_SESSIONS: SessionKind = { cookie: "__Host-handoff-console", table: "admin_sessions", adminOnly: true };
+export const FILES_SESSIONS: SessionKind = { cookie: "__Host-handoff-files", table: "member_sessions", adminOnly: false };
+
+export const COOKIE = CONSOLE_SESSIONS.cookie;
 export const SESSION_SECONDS = 12 * 60 * 60;
 const LOGIN_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 10 * 60_000;
@@ -19,13 +30,13 @@ export interface Session {
   csrf: string;
 }
 
-export const sessionCookie = (value: string, seconds: number): string =>
-  `${COOKIE}=${value}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${seconds}`;
+export const sessionCookie = (value: string, seconds: number, kind: SessionKind = CONSOLE_SESSIONS): string =>
+  `${kind.cookie}=${value}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${seconds}`;
 
-export function cookieToken(header: string | undefined): string | null {
+export function cookieToken(header: string | undefined, kind: SessionKind = CONSOLE_SESSIONS): string | null {
   for (const part of (header ?? "").split(";")) {
     const [k, ...rest] = part.trim().split("=");
-    if (k === COOKIE) {
+    if (k === kind.cookie) {
       const v = rest.join("=");
       return v && v.length <= 200 ? v : null;
     }
@@ -33,14 +44,14 @@ export function cookieToken(header: string | undefined): string | null {
   return null;
 }
 
-export async function sessionFrom(db: D1Database, raw: string | null): Promise<Session | null> {
+export async function sessionFrom(db: D1Database, raw: string | null, kind: SessionKind = CONSOLE_SESSIONS): Promise<Session | null> {
   if (!raw) return null;
   const hash = await sha256Hex(raw);
   const row = await db
     .prepare(
-      `SELECT s.handle FROM admin_sessions s
+      `SELECT s.handle FROM ${kind.table} s
          JOIN members m ON m.handle = s.handle AND m.code_hash = s.credential_hash
-         JOIN admin_members a ON a.handle = s.handle
+         ${kind.adminOnly ? "JOIN admin_members a ON a.handle = s.handle" : ""}
        WHERE s.token_hash = ? AND s.expires_at > ?`,
     )
     .bind(hash, nowIso())
@@ -48,23 +59,27 @@ export async function sessionFrom(db: D1Database, raw: string | null): Promise<S
   return row ? { handle: row.handle, hash, csrf: await sha256Hex(`csrf:${raw}`) } : null;
 }
 
-/** Starts a session for an admin whose code was checked. Returns the Set-Cookie value. */
-export async function startSession(db: D1Database, handle: string): Promise<string | null> {
+/** Starts a session for a member whose code was checked (for the console, an admin). Returns the Set-Cookie value. */
+export async function startSession(db: D1Database, handle: string, kind: SessionKind = CONSOLE_SESSIONS): Promise<string | null> {
   const member = await db
-    .prepare("SELECT m.code_hash FROM members m JOIN admin_members a ON a.handle = m.handle WHERE m.handle = ?")
+    .prepare(
+      kind.adminOnly
+        ? "SELECT m.code_hash FROM members m JOIN admin_members a ON a.handle = m.handle WHERE m.handle = ?"
+        : "SELECT code_hash FROM members WHERE handle = ?",
+    )
     .bind(handle)
     .first<{ code_hash: string }>();
   if (!member) return null;
   const raw = newTicketToken();
   await db
-    .prepare("INSERT INTO admin_sessions (token_hash, handle, credential_hash, expires_at) VALUES (?, ?, ?, ?)")
+    .prepare(`INSERT INTO ${kind.table} (token_hash, handle, credential_hash, expires_at) VALUES (?, ?, ?, ?)`)
     .bind(await sha256Hex(raw), handle, member.code_hash, new Date(Date.now() + SESSION_SECONDS * 1000).toISOString())
     .run();
-  return sessionCookie(raw, SESSION_SECONDS);
+  return sessionCookie(raw, SESSION_SECONDS, kind);
 }
 
-export async function endSession(db: D1Database, s: Session): Promise<void> {
-  await db.prepare("DELETE FROM admin_sessions WHERE token_hash = ?").bind(s.hash).run();
+export async function endSession(db: D1Database, s: Session, kind: SessionKind = CONSOLE_SESSIONS): Promise<void> {
+  await db.prepare(`DELETE FROM ${kind.table} WHERE token_hash = ?`).bind(s.hash).run();
 }
 
 export const csrfOk = (s: Session, sent: unknown): boolean => typeof sent === "string" && constantTimeEqual(sent, s.csrf);

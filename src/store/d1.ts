@@ -151,6 +151,32 @@ export class D1Repository implements Repository {
     return row?.n ?? 0;
   }
 
+  async listUnsentAttachments(owner: string, limit: number): Promise<AttachmentRow[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT a.* FROM attachments a
+         WHERE a.owner = ? AND a.state = 'ready' AND a.claim IS NULL
+           AND NOT EXISTS (SELECT 1 FROM packet_attachments pa WHERE pa.attachment_id = a.id)
+         ORDER BY a.created_at DESC, a.id DESC LIMIT ?`,
+      )
+      .bind(owner, limit)
+      .all<AttachmentRow>();
+    return results;
+  }
+
+  async getAttachmentsForPackets(packetIds: string[]): Promise<Array<AttachmentRow & { packet_id: string }>> {
+    if (packetIds.length === 0) return [];
+    const marks = packetIds.map(() => "?").join(",");
+    const { results } = await this.db
+      .prepare(
+        `SELECT a.*, pa.packet_id FROM attachments a JOIN packet_attachments pa ON pa.attachment_id = a.id
+         WHERE pa.packet_id IN (${marks}) ORDER BY pa.packet_id, pa.position ASC`,
+      )
+      .bind(...packetIds)
+      .all<AttachmentRow & { packet_id: string }>();
+    return results;
+  }
+
   async claimUpload(id: string, claim: string): Promise<boolean> {
     const r = await this.db
       .prepare("UPDATE attachments SET claim = ? WHERE id = ? AND state = 'staging' AND claim IS NULL")

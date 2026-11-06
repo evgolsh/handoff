@@ -12,7 +12,8 @@ export type ErrorCode =
   | "no_representation"
   | "upload_conflict"
   | "unavailable"
-  | "quota_exceeded";
+  | "quota_exceeded"
+  | "ambiguous";
 
 const STATUS: Record<ErrorCode, number> = {
   invalid_input: 400,
@@ -29,6 +30,7 @@ const STATUS: Record<ErrorCode, number> = {
   upload_conflict: 409,
   unavailable: 410,
   quota_exceeded: 429,
+  ambiguous: 409,
 };
 
 export class HandoffError extends Error {

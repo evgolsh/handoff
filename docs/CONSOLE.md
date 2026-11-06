@@ -10,7 +10,9 @@ for the accounts without a team.
 
 ## Who can open it
 
-Members whose username is in `admin_members`. The operator grants that in a terminal:
+Members whose username is in `admin_members`. Every member, admin or not, also has the files page at `/files`
+(see the README): it signs in separately, with its own cookie, and does not open the console. The operator
+grants admin in a terminal:
 
 ```sh
 npm run admin -- tim              # grant (the member must exist: npm run member:add -- tim)

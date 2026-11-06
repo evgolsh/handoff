@@ -256,14 +256,15 @@ export const interactiveHeaders = (nonce: string): Record<string, string> => ({
   "content-security-policy": `${CONSOLE_HEADERS["content-security-policy"]}; script-src 'nonce-${nonce}'`,
 });
 
-export function document(title: string, body: Html, enhancement?: PageEnhancement): Html {
+/** `site`: the end of the window title. The member file page is not the console. */
+export function document(title: string, body: Html, enhancement?: PageEnhancement, site = "Handoff console"): Html {
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${esc(title)} · Handoff console</title>
+<title>${esc(title)} · ${esc(site)}</title>
 ${FAVICON_LINK}
 ${FONT_PRELOAD}
 ${enhancement ? `<script nonce="${esc(enhancement.nonce)}">document.documentElement.classList.add("js");</script>` : ""}
@@ -288,6 +289,7 @@ export function shell(page: Page, v: Viewer, title: string, body: Html, enhancem
     <a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a>
     ${links}
     <div class="nav-separator"></div>
+    <a href="/files">Your files</a>
     ${v.control ? `<a href="/">Home</a>` : `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>`}
     <div class="grow"></div>
     <div class="who">
@@ -374,11 +376,13 @@ export function setupDonePage(handle: string, code: string): Html {
   );
 }
 
-/** A plain page for a refused request (bad origin, stale form). */
-export function problemPage(title: string, text: string): Html {
+/** A plain page for a refused request (bad origin, stale form). The member file page passes its own name and link. */
+export function problemPage(title: string, text: string, back: { site: string; href: string; label: string } = { site: "Handoff console", href: "/console", label: "Back to the console" }): Html {
   return document(
     title,
-    `<div class="login"><div class="brand" style="font-size:18px">${BRAND_ICON}<span>Handoff console</span></div>
-  <div class="panel"><div class="t">${esc(title)}</div><div class="small">${esc(text)}</div><div><a class="btn sm" href="/console">Back to the console</a></div></div></div>`,
+    `<div class="login"><div class="brand" style="font-size:18px">${BRAND_ICON}<span>${esc(back.site)}</span></div>
+  <div class="panel"><div class="t">${esc(title)}</div><div class="small">${esc(text)}</div><div><a class="btn sm" href="${esc(back.href)}">${esc(back.label)}</a></div></div></div>`,
+    undefined,
+    back.site,
   );
 }
