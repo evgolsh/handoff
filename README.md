@@ -4,7 +4,7 @@ Hand your work to someone else's AI assistant, with a brief and the original fil
 
 You sort out the details in Claude. Your partner says "continue the handoff from tim" in ChatGPT and gets your notes and the original files. You can hand off to a teammate, or to yourself in another assistant or on another computer.
 
-- **Your notes and the files.** The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte.
+- **Your notes and the files.** The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. A file on your phone? Upload it on your files page.
 - **Their own assistant.** Your partner can use ChatGPT while you use Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.
 - **Storage, not AI.** Handoff keeps the brief and files and deletes them after 30 days. It makes no model calls and needs no API keys.
 
@@ -54,7 +54,7 @@ Replace `tim,tom` with your usernames, yours first. Setup creates the storage, d
 
 1. **Sign in to your Handoff console.** After a browser deploy, `/console/setup` creates your admin account and shows your access code once. After a terminal install, sign in at the printed `/console` URL with the access code setup printed. Assistants sign in with access codes, never with the setup code. Keep access codes in a password manager, and out of issues, commits and briefs.
 2. **Add your teammates.** After a browser deploy, or when adding more people later, create their usernames in **Members** and share each person's access code privately. Teammates need no Cloudflare or GitHub account.
-3. **Connect your assistants.** Each person opens your server's `/connect` page and follows the steps for their assistant. Everyone uses the same server and its `/mcp` address, for example `https://handoff.acme.workers.dev/mcp`, and signs in with their own username.
+3. **Connect your assistants.** Each person opens your server's `/connect` page and follows the steps for their assistant. Everyone uses the same server and its `/mcp` address, for example `https://handoff.acme.workers.dev/mcp`, and signs in with their own username. To upload a file from a phone or another folder, they sign in at `/files` (see [Files page](#files-page)).
 4. **Try a handoff.** Say "Hand this off" in one assistant, then "Continue my handoff" in another. To send to your teammate, say "Hand this off to tom". Your teammate says "Continue the handoff from tim".
 
 The [console guide](docs/CONSOLE.md) covers Members, assistant connections and the Ops page.

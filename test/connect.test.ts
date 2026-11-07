@@ -134,6 +134,9 @@ describe("connect page", () => {
     expect(html).toContain("Node.js 22+");
     expect(html).toContain("Sign in to your Handoff console");
     expect(html).toContain("/console/setup</code> on your new server");
+    // The files page is a line in the first card and the connect step, not the headline.
+    expect(html).toContain("A file on your phone? Upload it on your files page.");
+    expect(html).toContain("they sign in at <code>/files</code>");
     expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
     expect(html).toContain('class="site-button" href="/join">Try the playground');
     expect(html).not.toContain('class="site-button primary" href="/join"');

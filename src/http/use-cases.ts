@@ -214,7 +214,7 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
     </div>
   </section>
   <section class="principles" aria-label="What travels with your work">
-    <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte.</p></article>
+    <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. A file on your phone? Upload it on your files page.</p></article>
     <article><h2>Their own assistant.</h2><p>Your partner can use ChatGPT while you use Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.</p></article>
     <article><h2>Storage, not AI.</h2><p>Handoff keeps the brief and files and deletes them after 30 days. It makes no model calls and needs no API keys.</p></article>
   </section>
@@ -237,7 +237,7 @@ npm run setup -- --members=tim,tom</code></pre>
     <ol class="install-steps">
       <li><strong>Sign in to your Handoff console.</strong> After a browser deploy, <code>/console/setup</code> creates your admin account and shows your access code once. After a terminal install, sign in at the printed <code>/console</code> URL with the access code setup printed. Save access codes privately.</li>
       <li><strong>Add your teammates.</strong> After a browser deploy, or when adding more people later, create their usernames in Members and share each person’s access code privately. Teammates need no Cloudflare or GitHub account.</li>
-      <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server.</li>
+      <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server. To upload a file from a phone or another folder, they sign in at <code>/files</code>.</li>
       <li><strong>Try a handoff.</strong> Say “Hand this off” in one assistant, then “Continue my handoff” in another. To send to your teammate, say “Hand this off to tom”.</li>
     </ol>
     <p class="install-note">From a terminal, a new Cloudflare account may need its <code>workers.dev</code> address registered first; setup links to the page. If the account already has a Worker named <code>handoff</code>, check it first: setup redeploys it. <a href="${GITHUB_URL}#install" target="_blank" rel="noopener">Full setup guide ↗</a></p>
