@@ -89,7 +89,7 @@ describe("connect page", () => {
     expect(html).toContain("prefers-color-scheme: dark");
   });
 
-  it("the control center's homepage leads with self-hosting, offers the playground second, and has /use-cases as an alias", async () => {
+  it("the control center's homepage leads with the hosted service, offers a private server second, and has /use-cases as an alias", async () => {
     const connectHtml = await (await SELF.fetch(`${ORIGIN}/connect`)).text();
     // A private install's "/" is its Connect page: use cases and "About" live on the control center.
     expect(connectHtml).toContain('href="https://handoff.infraworks.net/#use-cases"');
@@ -102,63 +102,54 @@ describe("connect page", () => {
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("media-src 'self'");
+    // The only script is JSON-LD, which browsers do not run.
     expect(csp).not.toContain("script-src");
 
     const html = await res.text();
     expect(html).toContain("Hand your work to <span>someone else’s assistant.</span>");
-    expect(html).toContain("It makes no AI calls and needs no API keys.");
-    // The invoice example: prepared in Cowork, picked up in ChatGPT.
-    expect(html).toContain("Cowork</b>");
-    expect(html).toContain("ChatGPT</b><span>tom</span>");
-    // The example reads as two chats: the send step in tim's, the read step and the reply in tom's.
-    expect(html).toContain("<span>Send a handoff</span><b>Q3 VAT for the bakery</b>");
-    expect(html).toContain('<p class="msg-user">Continue the handoff from tim.</p>');
-    expect(html).toContain("vat-q3-summary.pdf</code> first");
-    expect(html).toContain("What runs on your account");
+    expect(html).toContain("No AI inside: Handoff makes no model calls and needs no API keys.");
+    // The example: joe hands off from Claude, anna continues in ChatGPT.
+    expect(html).toContain("ChatGPT</b><span>anna</span>");
+    expect(html).toContain("<span>Send a handoff</span><b>Car insurance renewal</b>");
+    expect(html).toContain('<p class="msg-user">Continue the handoff from joe.</p>');
+    // How it works: team, partner, connect, hand off.
+    expect(html).toContain('id="how"');
+    expect(html).toContain("invite anna to Handoff");
+    expect(html).toContain('id="faq"');
+    expect(html).toContain("What runs where");
     expect(html).not.toContain("noindex");
     expect(html).not.toContain("—");
-    expect(html).toContain('class="site-button primary" href="#install"');
-    expect(html).toContain('class="site-button primary" href="/#install"');
-    // Three equal ways to install: the Deploy button (no terminal), a coding assistant, or the commands.
+    expect(html).not.toMatch(/playground/i);
+    // The hosted service is the first call to action; a private server is the second.
+    expect(html).toContain('class="site-button primary" href="/join">Get started free');
+    // Three equal ways to install a private server: the Deploy button, a coding assistant, or the commands.
     // The browser route uses Cloudflare's own button graphic, served from this origin (the CSP allows no other).
     expect(html).toContain(`class="deploy-button" href="${DEPLOY_PATH}"`);
     expect(html).toContain('<img src="/img/deploy-to-cloudflare.svg" width="184" height="39" alt="Deploy to Cloudflare">');
-    expect(html).toContain("From your browser");
-    expect(html).toContain("<strong>Cloudflare account</strong> and a <strong>GitHub or GitLab account</strong>");
     expect(html).toContain("HANDOFF_SETUP_CODE");
-    expect(html).toContain("GitHub or GitLab account");
     expect(html).toContain('id="install"');
     expect(html).toContain("npm run setup -- --members=tim,tom");
     expect(html).toContain("Ask a coding assistant");
     expect(html).toContain("Claude Code, Codex, Gemini CLI, Hermes or any assistant");
     expect(html).toContain("Node.js 22+");
-    expect(html).toContain("Sign in to your Handoff console");
     expect(html).toContain("/console/setup</code> on your new server");
-    // My account is a line in the first card and the connect step, not the headline.
     expect(html).toContain("A file on your phone? Upload it in My account.");
-    expect(html).toContain("they sign in at <code>/account</code>");
     expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
-    expect(html).toContain('class="site-button" href="/join">Try the playground');
-    expect(html).not.toContain('class="site-button primary" href="/join"');
     // The homepage is the brand link: no "Use cases" item in the menu or footer.
     expect(html).not.toContain(">Use cases</a>");
     expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
-    expect(html).toContain("Your context. Your files. Your Cloudflare account.");
-    expect(html).toContain("30 days by default on your own install, 24 hours on the playground");
-    expect(html).toContain('href="/connect">Connect your assistants');
+    expect(html).toContain('<a class="nav-link nav-secondary" href="/console">Manage team</a>');
+    expect(html).toContain("Handoff · Your notes and files, from your assistant to theirs.");
+    expect(html).toContain('href="/llms.txt"');
+    expect(html).toContain('href="/privacy"');
     expect(html).toContain(`href="${GITHUB_URL}"`);
-    expect(html).toContain(`href="${DEPLOY_PATH}"`);
     expect(html).toBe(await (await home("/use-cases")).text());
-    expect(html).toContain('src="/demo/handoff-demo.mp4"');
     // Browsers autoplay only muted video; playsinline keeps iPhones from opening it full screen. The video has no sound.
     expect(html).toContain('<video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4"');
-    expect(html).toContain('id="household-last-mile"');
-    expect(html).toContain('id="micro-team-relay"');
-    expect(html).toContain('id="adversarial-review"');
-    expect(html).toContain('id="home-server-to-laptop"');
-    expect(html).toContain('id="pm-designer-to-engineer"');
-    expect(html).toContain("vat-q3-summary.pdf");
-    expect(html).not.toContain("<script");
+    for (const id of ["household-last-mile", "micro-team-relay", "adversarial-review", "home-server-to-laptop", "pm-designer-to-engineer"]) {
+      expect(html).toContain(`id="${id}"`);
+    }
+    expect(html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, "")).not.toContain("<script");
 
     const vid = await SELF.fetch(`${ORIGIN}/demo/handoff-demo.mp4`);
     expect(vid.status).toBe(200);

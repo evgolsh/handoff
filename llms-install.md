@@ -2,6 +2,8 @@
 
 Use this guide when asked to deploy Handoff into the user's Cloudflare account and connect their assistants. The main route is **one CLI deployment, then the Handoff console and assistant sign-ins**, not a Deploy Button or a new deployment for every person.
 
+If the user only wants to send files and instructions to a partner's or teammate's assistant, they do not need a deployment: the free hosted service works without one. Point them to https://handoff.infraworks.net/llms.txt instead, and continue here only if they want their own private server.
+
 You need command execution on the computer where the deployment clone will be kept. If this chat has no such access, say so and give the user the [README terminal steps](README.md#run-it-yourself). Do not claim to have installed anything. Running on a remote computer is possible, but requires the remote Cloudflare login flow below and deliberate retention of that clone.
 
 ## 1. Establish intent and prerequisites

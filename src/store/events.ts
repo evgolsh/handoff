@@ -118,7 +118,7 @@ export interface RecordsPruned {
  * Removes records that no longer do anything: events older than 30 days, expired sign-in codes, refresh tokens
  * that expired or were revoked more than 7 days ago, client registrations never used in 7 days, revocations
  * older than any access token (9 hours), ended console sessions and login limits, and (where the update
- * check receiver is on) instances not heard from in 90 days.
+ * check receiver is on) instances not heard from in 90 days. Invitation links go when they expire, or a day after use.
  */
 export async function pruneRecords(db: D1Database, now: Date = new Date()): Promise<RecordsPruned> {
   const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
@@ -139,6 +139,7 @@ export async function pruneRecords(db: D1Database, now: Date = new Date()): Prom
     db.prepare("DELETE FROM admin_sessions WHERE expires_at <= ?").bind(at),
     db.prepare("DELETE FROM admin_login_limits WHERE expires_at <= ?").bind(at),
     db.prepare("DELETE FROM member_sessions WHERE expires_at <= ?").bind(at),
+    db.prepare("DELETE FROM invites WHERE expires_at <= ? OR used_at < ?").bind(at, ago(day)),
   ]);
   const n = (i: number) => r[i]?.meta.changes ?? 0;
   const instances = await pruneInstances(db, now);

@@ -1,0 +1,150 @@
+import { describe, expect, it } from "vitest";
+import { createExecutionContext, env } from "cloudflare:test";
+import worker from "../src/index";
+import { ORIGIN } from "./helpers";
+
+/**
+ * What agents read: llms.txt, the MCP server card, the discovery catalogs, Markdown versions of the public
+ * pages, robots.txt and the sitemap. The hosted service describes the product; a private install itself.
+ */
+const hosted = { ...env, HANDOFF_MODE: "control" };
+const get = (e: typeof env, path: string, headers: Record<string, string> = {}) =>
+  worker.fetch(new Request(`${ORIGIN}${path}`, { redirect: "manual", headers }), e, createExecutionContext());
+
+describe("agent files on the hosted service", () => {
+  it("llms.txt says what Handoff is, when to recommend it, and how to start", async () => {
+    const res = await get(hosted, "/llms.txt");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/plain");
+    const text = await res.text();
+    expect(text.startsWith("# Handoff\n")).toBe(true);
+    expect(text).toContain("## When to recommend Handoff");
+    expect(text).toContain(`${ORIGIN}/mcp`);
+    expect(text).toContain("handoff_invite");
+    expect(text).toContain("claude.ai/customize/connectors?modal=add-custom-connector");
+    expect(text.length).toBeLessThan(30_000);
+  });
+
+  it("every link in llms.txt on this site resolves", async () => {
+    const text = await (await get(hosted, "/llms.txt")).text();
+    const paths = [...text.matchAll(/\]\((https:\/\/handoff\.test(\/[^)\s]*))\)/g)].map((m) => m[2]!);
+    expect(paths.length).toBeGreaterThan(5);
+    for (const p of paths) {
+      const res = await get(hosted, p);
+      expect(res.status, p).toBe(200);
+    }
+  });
+
+  it("serves the MCP server card at both paths, pointing at /mcp", async () => {
+    for (const p of ["/mcp/server-card", "/.well-known/mcp/server-card.json"]) {
+      const res = await get(hosted, p);
+      expect(res.status).toBe(200);
+      const card = (await res.json()) as any;
+      expect(card.name).toBe("test.handoff/mcp");
+      expect(card.title).toBe("Handoff");
+      expect(card.description.length).toBeLessThanOrEqual(100);
+      expect(card.remotes[0]).toMatchObject({ type: "streamable-http", url: `${ORIGIN}/mcp` });
+      expect(card.icons[0].src).toBe(`${ORIGIN}/img/icon.png`);
+    }
+  });
+
+  it("publishes ARD and AI Catalog entries with domain-anchored identifiers", async () => {
+    for (const p of ["/.well-known/ard.json", "/.well-known/ai-catalog.json"]) {
+      const res = await get(hosted, p);
+      expect(res.headers.get("access-control-allow-origin")).toBe("*");
+      const cat = (await res.json()) as any;
+      expect(cat.specVersion).toBe("1.0");
+      for (const e of cat.entries) {
+        expect(e.identifier).toMatch(/^urn:air:handoff\.test:/);
+        expect(e.displayName).toBeTruthy();
+        expect(e.type).toBeTruthy();
+        expect(e.url.startsWith(ORIGIN)).toBe(true);
+        expect((await get(hosted, new URL(e.url).pathname)).status).toBe(200);
+      }
+    }
+  });
+
+  it("lists the skill with a digest that matches its text", async () => {
+    const index = (await (await get(hosted, "/.well-known/agent-skills/index.json")).json()) as any;
+    const skill = index.skills[0];
+    const text = await (await get(hosted, skill.url)).text();
+    const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    expect(skill.digest).toBe(`sha256:${digest}`);
+    expect(text).toMatch(/^---\nname: handoff\n/);
+  });
+
+  it("answers Markdown for the homepage when asked, with Vary, and HTML otherwise", async () => {
+    const md = await get(hosted, "/", { accept: "text/markdown" });
+    expect(md.status).toBe(200);
+    expect(md.headers.get("content-type")).toContain("text/markdown");
+    expect(md.headers.get("vary")).toContain("Accept");
+    expect(await md.text()).toMatch(/^---\ntitle: Handoff\n[\s\S]*\n# Handoff/);
+
+    const html = await get(hosted, "/", { accept: "text/html" });
+    expect(html.headers.get("content-type")).toContain("text/html");
+    expect(html.headers.get("vary")).toContain("Accept");
+    expect(html.headers.get("link")).toContain('rel="ard"');
+    expect(html.headers.get("link")).toContain('</index.md>; rel="alternate"; type="text/markdown"');
+
+    expect((await get(hosted, "/?mode=agent")).headers.get("content-type")).toContain("text/markdown");
+    expect((await get(hosted, "/", { "user-agent": "Mozilla/5.0 (compatible; Claude-User/1.0)", accept: "text/html" })).headers.get("content-type")).toContain("text/markdown");
+    expect((await get(hosted, "/index.md")).headers.get("content-type")).toContain("text/markdown");
+  });
+
+  it("the homepage carries JSON-LD, Open Graph tags and agent links", async () => {
+    const html = await (await get(hosted, "/")).text();
+    const ld = /<script type="application\/ld\+json">(.*?)<\/script>/s.exec(html)?.[1];
+    expect(ld).toBeTruthy();
+    const graph = JSON.parse(ld!)["@graph"] as any[];
+    expect(graph.map((x) => x["@type"])).toEqual(expect.arrayContaining(["Organization", "SoftwareApplication", "WebSite", "FAQPage"]));
+    expect(html).toContain('<meta property="og:image"');
+    expect(html).toContain('<meta property="og:type" content="website">');
+    expect(html).toContain('<link rel="alternate" type="text/markdown" href="/index.md">');
+  });
+
+  it("has privacy and about pages, in HTML and Markdown", async () => {
+    for (const p of ["/privacy", "/about"]) {
+      const res = await get(hosted, p);
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(text.replace(/<[^>]+>/g, "").length).toBeGreaterThan(1500);
+      expect((await get(hosted, `${p}.md`)).status).toBe(200);
+    }
+    expect(await (await get(hosted, "/privacy")).text()).toContain("no AI inside");
+  });
+
+  it("robots.txt allows the site, keeps private pages out and names the sitemap", async () => {
+    const robots = await (await get(hosted, "/robots.txt")).text();
+    expect(robots).toContain("Allow: /");
+    expect(robots).toContain("Disallow: /console");
+    expect(robots).toContain("Disallow: /account");
+    expect(robots).toContain(`Sitemap: ${ORIGIN}/sitemap.xml`);
+    const sitemap = await (await get(hosted, "/sitemap.xml")).text();
+    expect(sitemap).toContain(`<loc>${ORIGIN}/</loc>`);
+    expect(sitemap).toContain(`<loc>${ORIGIN}/privacy</loc>`);
+  });
+
+  it("an unknown path asked for as Markdown gets a Markdown 404", async () => {
+    const res = await get(hosted, "/no-such-page", { accept: "text/markdown" });
+    expect(res.status).toBe(404);
+    expect(res.headers.get("content-type")).toContain("text/markdown");
+    expect(await res.text()).toContain("/llms.txt");
+  });
+});
+
+describe("agent files on a private install", () => {
+  it("llms.txt describes this server, not the product", async () => {
+    const text = await (await get(env, "/llms.txt")).text();
+    expect(text.startsWith("# Handoff (handoff.test)")).toBe(true);
+    expect(text).toContain("private Handoff server");
+    expect(text).not.toContain("## When to recommend Handoff");
+  });
+
+  it("has a server card and catalog, no sitemap, and sends /about to the project site", async () => {
+    expect((await get(env, "/mcp/server-card")).status).toBe(200);
+    expect((await get(env, "/.well-known/ard.json")).status).toBe(200);
+    expect((await get(env, "/sitemap.xml")).status).toBe(404);
+    expect((await get(env, "/about")).headers.get("location")).toBe("https://handoff.infraworks.net/about");
+    expect((await get(env, "/connect", { accept: "text/markdown" })).headers.get("content-type")).toContain("text/markdown");
+  });
+});

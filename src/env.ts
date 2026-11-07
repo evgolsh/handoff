@@ -20,8 +20,8 @@ export interface Env {
   MAX_ATTACHMENT_BYTES?: string;
   IMPORT_HOST_ALLOWLIST?: string;
   /**
-   * "control" only on the project's control center (handoff.infraworks.net): the homepage, /join, a console per
-   * tenant, the operator's tracking dashboard. Anything else: a private install, which serves its console and
+   * "control" only on the hosted service (handoff.infraworks.net): the homepage, /join, a console per team, the
+   * operator's tracking dashboard. Anything else: a private install, which serves its console and
    * Connect page and sends "/" to /connect.
    */
   HANDOFF_MODE?: string;
@@ -43,8 +43,11 @@ export type Mode = "private" | "control";
 /** Where a private install's pages point for "what is Handoff". */
 export const CONTROL_CENTER_URL = "https://handoff.infraworks.net";
 
-/** How long a packet lives by default on a private install. The control center keeps them 24 hours. */
+/** How long a packet lives by default on a private install. */
 export const PRIVATE_DEFAULT_EXPIRY_HOURS = 24 * 30;
+/** On the hosted service: a week by default (time for the other person to get to it), a month at most. */
+export const HOSTED_DEFAULT_EXPIRY_HOURS = 24 * 7;
+export const HOSTED_MAX_EXPIRY_HOURS = 24 * 30;
 
 export interface Config {
   mode: Mode;
@@ -123,8 +126,7 @@ export function configFrom(env: Env, requestOrigin = ""): Config {
     issuer: publicUrl,
     oauthSigningJwk: env.OAUTH_SIGNING_JWK?.trim() || null,
     devTokens,
-    // The control center is a shared playground: smaller files, shorter lives.
-    maxAttachmentBytes: control ? Math.min(attachmentBound, 5 * 1024 * 1024) : attachmentBound,
+    maxAttachmentBytes: attachmentBound,
     importHostAllowlist: list(env.IMPORT_HOST_ALLOWLIST).map((h) => h.toLowerCase()),
     maxInlineImageBytes: 3 * 1024 * 1024,
     maxInlineTextChars: 100_000,
@@ -134,8 +136,9 @@ export function configFrom(env: Env, requestOrigin = ""): Config {
     maxUnsentFilesPerOwner: 50,
     cleanupBatch: 200,
     cleanupRounds: 5,
-    defaultExpiryHours: control ? 24 : PRIVATE_DEFAULT_EXPIRY_HOURS,
-    maxExpiryHours: control ? 24 * 7 : 24 * 90,
+    // The hosted service keeps handoffs shorter than a private install: it stores everyone's files.
+    defaultExpiryHours: control ? HOSTED_DEFAULT_EXPIRY_HOURS : PRIVATE_DEFAULT_EXPIRY_HOURS,
+    maxExpiryHours: control ? HOSTED_MAX_EXPIRY_HOURS : 24 * 90,
     uploadTicketTtlMs: 15 * 60_000,
     downloadTicketTtlMs: 10 * 60_000,
     stagingTtlMs: 24 * hour,

@@ -74,7 +74,8 @@ describe("the control center", () => {
     expect(join.status).toBe(200);
     const page = await join.text();
     expect(page).toContain('action="/join"');
-    expect(page).toContain("The shared playground");
+    expect(page).toContain("Handoff, hosted");
+    expect(page).not.toMatch(/playground/i);
     const stats = await fetchAs(ctl, "/stats.json");
     expect(stats.status).toBe(200);
     expect(Object.keys((await stats.json()) as object)).toEqual(expect.arrayContaining(["teams", "users_28d", "private_instances_28d", "deploy_clicks_30d"]));

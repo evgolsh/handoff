@@ -67,7 +67,10 @@ export const PAGE_HEADER_CSS = `
 
 export function pageHeader(current: "connect" | "use-cases" = "connect", opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
-  const menu = `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${opts.mode === "private" ? `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>` : ""}${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">${opts.mode === "private" ? "Console" : "Manage team"}</a>${active && opts.mode !== "private" ? '<a href="/join">Try the playground</a>' : ""}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
+  const menu =
+    opts.mode === "private"
+      ? `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation"><a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>${active ? '<a href="/connect">Assistant setup</a><a href="/account">My account</a>' : ""}<a href="/console">Console</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`
+      : `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${active ? '<a href="/#how">How it works</a><a href="/connect">Assistant setup</a><a href="/account">My account</a>' : ""}<a href="/console">Manage team</a><a href="/#install">Private server</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
   if (opts.mode === "private") {
     // A private install: its own Connect page and console, and where to read about Handoff.
     return `<a href="#main" class="skip-link">Skip to content</a>
@@ -80,26 +83,27 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: {
       ${menu}
     </nav></header>`;
   }
-  // The control center: the homepage is the brand link; Connect and the playground only once it has an admin.
+  // The hosted service: the homepage is the brand link. "Get started" once sign-up is open, else "Install".
   return `<a href="#main" class="skip-link">Skip to content</a>
   <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff home">${BRAND_ICON}<span>Handoff</span></a>
     <nav class="page-nav" aria-label="Handoff">
-      ${active ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}
+      ${active ? `<a class="nav-link nav-secondary" href="/#how">How it works</a><a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}
       <a class="nav-link nav-secondary" href="/console">Manage team</a>
       <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
-      ${active ? `<a class="site-button nav-secondary" href="/join">Try the playground</a>` : ""}
       ${menu}
-      <a class="site-button primary" href="/#install"><span class="deploy-label-long">Install Handoff</span><span class="deploy-label-short">Install</span></a>
+      ${active ? `<a class="site-button primary" href="/join"><span class="deploy-label-long">Get started free</span><span class="deploy-label-short">Get started</span></a>` : `<a class="site-button primary" href="/#install"><span class="deploy-label-long">Install Handoff</span><span class="deploy-label-short">Install</span></a>`}
     </nav></header>`;
 }
 
 export function pageFooter(opts: { active?: boolean; mode?: "private" | "control" } = {}): string {
   const active = opts.active ?? true;
-  // A private install's "/" is its Connect page, so it links to the control center for the rest.
-  const links =
-    opts.mode === "private"
-      ? `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>${active ? '<a href="/connect">Assistant setup</a>' : ""}<a href="/console">Console</a>`
-      : `<a href="/">Home</a>${active ? '<a href="/join">Try the playground</a><a href="/connect">Assistant setup</a>' : ""}<a href="/console">Manage team</a>`;
-  return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
-    <nav aria-label="Footer">${links}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${opts.mode === "private" ? INSTALL_URL : "/#install"}">Install Handoff</a></nav></footer>`;
+  if (opts.mode === "private") {
+    // A private install's "/" is its Connect page, so it links to the hosted site for the rest.
+    const links = `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>${active ? '<a href="/connect">Assistant setup</a><a href="/account">My account</a>' : ""}<a href="/console">Console</a><a href="/privacy">Privacy</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${INSTALL_URL}">Install Handoff</a>`;
+    return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
+    <nav aria-label="Footer">${links}</nav></footer>`;
+  }
+  const links = `<a href="/">Home</a>${active ? '<a href="/join">Get started</a><a href="/connect">Assistant setup</a><a href="/account">My account</a>' : ""}<a href="/console">Manage team</a><a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/about">About</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
+  return `<footer class="site-footer site-width"><p>Handoff · Your notes and files, from your assistant to theirs.</p>
+    <nav aria-label="Footer">${links}</nav></footer>`;
 }

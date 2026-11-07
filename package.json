@@ -19,9 +19,10 @@
     "predev": "npm run assets",
     "pretest": "npm run assets",
     "predeploy": "npm run assets",
-    "deploy:playground": "wrangler d1 migrations apply DB --remote -c wrangler.playground.jsonc && wrangler deploy -c wrangler.playground.jsonc",
-    "predeploy:playground": "npm run assets",
+    "deploy:hosted": "wrangler d1 migrations apply DB --remote -c wrangler.hosted.jsonc && wrangler deploy -c wrangler.hosted.jsonc",
+    "predeploy:hosted": "npm run assets",
     "teardown": "node scripts/teardown.mjs",
+    "images": "npm run assets && node scripts/images.mjs",
     "video": "npm run assets && node scripts/demo-video/render.mjs"
   },
   "license": "MIT",

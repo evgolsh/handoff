@@ -13,7 +13,9 @@ import {
   parseAuthorizeParams,
   registerOAuthClient,
   registeredClient,
+  teamCreatedAuthorizePage,
 } from "./auth/builtin";
+import { createTeam } from "./domain/teams";
 import { HandoffError, redactSecrets } from "./domain/errors";
 import { HandoffService } from "./domain/service";
 import { D1Repository } from "./store/d1";
@@ -24,6 +26,8 @@ import { connectHeaders, connectPage } from "./http/connect";
 import { useCasesHeaders, useCasesPage } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
 import { accountRoutes } from "./http/account";
+import { agentRoutes, notFoundMarkdown } from "./http/agents";
+import { inviteRoutes } from "./http/invite";
 import { mcpCallsIn, recordMcpCalls } from "./store/telemetry";
 import { base64url } from "./domain/ids";
 import { recordEvent } from "./store/events";
@@ -90,6 +94,9 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
 
   const newNonce = () => base64url(crypto.getRandomValues(new Uint8Array(16)));
 
+  // llms.txt, the MCP server card, discovery catalogs, Markdown versions of the public pages (src/http/agents.ts).
+  app.route("/", agentRoutes());
+
   // Public home and Connect pages. A deployed instance is "active" once it has an admin (so members can sign in).
   const isActive = (c: { env: Env }) => hasAdmin(c.env.DB).then((yes) => yes, () => false);
   const home = async (c: { get: (k: "cfg") => Variables["cfg"]; env: Env }) => {
@@ -147,6 +154,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   app.get("/v1/update-check", (c) => receiveUpdateCheck(c.env, new URL(c.req.url)));
   app.route("/", consoleRoutes());
   app.route("/", accountRoutes());
+  app.route("/", inviteRoutes());
 
   // This Worker is its own OAuth 2.1 authorization server (src/auth/builtin.ts): RFC 8414 metadata, RFC 7591
   // registration, the sign-in and consent page, and the PKCE token exchange. Members sign in with a handle and code.
@@ -155,7 +163,25 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
     const client = await registeredClient(c.env.DB, params.client_id, params.redirect_uri);
     return new Response(builtinAuthorizePage(c.get("cfg"), params, client), { headers: authorizeHeaders() });
   });
-  app.post("/authorize", async (c) => handleAuthorizeSubmission(c.env.DB, c.get("cfg"), await readFormOrJson(c.req.raw)));
+  app.post("/authorize", async (c) => {
+    const cfg = c.get("cfg");
+    const form = await readFormOrJson(c.req.raw);
+    // The hosted service: "Create a team" on the sign-in page. The new access code is shown once, then the
+    // person continues with the same OAuth request.
+    if (form.action === "create_team" && cfg.mode === "control") {
+      const params = parseAuthorizeParams(form);
+      const client = await registeredClient(c.env.DB, params.client_id, params.redirect_uri);
+      if (!client || params.response_type !== "code" || params.code_challenge_method !== "S256" || !params.code_challenge) {
+        return handleAuthorizeSubmission(c.env.DB, cfg, form);
+      }
+      const made = await createTeam(c.env.DB, cfg, form.team ?? "", form.handle ?? "", c.req.header("cf-connecting-ip"));
+      const page = made.ok
+        ? teamCreatedAuthorizePage(cfg, params, client, made.team, made.handle, made.code)
+        : builtinAuthorizePage(cfg, params, client, undefined, { error: made.error, team: made.team, handle: made.handle });
+      return new Response(page, { status: made.ok ? 200 : made.status, headers: authorizeHeaders() });
+    }
+    return handleAuthorizeSubmission(c.env.DB, cfg, form);
+  });
   app.get("/.well-known/oauth-authorization-server", (c) => c.json(authorizationServerMetadata(c.get("cfg"))));
   app.get("/.well-known/openid-configuration", (c) => c.json(authorizationServerMetadata(c.get("cfg"))));
   app.get("/.well-known/jwks.json", async (c) => c.json(await builtinJwks(c.env.DB, c.get("cfg"))));
@@ -185,7 +211,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
     const started = Date.now();
     // Which tools were called (names only), so the console can show activity. Read from a copy of the body.
     const calls = c.req.method === "POST" ? await mcpCallsIn(c.req.raw.clone()) : [];
-    const server = buildMcpServer(c.get("service"), principal);
+    const server = buildMcpServer(c.get("service"), principal, c.env.DB);
     const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     await server.connect(transport);
     try {
@@ -215,6 +241,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
       const res = await c.env.ASSETS.fetch(c.req.raw);
       if (res.status !== 404) return res;
     }
+    if ((c.req.header("accept") ?? "").includes("text/markdown")) return notFoundMarkdown(c.get("cfg"));
     return c.json({ error: "not_found", message: "no such route" }, 404);
   });
   return app;

@@ -32,8 +32,10 @@ curl -s http://localhost:8787/mcp -H 'authorization: Bearer dev-alice' \
 - `src/domain/service.ts`: packets, idempotency, attachments, imports, tickets, cleanup. No HTTP or MCP here.
 - `src/store/`: the `Repository` and `BlobStore` contracts, with the D1, KV and R2 implementations. `blobStore(env)` picks the adapter `FILE_STORE` names (kv or r2); unset, R2 when a bucket is bound, else KV. A new store is one adapter and one entry in that table.
 - `src/http/routes.ts`: upload and download endpoints. `src/http/connect.ts`: the Connect page.
+- `src/http/agents.ts`: what agents read: `/llms.txt`, the MCP server card, the `/.well-known` catalogs and agent skill, Markdown versions of the public pages, `robots.txt`, the sitemap, `/privacy` and `/about`. `src/http/meta.ts`: the head tags and Link headers that point to them.
+- `src/domain/teams.ts` and `src/domain/invites.ts`: creating a team on the hosted service (from `/join` or the sign-in page) and invitation links (`handoff_invite`, `/invite/<token>`, `src/http/invite.ts`).
 - `src/console/`: the operators' console at `/console` (`docs/CONSOLE.md`). `src/store/events.ts` and `src/store/telemetry.ts`: what it reads (events, revocations); `src/cleanup.ts`: the hourly cleanup.
-- `src/mcp/server.ts`: the five tools and the server instructions.
+- `src/mcp/server.ts`: the six tools and the server instructions.
 - `migrations/`: the D1 schema, one file; a schema change is a new numbered file after it.
 - `plugin/`: the OpenAI plugin package.
 - `test/`: the suite. `test/fixtures/test-private-jwk.json` is a test-only signing key: the tests pass it as
@@ -49,6 +51,10 @@ const priv = await exportJWK(privateKey);
 Object.assign(priv, { kid: "test-key-1", alg: "ES256" });
 writeFileSync("test/fixtures/test-private-jwk.json", JSON.stringify(priv, null, 2));'
 ```
+
+## Preview image and icon
+
+`npm run images` renders `docs/og.png` (1200x630, the link preview) and `docs/icon.png` (512x512, for the MCP server card and directory listings) with headless Chrome. `npm run assets` copies them to `public/img`. Re-render after changing the headline or the brand icon.
 
 ## Demo video
 

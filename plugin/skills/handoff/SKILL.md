@@ -1,11 +1,11 @@
 ---
 name: handoff
-description: Hand the current work to the user's other AI assistant, computer, or teammate ("hand this off", or when the next step must run on another machine), or pick up work sent from another assistant ("continue my handoff"). Uses the Handoff tools handoff_send, handoff_inbox, handoff_read, handoff_upload_url and handoff_revoke.
+description: Hand the current work, with files, to someone else's AI assistant (a partner, family member or teammate) or to the user's own other assistant or computer ("hand this off to anna", or when the next step must run on another machine); pick up work someone sent ("continue the handoff from joe"); or invite a person to the user's Handoff team ("invite anna to Handoff"). Uses the Handoff tools handoff_send, handoff_inbox, handoff_read, handoff_upload_url, handoff_revoke and handoff_invite.
 ---
 
 # Handoff
 
-Handoff moves a prepared brief, with original attachments, between the user's own AI assistants or to a teammate's assistant on the same private Handoff server.
+Handoff moves a prepared brief, with original attachments, to another person's AI assistant in the same Handoff team (a partner, family member or teammate) or between the user's own assistants. Teams are on the free hosted service at handoff.infraworks.net or on a private Handoff server.
 There is no transcript export and no background sync.
 
 ## "Hand this off"
@@ -49,8 +49,18 @@ Trigger: the user asks to continue, pick up, or resume work from another assista
    - PDF and large files return a short-lived `download_url` plus a sha256; fetch it with your file tools and verify the checksum.
 4. Do the next step the brief asks for. Do not stop at "I have read the handoff". If a fact is missing, say so and ask; do not fill it in.
 
+## "Invite anna to Handoff"
+
+Trigger: the user wants to hand off to someone who is not in their Handoff team yet, or asks to add or invite a person.
+
+1. Call `handoff_invite` with the person's `username` (lowercase, such as `"anna"`). Only a team admin can invite; the person who created the team is its admin.
+2. Give the user the returned `invite_url` to send to that person by message or email. It works once and expires on `expires_at` (7 days).
+3. Tell the user what the person does: open the link, select the button to get their access code, connect their own assistant, and say "Continue the handoff from <user>". You can send the handoff right away; it waits in their inbox.
+
+If `new_member` is false, the username already existed: the link gives that person a new access code, and their old one stops working once they use it.
+
 ## Notes
 
 - `handoff_inbox` and `handoff_read` change nothing: reading does not consume or mark a packet.
 - `handoff_revoke` hides a packet and stops downloads. It cannot recall content already read.
-- Packets expire (default 30 days). Download URLs are valid for 10 minutes.
+- Packets expire: by default after 7 days on the hosted service and 30 days on a private server. `handoff_send` returns the expiry. Download URLs are valid for 10 minutes.

@@ -3,8 +3,8 @@
 `PUBLIC_URL/console` is the admin console: server-rendered pages, with small scripts for assistant setup and copying sign-in details. It replaced the first admin
 console at `/admin` (2026-10-26), which now redirects here. Code: `src/console/`.
 
-A private install has Overview, Connect an assistant, Members, Assistants and Ops. On the control center (`HANDOFF_MODE=control`,
-the shared playground), a team admin has Your team, Connect an assistant, Members and Connections, all limited to that team. The
+A private install has Overview, Connect an assistant, Members, Assistants and Ops. On the hosted service (`HANDOFF_MODE=control`,
+handoff.infraworks.net), a team admin has Your team, Connect an assistant, Members and Connections, all limited to that team. The
 operator has Overview and Ops for the whole deployment, Tenants for every team, and Members and Assistants
 for the accounts without a team.
 
@@ -20,8 +20,8 @@ npm run admin -- tim              # grant (the member must exist: npm run member
 npm run admin -- tim --revoke     # revoke; ends that admin's console sessions
 ```
 
-On the control center add `--playground` (it uses `wrangler.playground.jsonc`). A lost operator code:
-`npm run member:add -- <username> --playground` prints a new one.
+On the hosted service add `--hosted` (it uses `wrangler.hosted.jsonc`). A lost operator code:
+`npm run member:add -- <username> --hosted` prints a new one.
 
 `npm run setup` (scripts/deploy.mjs) makes the first member it seeds an admin. A server deployed with the
 Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SETUP_CODE` secret and a username

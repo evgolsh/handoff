@@ -65,7 +65,7 @@ describe("bearer token checks on /mcp", () => {
     const { status, body } = await rpc(await alice(), "tools/list");
     expect(status).toBe(200);
     expect(body.result.tools.map((t: any) => t.name).sort()).toEqual(
-      ["handoff_inbox", "handoff_read", "handoff_revoke", "handoff_send", "handoff_upload_url"].sort(),
+      ["handoff_inbox", "handoff_invite", "handoff_read", "handoff_revoke", "handoff_send", "handoff_upload_url"].sort(),
     );
   });
 

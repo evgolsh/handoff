@@ -298,7 +298,7 @@ export function shell(page: Page, v: Viewer, title: string, body: Html, enhancem
     </div>
   </nav>
   <main>
-${v.control ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Playground operator"}</div>\n` : ""}${body}
+${v.control ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Hosted service operator"}</div>\n` : ""}${body}
   </main>
 </div>`, enhancement,
   );

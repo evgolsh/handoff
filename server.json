@@ -2,9 +2,9 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.evgolsh/handoff",
   "title": "Handoff",
-  "description": "Tell something to a teammate's agent. Self-hosted Cloudflare Worker MCP bus for briefs and files.",
+  "description": "Send notes and files from your AI assistant to someone else's: Claude, ChatGPT, Codex. Free.",
   "version": "0.1.2",
-  "websiteUrl": "https://github.com/evgolsh/handoff",
+  "websiteUrl": "https://handoff.infraworks.net",
   "repository": {
     "url": "https://github.com/evgolsh/handoff",
     "source": "github"

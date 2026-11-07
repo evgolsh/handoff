@@ -4,21 +4,22 @@
  * out every assistant of that member at once (they sign in again with the new code).
  * The console (/console, Members) does the same from a browser.
  * Usage:
- *   npm run member:add -- <username> [access_code] [--local | --playground]
- * --playground runs it on the control center (wrangler.playground.jsonc), for example to reset the operator's code.
+ *   npm run member:add -- <username> [access_code] [--local | --hosted]
+ * --hosted runs it on the hosted service (wrangler.hosted.jsonc), for example to reset the operator's code.
+ * --playground is the old name of --hosted.
  */
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const isLocal = args.includes("--local");
-const config = args.includes("--playground") ? ["-c", "wrangler.playground.jsonc"] : [];
+const config = args.includes("--hosted") || args.includes("--playground") ? ["-c", "wrangler.hosted.jsonc"] : [];
 const positional = args.filter((a) => !a.startsWith("-"));
 const rawHandle = (positional[0] ?? "").trim().toLowerCase();
 
 // "team" and "all" address every member in handoff_send (src/auth/builtin.ts RESERVED_HANDLES).
 if (!rawHandle || !/^[a-z0-9][a-z0-9._-]{0,62}$/.test(rawHandle) || ["team", "all"].includes(rawHandle)) {
-  console.error("Usage: npm run member:add -- <username> [access_code] [--local | --playground]   (team and all are reserved)");
+  console.error("Usage: npm run member:add -- <username> [access_code] [--local | --hosted]   (team and all are reserved)");
   console.error("Example: npm run member:add -- tom");
   process.exit(1);
 }

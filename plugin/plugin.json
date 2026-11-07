@@ -2,20 +2,32 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "handoff",
   "version": "0.1.2",
-  "description": "Plan in one AI. Build in another. Sends a prepared brief with original attachments to your other assistant.",
-  "author": { "name": "Eugene Olshenbaum" },
+  "description": "Send notes and the original files from your AI assistant to someone else's: Claude, ChatGPT, Codex, Claude Code. Free hosted, or your own private server.",
+  "author": {
+    "name": "Eugene Olshenbaum"
+  },
   "license": "MIT",
-  "keywords": ["handoff", "context", "continuation", "mcp"],
+  "keywords": [
+    "handoff",
+    "mcp",
+    "file-sharing",
+    "family",
+    "teams",
+    "context"
+  ],
   "extensions": {
     "com.openai": {
       "interface": {
         "displayName": "Handoff",
-        "shortDescription": "Hand work to another AI assistant with a brief and the original files.",
-        "longDescription": "Say \"hand this off\" and your assistant writes a brief (purpose, decisions and reasons, constraints, next step, references, open questions), attaches the files you choose, and stores it privately for you. In your other assistant say \"continue my handoff\" to read it and keep going. Same person, your own account, no transcript export.",
+        "shortDescription": "Send notes and files to someone else's AI assistant.",
+        "longDescription": "Say \"hand this off to anna\" and your assistant writes a brief (purpose, decisions and reasons, constraints, next step, references, open questions), attaches the files you choose, and sends it to anna's Handoff inbox. In her own assistant, Claude or ChatGPT, she says \"continue the handoff from joe\" and keeps going with the original files. Invite her with \"invite anna to Handoff\". Also works between your own assistants and computers. Free, with no AI inside.",
         "developerName": "Eugene Olshenbaum",
         "category": "Productivity",
-        "capabilities": ["read", "write"],
-        "defaultPrompt": "Continue my handoff",
+        "capabilities": [
+          "read",
+          "write"
+        ],
+        "defaultPrompt": "Continue the handoff",
         "brandColor": "#1b1b1a",
         "composerIcon": "./assets/icon.svg",
         "logo": "./assets/icon.svg"

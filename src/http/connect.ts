@@ -3,6 +3,7 @@ import { CONTROL_CENTER_URL, type Config } from "../env";
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "./style";
 import { INSTALL_URL, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
 import { CLAUDE_ICON, GITHUB_ICON, HERMES_MASK, OPENAI_ICON } from "./assistant-icons";
+import { claudeInstallLink, discoveryHead, socialMeta } from "./meta";
 
 /**
  * The Connect page: how to add Handoff to each assistant. Steps are only those that the host documents or
@@ -14,7 +15,7 @@ const esc = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 /** A step is plain text with `code` spans, optionally followed by a command to copy. */
-interface Step {
+export interface Step {
   text: string;
   command?: string;
 }
@@ -24,14 +25,14 @@ interface Step {
  * partial: some of it was tested (another route, or only the sign-in); the status says what.
  * docs: the host's own documentation, not yet tried with Handoff.
  */
-type Level = "tested" | "partial" | "docs";
+export type Level = "tested" | "partial" | "docs";
 const LEGEND: Record<Level, string> = {
   tested: "Tested: sign-in and sending worked with Handoff.",
   partial: "Partly tested: the guide says which part.",
   docs: "From the assistant’s documentation.",
 };
 
-interface Host {
+export interface Host {
   id: string;
   name: string;
   level: Level;
@@ -47,7 +48,8 @@ interface Host {
   source: { label: string; url: string };
 }
 
-function hosts(url: string, control = false): Host[] {
+/** Each assistant's setup steps. Also rendered as Markdown for agents (src/http/agents.ts). */
+export function hosts(url: string, control = false): Host[] {
   const signIn = control ? "your team, username and access code" : "your username and access code";
   const host = new URL(url).host;
   return [
@@ -86,9 +88,8 @@ function hosts(url: string, control = false): Host[] {
       status:
         "Claude on the web, in the desktop app and in Cowork. Add it once: the connector follows your Claude account to every computer. Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below).",
       steps: [
-        { text: "Open [Customize > Connectors](https://claude.ai/customize/connectors)." },
-        { text: "Select **+ Add**, then **Add custom connector**." },
-        { text: "Name it Handoff, paste the server address, and select **Continue**." },
+        { text: `Open [Add Handoff to Claude](${claudeInstallLink(url)}): Claude's custom connector form opens with the name and server address filled in. Or open [Customize > Connectors](https://claude.ai/customize/connectors), select **+ Add**, then **Add custom connector**.` },
+        { text: "Check that the name is Handoff and the server address is the one above, and select **Continue**." },
         { text: "Keep the recommended sign-in settings and select **Add**." },
         { text: `Select **Connect**, sign in with ${signIn}, and approve access.` },
       ],
@@ -482,6 +483,8 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Connect Handoff</title>
 <meta name="description" content="Add Handoff to Claude, Codex and ChatGPT, then move work between them.">
+<link rel="canonical" href="${esc(cfg.publicUrl)}/connect">
+${discoveryHead(cfg, "/connect")}${socialMeta(cfg, "Connect an assistant to Handoff", "Add Handoff to Claude, ChatGPT, Codex, Claude Code or Hermes, then hand work to someone else's assistant.", "/connect")}
 <script nonce="${nonce}">document.documentElement.classList.add("js");</script>
 ${FAVICON_LINK}
 ${FONT_PRELOAD}

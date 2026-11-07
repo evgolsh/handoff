@@ -4,7 +4,7 @@ Local plugin package with the Handoff skill and the deployed MCP endpoint in `mc
 It contains no credential. If deploying another instance, change that endpoint before installing.
 
 Install the `plugin/` folder through a local Codex plugin marketplace, complete OAuth, and check
-that all five `handoff_*` tools appear. An already-running chat may need to be reopened before
+that all six `handoff_*` tools appear. An already-running chat may need to be reopened before
 it loads a newly installed plugin. See `../docs/DEPLOY.md` for the service setup.
 
 ## Install in Codex (the tested route)
@@ -32,7 +32,7 @@ codex plugin marketplace add ~      # the folder that holds .agents/plugins/mark
 codex plugin add handoff@acme-local # <plugin name>@<marketplace name>
 ```
 
-Then start a new Codex chat, sign in with your username and access code, and check that the five
+Then start a new Codex chat, sign in with your username and access code, and check that the six
 tools appear. After a package change, raise the version in both manifests and install again.
 
 ## Codex compatibility

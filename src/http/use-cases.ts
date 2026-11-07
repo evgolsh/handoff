@@ -2,14 +2,19 @@ import { PRIVATE_DEFAULT_EXPIRY_HOURS, type Config } from "../env";
 import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FILE_ICON, FONT_PRELOAD } from "./style";
 import { DEPLOY_PATH, GITHUB_URL, PAGE_HEADER_CSS, pageFooter, pageHeader } from "./header";
 import { CLAUDE_ICON, GITHUB_ICON, OPENAI_ICON } from "./assistant-icons";
+import { discoveryHead, socialMeta } from "./meta";
+import { faq, homeJsonLd } from "./agents";
 
 const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
+/** Escapes, then turns [label](/path) into a link: the FAQ answers are shared with the Markdown homepage. */
+const linkify = (s: string): string => esc(s).replace(/\[([^\]]+)\]\(((?:https:\/\/|\/)[^)\s]*)\)/g, '<a href="$2">$1</a>');
+
 const USE_CASES = [
   { id:"household-last-mile", label:"Family & household", title:"Your partner finishes the paperwork.",
-    description:"Sort out the details in Cowork, then send your partner the notes and the PDFs. They finish in ChatGPT on their own computer.",
-    send:"Hand this off to tom with the Q3 summary. He needs to check two invoices and draft the client reply.",
-    receive:"Pick up the handoff from tim.", files:["vat-q3-summary.pdf", "flagged-invoices.md"] },
+    description:"Sort out the details in Claude, then send your partner the notes and the PDFs. They finish in ChatGPT on their own phone or computer.",
+    send:"Hand this off to anna with the renewal offer. She’ll call the insurer tomorrow.",
+    receive:"Continue the handoff from joe.", files:["renewal-offer.pdf", "comparison.md"] },
   { id:"micro-team-relay", label:"Small teams", title:"A teammate starts with your decisions.",
     description:"Give a teammate the architecture, diagrams, and reasons behind the choices. Their coding assistant starts with the context you prepared.",
     send:"Hand this off to tom with auth-flow.png. Include the approaches we rejected and why.",
@@ -67,6 +72,15 @@ const PAGE_CSS = `
   .principles h2 { font-size:15px; font-weight:500; margin-bottom:6px; }
   .principles p { font-size:13px; color:var(--muted); max-width:36ch; }
   .section { padding-block:80px; }
+  .how-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; list-style:none; margin:0; padding:0; }
+  .how-grid li { min-width:0; padding:24px; border:1px solid var(--line); border-radius:8px; background:var(--panel); display:flex; flex-direction:column; gap:10px; }
+  .how-grid .how-n { font:500 11px var(--mono); color:var(--faint); }
+  .how-grid h3 { font-size:19px; font-weight:500; letter-spacing:-.02em; }
+  .how-grid p { font-size:14px; color:var(--muted); line-height:1.55; }
+  .how-grid a { font-size:14px; font-weight:500; text-decoration:none; margin-top:auto; padding-top:6px; }
+  .ask { margin-top:24px; display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr); gap:24px; align-items:center; padding:24px 28px; border:1px dashed var(--line); border-radius:8px; }
+  .ask h3 { font-size:17px; font-weight:500; } .ask p { font-size:13px; color:var(--muted); margin-top:6px; }
+  .ask blockquote { margin:0; padding-left:16px; border-left:2px solid var(--accent); font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
   .install-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
   .install-card { min-width:0; padding:28px; border:1px solid var(--line); border-radius:8px; background:var(--panel); display:flex; flex-direction:column; gap:12px; }
   .install-card h3 { font-size:22px; margin:0; }
@@ -81,11 +95,11 @@ const PAGE_CSS = `
   .install-steps li { margin-block:12px; }
   .install-steps strong { color:var(--ink); }
   .install-note { font-size:13px; color:var(--muted); margin-top:16px; }
-  @media(max-width:1180px) { .install-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .install-card:last-child { grid-column:1/-1; } }
-  @media(max-width:760px) { .install-grid { grid-template-columns:1fr; } .install-card { padding:20px; } }
+  @media(max-width:1180px) { .install-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .install-card:last-child { grid-column:1/-1; } .how-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media(max-width:760px) { .install-grid,.how-grid,.ask { grid-template-columns:1fr; } .install-card { padding:20px; } }
   .section-head { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:36px; }
   .section-head h2,.watch h2,.closing h2 { font-size:clamp(30px,3vw,44px); font-weight:500; letter-spacing:-.04em; line-height:1.15; max-width:22ch; margin-top:12px; text-wrap:balance; }
-  .section-head > p { font-size:14px; color:var(--muted); max-width:33ch; }
+  .section-head > p { font-size:14px; color:var(--muted); max-width:36ch; }
   .cases { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
   .case { min-width:0; padding:32px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }
   .case-number { color:var(--faint); margin-right:12px; }
@@ -100,6 +114,12 @@ const PAGE_CSS = `
   .exchange .pickup { margin:18px 0 0; border-top:1px solid var(--line-soft); padding-top:14px; }
   .pickup p { margin-top:6px; font-size:14px; }
   .examples-note { margin-top:20px; font-size:12px; color:var(--muted); }
+  .faq { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 48px; }
+  .faq div { padding:20px 0; border-top:1px solid var(--line); }
+  .faq h3 { font-size:16px; font-weight:500; margin-bottom:8px; }
+  .faq p { font-size:14px; color:var(--muted); line-height:1.6; max-width:60ch; }
+  .faq a { text-decoration:underline; text-underline-offset:3px; }
+  @media(max-width:760px) { .faq { grid-template-columns:1fr; } }
   .watch { display:grid; grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr); gap:60px; align-items:center; padding-block:64px; border-block:1px solid var(--line); }
   .watch-copy > p:last-child { margin-top:20px; max-width:37ch; font-size:15px; color:var(--muted); }
   .video-frame { margin:0; min-width:0; }
@@ -152,59 +172,79 @@ function renderCase(c: (typeof USE_CASES)[number], i: number): string {
     </div></article>`;
 }
 
-const FACTS = "Runs on your own Cloudflare account, on the free plan. It makes no AI calls and needs no API keys.";
-const CLOSING_FACTS = "On your Cloudflare account, on the free plan, with no card. MIT licensed.";
+const days = (hours: number) => `${Math.round(hours / 24)} days`;
 
+/** The homepage, served by the hosted service only (a private install sends "/" to /connect). */
 export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): string {
   const active = opts.active ?? true;
-  const playground = cfg.mode === "control" && active;
-  const heroActions = playground
-    ? `<a class="site-button primary" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button" href="/join">Try the playground <span aria-hidden="true">↗</span></a><a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>`
-    : active
-    ? `<a class="site-button primary" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="text-link" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a>`
+  // Sign-up works once the hosted service has its operator. Before that, the page offers only a private server.
+  const open = cfg.mode === "control" && active;
+  const mib = Math.round(cfg.maxAttachmentBytes / 1048576);
+  const heroActions = open
+    ? `<a class="site-button primary" href="/join">Get started free <span aria-hidden="true">→</span></a><a class="site-button" href="/connect">Connect an assistant <span aria-hidden="true">↗</span></a><a class="text-link" href="#install">Run your own server <span aria-hidden="true">↓</span></a>`
     : `<a class="site-button primary" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>View on GitHub</span> <span aria-hidden="true">↗</span></a><a class="text-link" href="#use-cases">Explore the use cases <span aria-hidden="true">↓</span></a>`;
-  const heroNote = playground
-    ? `<p class="hero-note"><span aria-hidden="true"></span>${FACTS} Already on the playground? <a href="/connect">Connect your assistants ↗</a></p>`
-    : active
-    ? `<p class="hero-note"><span aria-hidden="true"></span>${FACTS} <a href="#use-cases">Explore the use cases ↓</a></p>`
-    : `<p class="hero-note"><span aria-hidden="true"></span>${FACTS} Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
-  const examplesLink = active
-    ? `<a href="/connect">Setup for each assistant ↗</a>`
-    : `<a href="#install">Install your own on Cloudflare ↓</a>`;
-  const expiry = `Handoffs expire after ${PRIVATE_DEFAULT_EXPIRY_HOURS / 24} days by default on your own install${cfg.mode === "control" ? `, ${cfg.defaultExpiryHours} hours on the playground` : ""}. You can revoke a handoff before then.`;
-  const ownership = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs on your account</p><h2 id="ownership-title">Handoff is storage with a sign-in.</h2></div>
-    <dl><div><dt>No AI inside</dt><dd>Handoff makes no model calls. No token bill, and no API key to create or paste.</dd></div><div><dt>Five MCP tools</dt><dd>Send, inbox, read, revoke, and a link for uploading files. Each person signs in with a username and access code.</dd></div><div><dt>Storage</dt><dd>Briefs in D1, files in Workers KV. ${expiry}</dd></div><div><dt>Free plan</dt><dd>100,000 requests and 1,000 new files a day, and 1 GB of stored files. No card. Handoff has no paid tier.</dd></div><div><dt>Update check</dt><dd>Once a day: a random id, the version and rough counts, nothing else. <code>HANDOFF_UPDATE_CHECK=off</code> turns it off.</dd></div></dl>
-  </section>`;
-  const example = `<div class="chat"><div class="chat-app"><b class="app">${CLAUDE_ICON}Cowork</b><span>tim</span></div>
-        <p class="msg-user">Hand this off to tom. He’ll finish the VAT reply.</p>
-        <p class="tool-step">${BRAND_ICON}<span>Send a handoff</span><b>Q3 VAT for the bakery</b></p>
-        <p class="msg-assistant">Sent to tom with both files.</p>
-        ${fileTags(["vat-q3-summary.pdf", "flagged-invoices.md"], "Example original files")}
+  const heroNote = open
+    ? `<p class="hero-note"><span aria-hidden="true"></span>Free. No AI inside: Handoff makes no model calls and needs no API keys. Already in a team? <a href="/connect">Connect your assistant ↗</a></p>`
+    : `<p class="hero-note"><span aria-hidden="true"></span>Runs on your own Cloudflare account, on the free plan. It makes no AI calls and needs no API keys. Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
+  const example = `<div class="chat"><div class="chat-app"><b class="app">${CLAUDE_ICON}Claude</b><span>joe</span></div>
+        <p class="msg-user">Hand this off to anna. She’ll call the insurer tomorrow.</p>
+        <p class="tool-step">${BRAND_ICON}<span>Send a handoff</span><b>Car insurance renewal</b></p>
+        <p class="msg-assistant">Sent to anna with both files.</p>
+        ${fileTags(["renewal-offer.pdf", "comparison.md"], "Example original files")}
       </div>
       <div class="handoff-path" aria-hidden="true"><i></i> BRIEF + ORIGINAL FILES <span>↓</span><i></i></div>
-      <div class="chat"><div class="chat-app"><b class="app">${OPENAI_ICON}ChatGPT</b><span>tom</span></div>
-        <p class="msg-user">Continue the handoff from tim.</p>
-        <p class="tool-step">${BRAND_ICON}<span>Read a handoff</span><b>Q3 VAT for the bakery, 2 files</b></p>
-        <p class="msg-assistant">The brief says to fix the two flagged invoices separately. I’ll check their dates in <code>vat-q3-summary.pdf</code> first, then draft the reply.</p>
+      <div class="chat"><div class="chat-app"><b class="app">${OPENAI_ICON}ChatGPT</b><span>anna</span></div>
+        <p class="msg-user">Continue the handoff from joe.</p>
+        <p class="tool-step">${BRAND_ICON}<span>Read a handoff</span><b>Car insurance renewal, 2 files</b></p>
+        <p class="msg-assistant">Joe prefers the second offer, but wants the current insurer to match it first. I’ll take the prices from <code>renewal-offer.pdf</code> and write what to say on the call.</p>
       </div>`;
-  const closing = playground
-    ? `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>${CLOSING_FACTS}</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="/join">Try the playground <span aria-hidden="true">↗</span></a></div></section>`
-    : active
-    ? `<section class="closing" aria-label="Connect to Handoff"><div><h2>Keep the work moving.</h2><p>Plan in one AI. Build in another.</p></div><div class="closing-actions"><a class="site-button" href="/connect">Connect your assistants <span aria-hidden="true">↗</span></a><a class="site-button ghost" href="#install"><span>Install your own</span> <span aria-hidden="true">↓</span></a></div></section>`
-    : `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>${CLOSING_FACTS}</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a></div></section>`;
+  const how = open
+    ? `<section id="how" class="section" aria-labelledby="how-title">
+    <div class="section-head"><div><p class="eyebrow">How it works</p><h2 id="how-title">A team, its people, and their files.</h2></div><p>Set up once in about five minutes. After that, you only ask your assistant.</p></div>
+    <ol class="how-grid">
+      <li><span class="how-n">01</span><h3>Create a team</h3><p>A team name and your username. Free, for up to ${cfg.tenantMembersCap} people.</p><a href="/join">Create a team →</a></li>
+      <li><span class="how-n">02</span><h3>Add your partner</h3><p>Ask your assistant “invite anna to Handoff” and send her the link it gives you. Or add her in Manage team.</p><a href="/console">Manage team →</a></li>
+      <li><span class="how-n">03</span><h3>Connect your assistants</h3><p>Each person adds Handoff to the assistant they already use: Claude, ChatGPT, Codex, Claude Code or Hermes.</p><a href="/connect">Assistant setup →</a></li>
+      <li><span class="how-n">04</span><h3>Hand off</h3><p>“Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.” A file on your phone? Upload it in My account.</p><a href="/account">My account →</a></li>
+    </ol>
+    <div class="ask"><div><h3>Or let your assistant walk you through it.</h3><p>Claude and ChatGPT can read Handoff’s guide for assistants and take you through each step.</p></div>
+      <blockquote>Set up Handoff so I can send files and instructions to my wife’s assistant. Read ${esc(cfg.publicUrl.replace(/^https?:\/\//, ""))}/llms.txt</blockquote></div>
+  </section>`
+    : "";
+  const questions = open
+    ? `<section id="faq" class="section" aria-labelledby="faq-title">
+    <div class="section-head"><div><p class="eyebrow">Questions</p><h2 id="faq-title">What people ask first.</h2></div></div>
+    <div class="faq">${faq(cfg)
+      .map((x) => `<div><h3>${esc(x.q)}</h3><p>${linkify(x.a)}</p></div>`)
+      .join("")}</div>
+  </section>`
+    : "";
+  const privateHead = open
+    ? `<div class="section-head"><div><p class="eyebrow">For small teams</p><h2 id="install-title">Your own private server.</h2></div><p>The same Handoff on your team’s Cloudflare account, on the free plan with no card. Only your members can sign in, and nothing leaves your account.</p></div>`
+    : `<div class="section-head"><div><p class="eyebrow">Install</p><h2 id="install-title">Install it once for your whole team.</h2></div><p>It runs on Workers, D1 and KV in your Cloudflare account, on the free plan with no card. Teammates only sign in.</p></div>`;
+  const ownership = `<section class="ownership" aria-labelledby="ownership-title"><div><p class="eyebrow">What runs where</p><h2 id="ownership-title">Handoff is storage with a sign-in.</h2></div>
+    <dl><div><dt>No AI inside</dt><dd>Handoff makes no model calls. No token bill, and no API key to create or paste.</dd></div><div><dt>Six MCP tools</dt><dd>Send, inbox, read, revoke, invite, and a link for uploading files. Each person signs in with a username and access code.</dd></div>${open ? `<div><dt>Hosted</dt><dd>Free. Files up to ${mib} MiB. Handoffs are deleted after ${days(cfg.defaultExpiryHours)} by default, ${days(cfg.maxExpiryHours)} at most, and you can revoke one sooner. <a href="/privacy">Privacy</a></dd></div>` : ""}<div><dt>Private server</dt><dd>One Worker, a D1 database and a KV file store on your Cloudflare account: 100,000 requests and 1,000 new files a day on the free plan. Handoffs are kept ${days(PRIVATE_DEFAULT_EXPIRY_HOURS)} by default.</dd></div><div><dt>Update check</dt><dd>A private server checks for updates once a day: a random id, the version and rough counts, nothing else. <code>HANDOFF_UPDATE_CHECK=off</code> turns it off.</dd></div></dl>
+  </section>`;
+  const closing = open
+    ? `<section class="closing" aria-label="Get started"><div><h2>Hand off your first file today.</h2><p>Free on the hosted service, or on your own Cloudflare account. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="/join">Get started free <span aria-hidden="true">→</span></a><a class="site-button ghost" href="#install"><span>Run your own server</span> <span aria-hidden="true">↓</span></a></div></section>`
+    : `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>On your Cloudflare account, on the free plan, with no card. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a></div></section>`;
+  const description = "Hand your work to someone else’s AI assistant, with your notes and the original files. Claude to ChatGPT and back. Free, with no AI inside.";
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Handoff</title>
-<meta name="description" content="Hand your work to someone else’s AI assistant, with a brief and the original files. Open-source MCP server on your own Cloudflare free plan. No AI calls, no API keys.">
+<title>Handoff: send files and instructions to someone else’s AI assistant</title>
+<meta name="description" content="${esc(description)}">
+<meta name="keywords" content="MCP server, send files to another AI assistant, share Claude context with ChatGPT, AI assistant handoff">
 <link rel="canonical" href="${esc(cfg.publicUrl)}/">
+${discoveryHead(cfg, "/")}${socialMeta(cfg, "Handoff: hand your work to someone else’s assistant", description, "/")}
 ${FAVICON_LINK}${FONT_PRELOAD}
+${homeJsonLd(cfg)}
 <style>${BASE_CSS}${PAGE_HEADER_CSS}${PAGE_CSS}</style></head><body>
 ${pageHeader("use-cases", { active, mode: cfg.mode })}
 <main id="main" class="site-width">
   <section class="hero" aria-labelledby="hero-title">
-    <div><p class="eyebrow">Open-source MCP server</p>
+    <div><p class="eyebrow">${open ? "Free · Claude, ChatGPT and more" : "Open-source MCP server"}</p>
       <h1 id="hero-title">Hand your work to <span>someone else’s assistant.</span></h1>
-      <p class="hero-lead">You sort out the details in Claude. Your partner says “continue the handoff from tim” in ChatGPT and gets your notes and the original files.</p>
+      <p class="hero-lead">You sort out the details in Claude. Your partner says “continue the handoff from joe” in ChatGPT and gets your notes and the original files.</p>
       <div class="hero-actions">${heroActions}</div>
       ${heroNote}
     </div>
@@ -216,10 +256,23 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
   <section class="principles" aria-label="What travels with your work">
     <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. A file on your phone? Upload it in My account.</p></article>
     <article><h2>Their own assistant.</h2><p>Your partner can use ChatGPT while you use Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.</p></article>
-    <article><h2>Storage, not AI.</h2><p>Handoff keeps the brief and files and deletes them after 30 days. It makes no model calls and needs no API keys.</p></article>
+    <article><h2>Storage, not AI.</h2><p>Handoff keeps the brief and files and deletes them after ${days(open ? cfg.defaultExpiryHours : PRIVATE_DEFAULT_EXPIRY_HOURS)}. It makes no model calls and needs no API keys.</p></article>
   </section>
+  ${how}
+  <section id="use-cases" class="section" aria-labelledby="cases-title">
+    <div class="section-head"><div><p class="eyebrow">Use cases</p><h2 id="cases-title">What people hand off.</h2></div><p>To a partner, a teammate, or to yourself on another computer.</p></div>
+    <div class="cases">${USE_CASES.map(renderCase).join("\n")}</div>
+    <p class="examples-note">${active ? `<a href="/connect">Setup for each assistant ↗</a>` : `<a href="#install">Install your own on Cloudflare ↓</a>`}</p>
+  </section>
+  <section class="watch" id="walkthrough" aria-labelledby="watch-title">
+    <div class="watch-copy"><p class="eyebrow">Demo, 29 seconds</p><h2 id="watch-title">From install to the first handoff.</h2><p>tim installs his team’s own server and tom connects ChatGPT. tim hands off a brief and two files from Cowork on a Mac, and tom continues in ChatGPT on Windows.</p></div>
+    <figure class="video-frame"><video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
+      Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
+      </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
+  </section>
+  ${questions}
   <section id="install" class="section" aria-labelledby="install-title">
-    <div class="section-head"><div><p class="eyebrow">Install</p><h2 id="install-title">Install it once for your whole team.</h2></div><p>It runs on Workers, D1 and KV in your Cloudflare account, on the free plan with no card. Teammates only sign in.</p></div>
+    ${privateHead}
     <div class="install-grid">
       <article class="install-card"><h3>From your browser</h3><p>You need a <strong>Cloudflare account</strong> and a <strong>GitHub or GitLab account</strong>. Cloudflare copies the code there, creates the database and file store, and deploys your server.</p>
         <a class="deploy-button" href="${DEPLOY_PATH}" target="_blank" rel="noopener"><img src="/img/deploy-to-cloudflare.svg" width="184" height="39" alt="Deploy to Cloudflare"></a>
@@ -236,22 +289,11 @@ npm run setup -- --members=tim,tom</code></pre>
     </div>
     <ol class="install-steps">
       <li><strong>Sign in to your Handoff console.</strong> After a browser deploy, <code>/console/setup</code> creates your admin account and shows your access code once. After a terminal install, sign in at the printed <code>/console</code> URL with the access code setup printed. Save access codes privately.</li>
-      <li><strong>Add your teammates.</strong> After a browser deploy, or when adding more people later, create their usernames in Members and share each person’s access code privately. Teammates need no Cloudflare or GitHub account.</li>
+      <li><strong>Add your teammates.</strong> In Members, or by asking your assistant “invite tom to Handoff”. Each teammate gets a link with their username and access code. Teammates need no Cloudflare or GitHub account.</li>
       <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server. To upload a file from a phone or another folder, they sign in at <code>/account</code>.</li>
       <li><strong>Try a handoff.</strong> Say “Hand this off” in one assistant, then “Continue my handoff” in another. To send to your teammate, say “Hand this off to tom”.</li>
     </ol>
     <p class="install-note">From a terminal, a new Cloudflare account may need its <code>workers.dev</code> address registered first; setup links to the page. If the account already has a Worker named <code>handoff</code>, check it first: setup redeploys it. <a href="${GITHUB_URL}#install" target="_blank" rel="noopener">Full setup guide ↗</a></p>
-  </section>
-  <section id="use-cases" class="section" aria-labelledby="cases-title">
-    <div class="section-head"><div><p class="eyebrow">Use cases</p><h2 id="cases-title">What people hand off.</h2></div><p>To a partner, a teammate, or to yourself on another computer.</p></div>
-    <div class="cases">${USE_CASES.map(renderCase).join("\n")}</div>
-    <p class="examples-note">${examplesLink}</p>
-  </section>
-  <section class="watch" id="walkthrough" aria-labelledby="watch-title">
-    <div class="watch-copy"><p class="eyebrow">Demo, 29 seconds</p><h2 id="watch-title">From install to the first handoff.</h2><p>tim installs Handoff and tom connects ChatGPT. tim hands off a brief and two files from Cowork on a Mac, and tom continues in ChatGPT on Windows.</p></div>
-    <figure class="video-frame"><video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
-      Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
-      </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
   </section>
   ${ownership}
   ${closing}

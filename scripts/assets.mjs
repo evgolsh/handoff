@@ -27,6 +27,9 @@ if (existsSync("docs/handoff-demo.mp4")) {
 // because the pages' CSP allows images only from this origin.
 mkdirSync("public/img", { recursive: true });
 copyFileSync("docs/deploy-to-cloudflare.svg", "public/img/deploy-to-cloudflare.svg");
+// The link-preview image and the app icon (rendered by scripts/images.mjs).
+copyFileSync("docs/og.png", "public/img/og.png");
+copyFileSync("docs/icon.png", "public/img/icon.png");
 
 // Font file names carry no version, so cache them for a week rather than for ever.
 writeFileSync(

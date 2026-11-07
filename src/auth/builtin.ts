@@ -250,7 +250,14 @@ export function parseAuthorizeParams(input: URLSearchParams | Record<string, str
  * The sign-in and consent page. `client` is the known client whose redirect URI matches, or null: then there is
  * no form, because a code for an unknown client would go wherever the link says.
  */
-export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient | null, errorMsg?: string): string {
+/** What the "Create a team" form on the sign-in page sent back: an error and the values to keep. */
+export interface CreateTeamForm {
+  error?: string;
+  team?: string;
+  handle?: string;
+}
+
+export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient | null, errorMsg?: string, create: CreateTeamForm = {}): string {
   const hasOAuth = Boolean(params.client_id || params.redirect_uri);
   let returnsTo = "";
   try {
@@ -274,7 +281,7 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
         cfg.mode === "control"
           ? `<div class="field">
         <label for="team">Team</label>
-        <input id="team" name="team" type="text" autocomplete="organization" autocapitalize="none" spellcheck="false" autofocus placeholder="the team name from your sign-up">
+        <input id="team" name="team" type="text" autocomplete="organization" autocapitalize="none" spellcheck="false" autofocus placeholder="your team name">
       </div>`
           : ""
       }
@@ -288,7 +295,30 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
       </div>
       <button type="submit" class="btn">Sign in and allow</button>
     </form>
-    <p class="meta foot">${cfg.mode === "control" ? `Your team, username and access code come from your team's sign-up or its admin. No team yet? <a href="/join">Create one</a>.` : "Your access code comes from the person who runs this Handoff server."} Use the same username in each of your assistants.</p>`;
+    <p class="meta foot">${cfg.mode === "control" ? `Your team, username and access code come from creating a team or from the invitation you got. New to Handoff? <a href="#new-team">Create a team</a>.` : "Your access code comes from the person who runs this Handoff server."} Use the same username in each of your assistants.</p>`;
+  // The hosted service: a new person creates a team here and continues, without a separate sign-up page.
+  const newTeam =
+    cfg.mode === "control" && hasOAuth && client
+      ? `<div class="panel" id="new-team">
+    <h2>New to Handoff?</h2>
+    <p class="meta">Create a team for your family or a few colleagues. You become its admin and can invite the others from your assistant.</p>
+    ${create.error ? `<p class="err" role="alert">${esc(create.error)}</p>` : ""}
+    <form method="post" action="/authorize">
+      ${hidden}
+      <input type="hidden" name="action" value="create_team">
+      <div class="field">
+        <label for="new-team-name">Team or family name</label>
+        <input id="new-team-name" name="team" type="text" autocapitalize="none" spellcheck="false" required maxlength="32" placeholder="smiths" value="${esc(create.team ?? "")}"${create.error ? " autofocus" : ""}>
+      </div>
+      <div class="field">
+        <label for="new-team-handle">Your username</label>
+        <input id="new-team-handle" name="handle" type="text" autocapitalize="none" spellcheck="false" required maxlength="63" placeholder="joe" value="${esc(create.handle ?? "")}">
+      </div>
+      <button type="submit" class="btn ghost">Create team and continue</button>
+    </form>
+    <p class="meta foot">Free. Lowercase letters, digits and hyphens. <a href="/privacy" target="_blank" rel="noopener">Privacy</a></p>
+  </div>`
+      : "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -319,6 +349,14 @@ ${FONT_PRELOAD}
   .foot { margin: 16px 0 0; }
   .err { margin: 0 0 14px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--danger);
          color: var(--danger); font-size: 13px; }
+  .panel + .panel { margin-top: 16px; }
+  h2 { font-size: 15px; font-weight: 500; margin: 0 0 6px; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.ghost:hover { color: var(--ground); }
+  .ok { margin: 0 0 12px; color: var(--ok); font-size: 14px; }
+  .secret { font: 500 19px var(--mono); letter-spacing: .02em; user-select: all; -webkit-user-select: all; background: var(--ground);
+            border: 1px dashed var(--ink); border-radius: 6px; padding: 12px 14px; margin: 6px 0 16px; overflow-wrap: anywhere; }
+  dl.who { display: flex; gap: 24px; margin: 0 0 12px; font-size: 13px; } dl.who dt { color: var(--muted); } dl.who dd { margin: 0; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -329,9 +367,37 @@ ${FONT_PRELOAD}
     ${errorMsg ? `<p class="err" role="alert">${esc(errorMsg)}</p>` : ""}
     ${body}
   </div>
+  ${newTeam}
 </main>
 </body>
 </html>`;
+}
+
+/**
+ * After "Create a team" on the sign-in page: the new access code, shown once, and a button that signs in with it
+ * and returns to the assistant (the same POST as the sign-in form).
+ */
+export function teamCreatedAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient, team: string, handle: string, code: string): string {
+  const hidden = (["client_id", "redirect_uri", "response_type", "code_challenge", "code_challenge_method", "state", "scope"] as const)
+    .map((k) => `<input type="hidden" name="${k}" value="${esc(params[k])}">`)
+    .join("\n      ");
+  const page = builtinAuthorizePage(cfg, params, client);
+  const panel = `<div class="panel">
+    <p class="ok">✓ Team ${esc(team)} is ready. You are its admin.</p>
+    <dl class="who"><div><dt>Team</dt><dd>${esc(team)}</dd></div><div><dt>Username</dt><dd>${esc(handle)}</dd></div></dl>
+    <p class="meta">Your access code is shown only once. Save it in your password manager or notes: you need it to sign in from another assistant, and on My account.</p>
+    <div class="secret" aria-label="access code">${esc(code)}</div>
+    <form method="post" action="/authorize">
+      ${hidden}
+      <input type="hidden" name="team" value="${esc(team)}">
+      <input type="hidden" name="handle" value="${esc(handle)}">
+      <input type="hidden" name="access_code" value="${esc(code)}">
+      <button type="submit" class="btn">I saved it. Continue to ${esc(client.name)}</button>
+    </form>
+    <p class="meta foot">Next, invite the others: ask your assistant “invite anna to Handoff”.</p>
+  </div>`;
+  // The same page shell, with this panel in place of the sign-in and create forms.
+  return page.replace(/<div class="panel">[\s\S]*<\/main>/, `${panel}\n</main>`);
 }
 
 export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, form: Record<string, string>): Promise<Response> {

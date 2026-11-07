@@ -1,7 +1,7 @@
 {
   "name": "handoff",
   "version": "0.1.2",
-  "description": "Tell something to a teammate's agent. Plan in one AI, build in another — sends a prepared brief with original attachments across assistants and computers.",
+  "description": "Send notes and the original files from your AI assistant to someone else's: Claude, ChatGPT, Codex, Claude Code. Free hosted, or your own private server.",
   "mcpServers": {
     "handoff": {
       "httpUrl": "https://handoff.infraworks.net/mcp"
