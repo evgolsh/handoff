@@ -3,7 +3,7 @@ import { hashAccessCode, isValidHandle, newAccessCode, normalizeHandle } from ".
 import { nowIso, sha256Hex } from "../domain/ids";
 import { isValidTenant, qualify } from "../domain/tenant";
 import { CONSOLE_HEADERS, document, esc, flowHeader, flowProgress, interactiveHeaders, type Html } from "../console/html";
-import { loginAllowed, startSession } from "../console/session";
+import { CONSOLE_SESSIONS, loginAllowed, startSessions } from "../console/session";
 import { recordEvent } from "../store/events";
 import { COPY_SCRIPT } from "./clipboard";
 
@@ -51,7 +51,7 @@ export function joinedPage(team: string, handle: string, code: string, signedIn:
 export const joinHeaders = (nonce?: string): Record<string, string> => nonce ? interactiveHeaders(nonce) : { ...CONSOLE_HEADERS };
 
 /** Handles the sign-up form. Returns the page to show and its status. */
-export async function handleJoin(db: D1Database, cfg: Config, form: Record<string, string>, ip: string | undefined, nonce: string): Promise<{ status: number; body: Html; cookie?: string }> {
+export async function handleJoin(db: D1Database, cfg: Config, form: Record<string, string>, ip: string | undefined, nonce: string): Promise<{ status: number; body: Html; cookies?: string[] }> {
   const team = normalizeHandle(form.team ?? "");
   const handle = normalizeHandle(form.handle ?? "");
   const again = (error: string, status: number) => ({ status, body: joinPage(cfg, { error, team, handle }) });
@@ -78,11 +78,13 @@ export async function handleJoin(db: D1Database, cfg: Config, form: Record<strin
   }
   await recordEvent(db, { kind: "console", name: "join", subject: identity, outcome: "ok" });
   // The team is already saved. A session failure must not hide its one-time access code.
-  let cookie: string | null = null;
+  // One sign-in: the new admin gets both the console and the My account session.
+  let cookies: string[] = [];
   try {
-    cookie = await startSession(db, identity);
+    cookies = await startSessions(db, identity);
   } catch {
     // The team-specific login link also works when the browser still has an older session.
   }
-  return { status: 200, body: joinedPage(team, handle, code, cookie !== null, nonce, cfg.publicUrl), ...(cookie ? { cookie } : {}) };
+  const signedIn = cookies.some((c) => c.startsWith(`${CONSOLE_SESSIONS.cookie}=`));
+  return { status: 200, body: joinedPage(team, handle, code, signedIn, nonce, cfg.publicUrl), cookies };
 }

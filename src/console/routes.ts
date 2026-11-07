@@ -9,7 +9,7 @@ import { base64url, nowIso, sha256Hex } from "../domain/ids";
 import { recordEvent, revokeAccess } from "../store/events";
 import { CONSOLE_HEADERS, SETUP_CODE_MIN, esc, interactiveHeaders, loginPage, problemPage, setupDonePage, setupPage, type Html, type Viewer } from "./html";
 import { connectPage } from "../http/connect";
-import { cookieToken, csrfOk, endSession, loginAllowed, sameOrigin, sessionCookie, sessionFrom, startSession, type Session } from "./session";
+import { ACCOUNT_SESSIONS, cookieToken, csrfOk, endSessions, loginAllowed, redirectSetting, sameOrigin, sessionFrom, startSession, startSessions, type Session } from "./session";
 import { assistants, controlCenter, members, ops, overview, teamOverview } from "./stats";
 import { assistantsPage, codePage, confirmPage, membersPage, opsPage, overviewPage, teamOverviewPage, tenantsPage } from "./views";
 
@@ -120,8 +120,9 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
       return html(setupPage(true, `${handle} is already a member. Choose another username, or make ${handle} an admin with npm run admin -- ${handle}.`), 409);
     }
     await recordEvent(db, { kind: "console", name: "setup", subject: handle, outcome: "ok" });
-    const cookie = await startSession(db, handle);
-    return html(setupDonePage(handle, code), 200, cookie ? { "set-cookie": cookie } : {});
+    const res = html(setupDonePage(handle, code));
+    for (const cookie of await startSessions(db, handle)) res.headers.append("set-cookie", cookie);
+    return res;
   });
 
   app.post("/console/login", async (c) => {
@@ -137,13 +138,15 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const handle = identityFrom(c.get("cfg"), form.team, form.handle);
     const code = form.access_code ?? "";
     const valid = handle !== null && code.length > 0 && code.length <= 256 && (await verifyMemberCode(db, handle, code)) === handle;
-    const cookie = valid && handle ? await startSession(db, handle) : null;
-    if (!cookie) {
+    const consoleCookie = valid && handle ? await startSession(db, handle) : null;
+    if (!consoleCookie || !handle) {
       await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "refused" }, { unauthenticated: true });
       return html(loginPage(control ? "That team, username and code do not match an admin of that team." : "That username and code do not match an admin of this console.", { control, team: form.team, next: form.next === "connect" ? "connect" : "overview" }), 401);
     }
     await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "ok" });
-    return redirect(form.next === "connect" ? "/console/connect" : "/console/overview", { "set-cookie": cookie });
+    // One sign-in: the admin also gets their My account session.
+    const accountCookie = await startSession(db, handle, ACCOUNT_SESSIONS);
+    return redirectSetting(form.next === "connect" ? "/console/connect" : "/console/overview", accountCookie ? [consoleCookie, accountCookie] : [consoleCookie]);
   });
 
   // Everything below needs a session; a POST also needs this origin and the session's CSRF value.
@@ -170,9 +173,9 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
 
   app.post("/console/logout", async (c) => {
     const s = c.get("session");
-    await endSession(c.env.DB, s);
+    const cleared = await endSessions(c.env.DB, c.req.header("cookie"));
     await audit(c.env.DB, s, "logout");
-    return redirect("/console/login", { "set-cookie": sessionCookie("", 0) });
+    return redirectSetting("/console/login", cleared);
   });
 
   const vw = (c: { get: (k: "session") => Session } & { get(k: "cfg"): Variables["cfg"] }) => viewer(c.get("session"), c.get("cfg").mode === "control");

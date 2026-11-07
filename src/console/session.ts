@@ -3,10 +3,11 @@ import { newTicketToken, nowIso, sha256Hex } from "../domain/ids";
 
 /**
  * Browser sessions. The browser holds a random token in a __Host- cookie (Secure, HttpOnly, SameSite=Strict);
- * D1 keeps only its hash, bound to the member's code hash, so a code reset ends the session. Two kinds:
- * the console, where only members in admin_members sign in (the operator grants that with `npm run admin`),
- * and the member file page (/files), where any member signs in. Each kind has its own cookie and table, so a
- * member's file-page session never opens the console.
+ * D1 keeps only its hash, bound to the member's code hash, so a code reset ends the session. Two kinds: the
+ * console, where only members in admin_members sign in (the operator grants that with `npm run admin`), and
+ * My account (/account), where any member signs in. Each kind has its own cookie and table, so a member's
+ * account session never opens the console. One sign-in starts both for an admin (startSessions), and signing
+ * out ends both (endSessions).
  */
 export interface SessionKind {
   cookie: string;
@@ -15,7 +16,7 @@ export interface SessionKind {
   adminOnly: boolean;
 }
 export const CONSOLE_SESSIONS: SessionKind = { cookie: "__Host-handoff-console", table: "admin_sessions", adminOnly: true };
-export const FILES_SESSIONS: SessionKind = { cookie: "__Host-handoff-files", table: "member_sessions", adminOnly: false };
+export const ACCOUNT_SESSIONS: SessionKind = { cookie: "__Host-handoff-account", table: "member_sessions", adminOnly: false };
 
 export const COOKIE = CONSOLE_SESSIONS.cookie;
 export const SESSION_SECONDS = 12 * 60 * 60;
@@ -78,8 +79,39 @@ export async function startSession(db: D1Database, handle: string, kind: Session
   return sessionCookie(raw, SESSION_SECONDS, kind);
 }
 
-export async function endSession(db: D1Database, s: Session, kind: SessionKind = CONSOLE_SESSIONS): Promise<void> {
-  await db.prepare(`DELETE FROM ${kind.table} WHERE token_hash = ?`).bind(s.hash).run();
+/**
+ * One sign-in for both areas, after the member's code was checked: a My account session for every member, and a
+ * console session too when the member is an admin. The console still checks the admin grant on every request.
+ * Returns the Set-Cookie values, the console's first; empty if the member does not exist.
+ */
+export async function startSessions(db: D1Database, handle: string): Promise<string[]> {
+  const cookies: string[] = [];
+  for (const kind of [CONSOLE_SESSIONS, ACCOUNT_SESSIONS]) {
+    const cookie = await startSession(db, handle, kind);
+    if (cookie) cookies.push(cookie);
+  }
+  return cookies;
+}
+
+/** Signing out of either area ends this browser's sessions of both kinds. Returns the Set-Cookie values that clear them. */
+export async function endSessions(db: D1Database, cookieHeader: string | undefined): Promise<string[]> {
+  for (const kind of [ACCOUNT_SESSIONS, CONSOLE_SESSIONS]) {
+    const raw = cookieToken(cookieHeader, kind);
+    if (raw) await db.prepare(`DELETE FROM ${kind.table} WHERE token_hash = ?`).bind(await sha256Hex(raw)).run();
+  }
+  return [sessionCookie("", 0, ACCOUNT_SESSIONS), sessionCookie("", 0, CONSOLE_SESSIONS)];
+}
+
+/** Whether the member has the admin grant (My account then links to the console). */
+export async function isAdmin(db: D1Database, handle: string): Promise<boolean> {
+  return !!(await db.prepare("SELECT 1 AS ok FROM admin_members WHERE handle = ?").bind(handle).first());
+}
+
+/** A 303 redirect that sets several cookies (a header object cannot repeat Set-Cookie). */
+export function redirectSetting(to: string, cookies: string[]): Response {
+  const headers = new Headers({ location: to, "cache-control": "no-store" });
+  for (const c of cookies) headers.append("set-cookie", c);
+  return new Response(null, { status: 303, headers });
 }
 
 export const csrfOk = (s: Session, sent: unknown): boolean => typeof sent === "string" && constantTimeEqual(sent, s.csrf);

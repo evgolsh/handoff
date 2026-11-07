@@ -54,14 +54,14 @@ export interface HostFile {
   file_name?: string;
 }
 
-/** A file of the caller's that no packet carries yet: uploaded on the files page or by an assistant. */
+/** A file of the caller's that no packet carries yet: uploaded on My account or by an assistant. */
 export interface UnsentFile {
   attachment_id: string;
   filename: string;
   mime_type: string | null;
   size: number | null;
   uploaded_at: string;
-  /** The note typed on the files page, if any. */
+  /** The note typed on My account, if any. */
   note: string | null;
 }
 
@@ -88,7 +88,18 @@ const unsent = (a: AttachmentRow): UnsentFile => ({
 /** A name as people say it: no folders, case and surrounding space ignored. */
 const nameKey = (name: string): string => (name.split(/[\\/]/).pop() ?? "").trim().toLowerCase();
 
-/** Longest note the files page stores with an upload. */
+/** "lease.pdf" numbered 2 is "lease (2).pdf"; a name without an extension gets the number at the end. At most 255 characters. */
+export function numberedName(name: string, n: number): string {
+  const dot = name.lastIndexOf(".");
+  const [base, ext] = dot > 0 && name.length - dot <= 16 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
+  const suffix = ` (${n})`;
+  return `${base.slice(0, 255 - suffix.length - ext.length)}${suffix}${ext}`;
+}
+
+/** A live handoff as My account lists it: who sent it to whom, when it expires, and its files. */
+export type HandoffWithFiles = PacketSummary & { attachments: AttachmentDescriptor[] };
+
+/** Longest note My account stores with an upload. */
 export const MAX_NOTE_CHARS = 200;
 
 export const describe = (a: AttachmentRow): AttachmentDescriptor => ({
@@ -239,8 +250,8 @@ export class HandoffService {
           "not_found",
           `attachment_names: none of your unsent files is named ${shown}. Nothing was sent. ` +
             (list.length
-              ? `Your unsent files: ${list.join("; ")}. Pass the right one in attachment_ids, or ask the user to upload the file at ${this.cfg.publicUrl}/files.`
-              : `You have no unsent files. Ask the user to upload it at ${this.cfg.publicUrl}/files, or upload it with handoff_upload_url.`),
+              ? `Your unsent files: ${list.join("; ")}. Pass the right one in attachment_ids, or ask the user to upload the file at ${this.cfg.publicUrl}/account.`
+              : `You have no unsent files. Ask the user to upload it at ${this.cfg.publicUrl}/account, or upload it with handoff_upload_url.`),
         );
       }
       throw new HandoffError(
@@ -536,7 +547,7 @@ export class HandoffService {
     return new Uint8Array(await new Response(blob.body).arrayBuffer());
   }
 
-  // ---- the member file page (/files) ---------------------------------------
+  // ---- My account (/account) -----------------------------------------------
 
   /** The caller's files that no packet carries yet, newest first. */
   async unsentFiles(principal: Principal, limit = 20): Promise<UnsentFile[]> {
@@ -544,14 +555,20 @@ export class HandoffService {
   }
 
   /**
-   * A file dropped on the files page. Stored like an assistant's upload (same table, store, checks and quota),
-   * owned by the uploader and visible to nobody else until an assistant sends it in a handoff.
+   * A file uploaded on My account. Stored like an assistant's upload (same table, store, checks and quota),
+   * owned by the uploader and visible to nobody else until an assistant sends it in a handoff. If one of the
+   * caller's unsent files already has the name (case ignored), it is stored as "name (2).ext", so an assistant
+   * can always attach it by name; `renamed` says so.
    */
-  async webUpload(principal: Principal, file: { name: string; type: string; bytes: Uint8Array }, note: string): Promise<AttachmentRow> {
+  async webUpload(principal: Principal, file: { name: string; type: string; bytes: Uint8Array }, note: string): Promise<{ attachment: AttachmentRow; renamed: boolean }> {
     const cleanNote = note.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, MAX_NOTE_CHARS);
     if (file.bytes.byteLength > this.cfg.maxAttachmentBytes) throw new HandoffError("too_large", `the file is larger than ${this.cfg.maxAttachmentBytes} bytes`);
-    const row = await this.createUpload(principal, { filename: file.name }, "upload", { via: WEB_PROVENANCE, ...(cleanNote ? { note: cleanNote } : {}) });
-    return this.receiveBytes(row, file.bytes, { mime_type: file.type || null });
+    const wanted = this.cleanFilename(file.name, "file");
+    const taken = new Set((await this.repo.listUnsentAttachments(principal.subject, 100)).map((a) => a.filename.toLowerCase()));
+    let filename = wanted;
+    for (let n = 2; taken.has(filename.toLowerCase()); n++) filename = numberedName(wanted, n);
+    const row = await this.createUpload(principal, { filename }, "upload", { via: WEB_PROVENANCE, ...(cleanNote ? { note: cleanNote } : {}) });
+    return { attachment: await this.receiveBytes(row, file.bytes, { mime_type: file.type || null }), renamed: filename !== wanted };
   }
 
   /** Deletes one of the caller's unsent files. A file that a packet carries is not touched. */
@@ -564,14 +581,17 @@ export class HandoffService {
     return a;
   }
 
-  /** The caller's live handoffs (sent or received), newest first, each with its files. */
-  async recentHandoffs(principal: Principal, limit = 20): Promise<Array<PacketSummary & { attachments: AttachmentDescriptor[] }>> {
-    const page = await this.inbox(principal, { limit });
+  /** One page of the caller's live handoffs (sent or received), newest first, each with its files. */
+  async handoffsPage(principal: Principal, opts: { limit?: number; cursor?: string } = {}): Promise<{ handoffs: HandoffWithFiles[]; next_cursor: string | null }> {
+    const page = await this.inbox(principal, opts);
     const rows = await this.repo.getAttachmentsForPackets(page.packets.map((p) => p.packet_id));
-    return page.packets.map(({ attachment_count: _n, ...p }) => ({
-      ...p,
-      attachments: rows.filter((r) => r.packet_id === p.packet_id && r.state === "ready").map(describe),
-    }));
+    return {
+      handoffs: page.packets.map(({ attachment_count: _n, ...p }) => ({
+        ...p,
+        attachments: rows.filter((r) => r.packet_id === p.packet_id && r.state === "ready").map(describe),
+      })),
+      next_cursor: page.next_cursor,
+    };
   }
 
   // ---- server-side import of a host file reference (OpenAI `files`) --------

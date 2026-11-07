@@ -23,7 +23,7 @@ import { buildMcpServer } from "./mcp/server";
 import { connectHeaders, connectPage } from "./http/connect";
 import { useCasesHeaders, useCasesPage } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
-import { filesRoutes } from "./http/files";
+import { accountRoutes } from "./http/account";
 import { mcpCallsIn, recordMcpCalls } from "./store/telemetry";
 import { base64url } from "./domain/ids";
 import { recordEvent } from "./store/events";
@@ -123,7 +123,9 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
     const body = await readFormOrJson(c.req.raw);
     const nonce = newNonce();
     const r = await handleJoin(c.env.DB, c.get("cfg"), body, c.req.header("cf-connecting-ip"), nonce);
-    return new Response(r.body, { status: r.status, headers: { ...joinHeaders(nonce), ...(r.cookie ? { "set-cookie": r.cookie } : {}) } });
+    const res = new Response(r.body, { status: r.status, headers: joinHeaders(nonce) });
+    for (const cookie of r.cookies ?? []) res.headers.append("set-cookie", cookie);
+    return res;
   });
   app.get("/stats.json", async (c) => (control(c) ? c.json(await publicStats(c.env.DB), 200, { "cache-control": "public, max-age=300" }) : c.notFound()));
   app.get("/stats", async (c) => {
@@ -144,7 +146,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   // The update check's receiving end (src/update-check.ts): 404 unless UPDATE_CHECK_RECEIVER=1.
   app.get("/v1/update-check", (c) => receiveUpdateCheck(c.env, new URL(c.req.url)));
   app.route("/", consoleRoutes());
-  app.route("/", filesRoutes());
+  app.route("/", accountRoutes());
 
   // This Worker is its own OAuth 2.1 authorization server (src/auth/builtin.ts): RFC 8414 metadata, RFC 7591
   // registration, the sign-in and consent page, and the PKCE token exchange. Members sign in with a handle and code.

@@ -289,7 +289,7 @@ export function shell(page: Page, v: Viewer, title: string, body: Html, enhancem
     <a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a>
     ${links}
     <div class="nav-separator"></div>
-    <a href="/files">Your files</a>
+    <a href="/account">My account</a>
     ${v.control ? `<a href="/">Home</a>` : `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>`}
     <div class="grow"></div>
     <div class="who">
