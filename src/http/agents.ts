@@ -1,3 +1,4 @@
+import { hasSessionCookie } from "../console/session";
 import { Hono } from "hono";
 import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js";
 import type { Env } from "../env";
@@ -479,7 +480,7 @@ Handoff has no AI inside: it makes no model calls, and nothing you send is used 
 - **Files you upload** in Assets or through an assistant, until you send or delete them.
 - **Sign-ins:** the assistants you connected (the name each app gives) and their refresh tokens, stored as hashes. Access tokens are not stored.
 - **Activity:** which tool was called, when, by which username, and whether it worked. Not the content.
-- **Abuse limits:** when you sign in to the console or create a team, a hash of your IP address, to slow down guessing. It is deleted after 10 minutes.
+- **Abuse limits:** when you sign in or create a team, a hash of your IP address, to slow down guessing. It is deleted after 10 minutes.
 
 ## How long
 
@@ -886,7 +887,8 @@ const PROSE_CSS = `
 `;
 
 /** An HTML page from Markdown, with the site's header and footer. */
-export function prosePage(cfg: Config, title: string, md: string, path: string, updated?: string): string {
+export function prosePage(cfg: Config, title: string, md: string, path: string, opts: { updated?: string; signedIn?: boolean } = {}): string {
+  const { updated, signedIn } = opts;
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escHtml(title)}</title>
@@ -895,14 +897,15 @@ export function prosePage(cfg: Config, title: string, md: string, path: string, 
 ${discoveryHead(cfg, path)}${socialMeta(cfg, title, /^description: (.*)$/m.exec(md)?.[1] ?? title, path)}
 ${FAVICON_LINK}${FONT_PRELOAD}
 <style>${BASE_CSS}${PAGE_HEADER_CSS}${PROSE_CSS}</style></head><body>
-${pageHeader("use-cases", { active: true, mode: cfg.mode })}
+${pageHeader("use-cases", { active: true, mode: cfg.mode, signedIn })}
 <main id="main" class="site-width"><article class="prose">${renderMarkdown(md)}${updated ? `<p class="updated">Last updated ${escHtml(updated)}.</p>` : ""}</article></main>
-${pageFooter({ active: true, mode: cfg.mode })}</body></html>`;
+${pageFooter({ active: true, mode: cfg.mode, signedIn })}</body></html>`;
 }
 
 export const PROSE_HEADERS: Record<string, string> = {
   "content-type": "text/html; charset=utf-8",
-  "cache-control": "public, max-age=300",
+  // The header shows Sign in or Assets, so a browser must not reuse another visit's copy.
+  "cache-control": "private, no-cache",
   "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",
   "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
@@ -1013,17 +1016,17 @@ export function agentRoutes(): Hono<{ Bindings: Env; Variables: Vars }> {
 
   app.get("/privacy", (c) => {
     const cfg = c.get("cfg");
-    return new Response(prosePage(cfg, "Privacy · Handoff", privacyMd(cfg), "/privacy", PRIVACY_UPDATED), { headers: PROSE_HEADERS });
+    return new Response(prosePage(cfg, "Privacy · Handoff", privacyMd(cfg), "/privacy", { updated: PRIVACY_UPDATED, signedIn: hasSessionCookie(c.req.header("cookie")) }), { headers: PROSE_HEADERS });
   });
   app.get("/contact", (c) => {
     const cfg = c.get("cfg");
     if (cfg.mode !== "control") return c.redirect(`${CONTROL_CENTER_URL}/contact`, 302);
-    return new Response(prosePage(cfg, "Contact · Handoff", contactMd(cfg), "/contact"), { headers: PROSE_HEADERS });
+    return new Response(prosePage(cfg, "Contact · Handoff", contactMd(cfg), "/contact", { signedIn: hasSessionCookie(c.req.header("cookie")) }), { headers: PROSE_HEADERS });
   });
   app.get("/about", (c) => {
     const cfg = c.get("cfg");
     if (cfg.mode !== "control") return c.redirect(`${CONTROL_CENTER_URL}/about`, 302);
-    return new Response(prosePage(cfg, "About · Handoff", aboutMd(cfg), "/about"), { headers: PROSE_HEADERS });
+    return new Response(prosePage(cfg, "About · Handoff", aboutMd(cfg), "/about", { signedIn: hasSessionCookie(c.req.header("cookie")) }), { headers: PROSE_HEADERS });
   });
   return app;
 }

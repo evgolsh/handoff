@@ -2,23 +2,12 @@ import { constantTimeEqual } from "../auth/builtin";
 import { newTicketToken, nowIso, sha256Hex } from "../domain/ids";
 
 /**
- * Browser sessions. The browser holds a random token in a __Host- cookie (Secure, HttpOnly, SameSite=Strict);
- * D1 keeps only its hash, bound to the member's code hash, so a code reset ends the session. Two kinds: the
- * console, where only members in admin_members sign in (the operator grants that with `npm run admin`), and
- * Assets (/assets), where any member signs in. Each kind has its own cookie and table, so a member's
- * Assets session never opens the console. One sign-in starts both for an admin (startSessions), and signing
- * out ends both (endSessions).
+ * Browser sessions: one per signed-in member, from whichever page they signed in. The browser holds a random
+ * token in a __Host- cookie (Secure, HttpOnly, SameSite=Strict); D1 keeps only its hash, bound to the member's
+ * code hash, so a code reset ends the session. Every page knows who is signed in; the console also checks the
+ * admin grant on every request.
  */
-export interface SessionKind {
-  cookie: string;
-  table: "admin_sessions" | "member_sessions";
-  /** Console sessions also need the admin grant, checked on every request. */
-  adminOnly: boolean;
-}
-export const CONSOLE_SESSIONS: SessionKind = { cookie: "__Host-handoff-console", table: "admin_sessions", adminOnly: true };
-export const ASSETS_SESSIONS: SessionKind = { cookie: "__Host-handoff-assets", table: "member_sessions", adminOnly: false };
-
-export const COOKIE = CONSOLE_SESSIONS.cookie;
+export const COOKIE = "__Host-handoff-session";
 export const SESSION_SECONDS = 12 * 60 * 60;
 const LOGIN_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 10 * 60_000;
@@ -31,13 +20,13 @@ export interface Session {
   csrf: string;
 }
 
-export const sessionCookie = (value: string, seconds: number, kind: SessionKind = CONSOLE_SESSIONS): string =>
-  `${kind.cookie}=${value}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${seconds}`;
+export const sessionCookie = (value: string, seconds: number): string =>
+  `${COOKIE}=${value}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${seconds}`;
 
-export function cookieToken(header: string | undefined, kind: SessionKind = CONSOLE_SESSIONS): string | null {
+export function cookieToken(header: string | undefined): string | null {
   for (const part of (header ?? "").split(";")) {
     const [k, ...rest] = part.trim().split("=");
-    if (k === kind.cookie) {
+    if (k === COOKIE) {
       const v = rest.join("=");
       return v && v.length <= 200 ? v : null;
     }
@@ -45,14 +34,17 @@ export function cookieToken(header: string | undefined, kind: SessionKind = CONS
   return null;
 }
 
-export async function sessionFrom(db: D1Database, raw: string | null, kind: SessionKind = CONSOLE_SESSIONS): Promise<Session | null> {
+/** Whether the browser sent a session cookie. Public pages use it to show Assets instead of Sign in. */
+export const hasSessionCookie = (header: string | undefined): boolean => cookieToken(header) !== null;
+
+export async function sessionFrom(db: D1Database, header: string | undefined): Promise<Session | null> {
+  const raw = cookieToken(header);
   if (!raw) return null;
   const hash = await sha256Hex(raw);
   const row = await db
     .prepare(
-      `SELECT s.handle FROM ${kind.table} s
+      `SELECT s.handle FROM member_sessions s
          JOIN members m ON m.handle = s.handle AND m.code_hash = s.credential_hash
-         ${kind.adminOnly ? "JOIN admin_members a ON a.handle = s.handle" : ""}
        WHERE s.token_hash = ? AND s.expires_at > ?`,
     )
     .bind(hash, nowIso())
@@ -60,46 +52,34 @@ export async function sessionFrom(db: D1Database, raw: string | null, kind: Sess
   return row ? { handle: row.handle, hash, csrf: await sha256Hex(`csrf:${raw}`) } : null;
 }
 
-/** Starts a session for a member whose code was checked (for the console, an admin). Returns the Set-Cookie value. */
-export async function startSession(db: D1Database, handle: string, kind: SessionKind = CONSOLE_SESSIONS): Promise<string | null> {
-  const member = await db
-    .prepare(
-      kind.adminOnly
-        ? "SELECT m.code_hash FROM members m JOIN admin_members a ON a.handle = m.handle WHERE m.handle = ?"
-        : "SELECT code_hash FROM members WHERE handle = ?",
-    )
-    .bind(handle)
-    .first<{ code_hash: string }>();
+/** Starts a session for a member whose code was checked. Returns the Set-Cookie value, or null if no such member. */
+export async function startSession(db: D1Database, handle: string): Promise<string | null> {
+  const member = await db.prepare("SELECT code_hash FROM members WHERE handle = ?").bind(handle).first<{ code_hash: string }>();
   if (!member) return null;
   const raw = newTicketToken();
   await db
-    .prepare(`INSERT INTO ${kind.table} (token_hash, handle, credential_hash, expires_at) VALUES (?, ?, ?, ?)`)
+    .prepare("INSERT INTO member_sessions (token_hash, handle, credential_hash, expires_at) VALUES (?, ?, ?, ?)")
     .bind(await sha256Hex(raw), handle, member.code_hash, new Date(Date.now() + SESSION_SECONDS * 1000).toISOString())
     .run();
-  return sessionCookie(raw, SESSION_SECONDS, kind);
+  return sessionCookie(raw, SESSION_SECONDS);
+}
+
+/** Ends this browser's session. Returns the Set-Cookie value that clears it. */
+export async function endSession(db: D1Database, header: string | undefined): Promise<string> {
+  const raw = cookieToken(header);
+  if (raw) await db.prepare("DELETE FROM member_sessions WHERE token_hash = ?").bind(await sha256Hex(raw)).run();
+  return sessionCookie("", 0);
 }
 
 /**
- * One sign-in for both areas, after the member's code was checked: an Assets session for every member, and a
- * console session too when the member is an admin. The console still checks the admin grant on every request.
- * Returns the Set-Cookie values, the console's first; empty if the member does not exist.
+ * Where to go after signing in: a path on this site. Never another site's address ("//host", or any backslash,
+ * which browsers may read as a slash), never a control character, and never the sign-in itself. Otherwise null.
  */
-export async function startSessions(db: D1Database, handle: string): Promise<string[]> {
-  const cookies: string[] = [];
-  for (const kind of [CONSOLE_SESSIONS, ASSETS_SESSIONS]) {
-    const cookie = await startSession(db, handle, kind);
-    if (cookie) cookies.push(cookie);
-  }
-  return cookies;
-}
-
-/** Signing out of either area ends this browser's sessions of both kinds. Returns the Set-Cookie values that clear them. */
-export async function endSessions(db: D1Database, cookieHeader: string | undefined): Promise<string[]> {
-  for (const kind of [ASSETS_SESSIONS, CONSOLE_SESSIONS]) {
-    const raw = cookieToken(cookieHeader, kind);
-    if (raw) await db.prepare(`DELETE FROM ${kind.table} WHERE token_hash = ?`).bind(await sha256Hex(raw)).run();
-  }
-  return [sessionCookie("", 0, ASSETS_SESSIONS), sessionCookie("", 0, CONSOLE_SESSIONS)];
+export function safeNext(next: string | undefined | null): string | null {
+  if (!next || next.length > 512 || !next.startsWith("/") || next.startsWith("//")) return null;
+  if (/[\u0000-\u001f\\]/.test(next)) return null;
+  const path = next.split(/[?#]/)[0]!;
+  return path === "/login" || path === "/logout" ? null : next;
 }
 
 /** Whether the member has the admin grant (the left menu then shows the team's pages). */
@@ -129,7 +109,7 @@ export const sameOrigin = (origin: string | undefined, publicUrl: string): boole
  * Counts a sign-in attempt from this address: at most 10 in 10 minutes. Cloudflare sets CF-Connecting-IP;
  * only its hash is stored. Returns false when the limit is reached.
  */
-export async function loginAllowed(db: D1Database, ip: string | undefined, purpose = "console-login"): Promise<boolean> {
+export async function loginAllowed(db: D1Database, ip: string | undefined, purpose = "login"): Promise<boolean> {
   const bucket = await sha256Hex(`${purpose}:${ip ?? "local"}`);
   const now = nowIso();
   await db.prepare("DELETE FROM admin_login_limits WHERE expires_at <= ?").bind(now).run();

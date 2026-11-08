@@ -175,16 +175,19 @@ function renderCase(c: (typeof USE_CASES)[number], i: number): string {
 const days = (hours: number) => `${Math.round(hours / 24)} days`;
 
 /** The homepage, served by the hosted service only (a private install sends "/" to /connect). */
-export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): string {
+export function useCasesPage(cfg: Config, opts: { active?: boolean; signedIn?: boolean } = {}): string {
   const active = opts.active ?? true;
   // Sign-up works once the hosted service has its operator. Before that, the page offers only a private server.
   const open = cfg.mode === "control" && active;
   const mib = Math.round(cfg.maxAttachmentBytes / 1048576);
-  const heroActions = open
+  // Signed in, the page leads back into the app, as any service does.
+  const heroActions = open && opts.signedIn
+    ? `<a class="site-button primary" href="/assets">Open Assets <span aria-hidden="true">→</span></a><a class="site-button" href="/connect">Assistant setup <span aria-hidden="true">→</span></a><a class="text-link" href="#install">Run your own server <span aria-hidden="true">↓</span></a>`
+    : open
     ? `<a class="site-button primary" href="/join">Get started free <span aria-hidden="true">→</span></a><a class="site-button" href="/connect">Connect an assistant <span aria-hidden="true">↗</span></a><a class="text-link" href="#install">Run your own server <span aria-hidden="true">↓</span></a>`
     : `<a class="site-button primary" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>View on GitHub</span> <span aria-hidden="true">↗</span></a><a class="text-link" href="#use-cases">Explore the use cases <span aria-hidden="true">↓</span></a>`;
   const heroNote = open
-    ? `<p class="hero-note"><span aria-hidden="true"></span>Free. No AI inside: Handoff makes no model calls and needs no API keys. Already in a team? <a href="/connect">Connect your assistant ↗</a></p>`
+    ? `<p class="hero-note"><span aria-hidden="true"></span>Free. No AI inside: Handoff makes no model calls and needs no API keys.${opts.signedIn ? "" : ` Already in a team? <a href="/connect">Connect your assistant ↗</a>`}</p>`
     : `<p class="hero-note"><span aria-hidden="true"></span>Runs on your own Cloudflare account, on the free plan. It makes no AI calls and needs no API keys. Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
   const example = `<div class="chat"><div class="chat-app"><b class="app">${CLAUDE_ICON}Claude</b><span>joe</span></div>
         <p class="msg-user">Hand this off to anna. She’ll call the insurer tomorrow.</p>
@@ -239,7 +242,7 @@ ${discoveryHead(cfg, "/")}${socialMeta(cfg, "Handoff: hand your work to someone 
 ${FAVICON_LINK}${FONT_PRELOAD}
 ${homeJsonLd(cfg)}
 <style>${BASE_CSS}${PAGE_HEADER_CSS}${PAGE_CSS}</style></head><body>
-${pageHeader("use-cases", { active, mode: cfg.mode })}
+${pageHeader("use-cases", { active, mode: cfg.mode, signedIn: opts.signedIn })}
 <main id="main" class="site-width">
   <section class="hero" aria-labelledby="hero-title">
     <div><p class="eyebrow">${open ? "Free · Claude, ChatGPT and more" : "Open-source MCP server"}</p>
@@ -297,12 +300,12 @@ npm run setup -- --members=tim,tom</code></pre>
   </section>
   ${ownership}
   ${closing}
-</main>${pageFooter({ active, mode: cfg.mode })}</body></html>`;
+</main>${pageFooter({ active, mode: cfg.mode, signedIn: opts.signedIn })}</body></html>`;
 }
 
 export function useCasesHeaders(): Record<string, string> {
   return {
-    "content-type":"text/html; charset=utf-8", "cache-control":"public, max-age=300",
+    "content-type":"text/html; charset=utf-8", "cache-control":"private, no-cache",
     "referrer-policy":"no-referrer", "x-content-type-options":"nosniff",
     "content-security-policy":"default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self' data:; media-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
   };

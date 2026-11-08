@@ -1,7 +1,7 @@
 import type { Config } from "../env";
 import { createTeam } from "../domain/teams";
 import { CONSOLE_HEADERS, document, esc, flowHeader, flowProgress, interactiveHeaders, type Html } from "../console/html";
-import { CONSOLE_SESSIONS, startSessions } from "../console/session";
+import { startSession } from "../console/session";
 import { COPY_SCRIPT } from "./clipboard";
 
 /**
@@ -37,7 +37,7 @@ export function joinedPage(team: string, handle: string, code: string, signedIn:
     <dl class="credential-meta"><div><dt>Team</dt><dd>${esc(team)}</dd></div><div><dt>Username</dt><dd>${esc(handle)}</dd></div></dl>
     <div><span class="lbl small muted">Your access code</span><div class="secret" aria-label="access code">${esc(code)}</div><button type="button" class="btn" data-copy="${esc(details)}">Copy sign-in details</button></div>
     ${signedIn ? `<div class="flow-note">Signed in as ${esc(handle)} · team admin</div>` : '<div class="flash">Your team was created. Save the code above, then sign in to continue.</div>'}
-    <a class="btn primary" href="${signedIn ? "/console/connect" : `/console/login?team=${encodeURIComponent(team)}&amp;next=connect`}">Continue to setup →</a>
+    <a class="btn primary" href="${signedIn ? "/connect" : `/login?team=${encodeURIComponent(team)}&amp;next=%2Fconnect`}">Continue to setup →</a>
     <p id="copy-status" class="sr-only" role="status"></p>
   </section></div></div>`, { nonce, script: COPY_SCRIPT },
   );
@@ -50,14 +50,13 @@ export async function handleJoin(db: D1Database, cfg: Config, form: Record<strin
   const made = await createTeam(db, cfg, form.team ?? "", form.handle ?? "", ip);
   if (!made.ok) return { status: made.status, body: joinPage(cfg, { error: made.error, team: made.team, handle: made.handle }) };
   const { team, handle, identity, code } = made;
-  // The team is already saved. A session failure must not hide its one-time access code.
-  // One sign-in: the new admin gets both the console and the Assets session.
-  let cookies: string[] = [];
+  // The team is already saved. A session failure must not hide its one-time access code; the page then links
+  // to the sign-in for this team.
+  let cookie: string | null = null;
   try {
-    cookies = await startSessions(db, identity);
+    cookie = await startSession(db, identity);
   } catch {
-    // The team-specific login link also works when the browser still has an older session.
+    cookie = null;
   }
-  const signedIn = cookies.some((c) => c.startsWith(`${CONSOLE_SESSIONS.cookie}=`));
-  return { status: 200, body: joinedPage(team, handle, code, signedIn, nonce, cfg.publicUrl), cookies };
+  return { status: 200, body: joinedPage(team, handle, code, cookie !== null, nonce, cfg.publicUrl), cookies: cookie ? [cookie] : [] };
 }

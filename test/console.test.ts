@@ -31,7 +31,7 @@ interface Browser {
 }
 
 async function signIn(who: { handle: string; code: string }): Promise<Browser> {
-  const res = await post("/console/login", { handle: who.handle, access_code: who.code });
+  const res = await post("/login", { handle: who.handle, access_code: who.code });
   expect(res.status).toBe(303);
   const setCookie = res.headers.get("set-cookie") ?? "";
   const cookie = setCookie.split(";")[0]!;
@@ -63,9 +63,9 @@ async function eventually<T>(f: () => Promise<T | null | undefined | false>, tri
 
 const codeOn = (html: string) => /<div class="secret"[^>]*>([^<]+)<\/div>/.exec(html)?.[1];
 
-describe("console sign-in", () => {
-  it("serves a sign-in page with no script, and sends signed-out visitors there", async () => {
-    const res = await SELF.fetch(`${ORIGIN}/console/login`);
+describe("sign-in", () => {
+  it("serves one sign-in page with no script, and sends signed-out visitors there and back", async () => {
+    const res = await SELF.fetch(`${ORIGIN}/login`);
     expect(res.status).toBe(200);
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("default-src 'none'");
@@ -76,51 +76,77 @@ describe("console sign-in", () => {
     expect(res.headers.get("referrer-policy")).toBe("same-origin");
     const html = await res.text();
     expect(html).not.toContain("<script");
-    expect(html).toContain('action="/console/login"');
+    expect(html).toContain('action="/login"');
+    // Password managers fill it.
+    expect(html).toContain('autocomplete="username"');
+    expect(html).toContain('autocomplete="current-password"');
 
-    for (const path of ["/console/overview", "/console/members", "/console/assistants", "/console/ops"]) {
+    for (const path of ["/console/overview", "/console/members", "/console/assistants", "/console/ops", "/assets", "/assets/handoff/pk_1"]) {
       const r = await SELF.fetch(`${ORIGIN}${path}`, { redirect: "manual" });
       expect(r.status).toBe(303);
-      expect(r.headers.get("location")).toBe("/console/login");
+      expect(r.headers.get("location")).toBe(`/login?next=${encodeURIComponent(path)}`);
     }
-    const old = await SELF.fetch(`${ORIGIN}/admin`, { redirect: "manual" });
-    expect(old.headers.get("location")).toBe("/console");
+    const back = await (await SELF.fetch(`${ORIGIN}/login?next=%2Fconsole%2Fmembers`)).text();
+    expect(back).toContain('<input type="hidden" name="next" value="/console/members">');
   });
 
-  it("lets an admin in with a __Host- cookie whose token D1 keeps only as a hash; a member who is not an admin stays out", async () => {
+  it("starts one __Host- session whose token D1 keeps only as a hash; the console is for admins only", async () => {
     const a = await admin();
-    const res = await post("/console/login", { handle: a.handle.toUpperCase(), access_code: a.code });
+    const res = await post("/login", { handle: a.handle.toUpperCase(), access_code: a.code, next: "/console/members" });
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/console/overview");
+    expect(res.headers.get("location")).toBe("/console/members");
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toMatch(/^__Host-handoff-console=[A-Za-z0-9_-]{40,};/);
+    expect(setCookie).toMatch(/^__Host-handoff-session=[A-Za-z0-9_-]{40,};/);
     for (const flag of ["Path=/", "Secure", "HttpOnly", "SameSite=Strict", "Max-Age=43200"]) expect(setCookie).toContain(flag);
-    const raw = /^__Host-handoff-console=([^;]+)/.exec(setCookie)![1]!;
-    const stored = await env.DB.prepare("SELECT token_hash FROM admin_sessions WHERE handle = ?").bind(a.handle).all<{ token_hash: string }>();
+    const raw = /^__Host-handoff-session=([^;]+)/.exec(setCookie)![1]!;
+    const stored = await env.DB.prepare("SELECT token_hash FROM member_sessions WHERE handle = ?").bind(a.handle).all<{ token_hash: string }>();
     expect(stored.results.map((r) => r.token_hash)).toContain(await sha256Hex(raw));
     expect(JSON.stringify(stored.results)).not.toContain(raw);
+    // Signed in already: the sign-in page goes straight on.
+    const again = await SELF.fetch(`${ORIGIN}/login?next=%2Fconsole%2Fops`, { redirect: "manual", headers: { cookie: setCookie.split(";")[0]! } });
+    expect(again.headers.get("location")).toBe("/console/ops");
+    // The console's old sign-in and setup pages are gone.
+    for (const path of ["/console/login", "/console/connect"]) {
+      expect((await SELF.fetch(`${ORIGIN}${path}`, { redirect: "manual", headers: { cookie: setCookie.split(";")[0]! } })).status, path).toBe(404);
+    }
 
+    // A member who is not an admin signs in to Assets; the console sends them back there.
     const plain = `member-${uid()}`;
     await upsertMember(env.DB, plain, "plain-member-code-1");
-    const refused = await post("/console/login", { handle: plain, access_code: "plain-member-code-1" });
-    expect(refused.status).toBe(401);
-    expect(refused.headers.get("set-cookie")).toBeNull();
-    expect((await post("/console/login", { handle: a.handle, access_code: "wrong-code-123" })).status).toBe(401);
+    const member = await post("/login", { handle: plain, access_code: "plain-member-code-1", next: "/console/overview" });
+    expect(member.status).toBe(303);
+    const cookie = (member.headers.get("set-cookie") ?? "").split(";")[0]!;
+    const shut = await SELF.fetch(`${ORIGIN}/console/overview`, { redirect: "manual", headers: { cookie } });
+    expect(shut.status).toBe(303);
+    expect(shut.headers.get("location")).toBe("/assets");
+    const wrong = await post("/login", { handle: a.handle, access_code: "wrong-code-123" });
+    expect(wrong.status).toBe(401);
+    expect(wrong.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("goes back only to this site's own pages after signing in", async () => {
+    const a = await admin();
+    for (const next of ["https://evil.example/x", "//evil.example/x", "/\\evil.example/x", "/login", "javascript:alert(1)", ""]) {
+      const res = await post("/login", { handle: a.handle, access_code: a.code, next });
+      expect(res.headers.get("location")).toBe("/assets");
+    }
+    const page = await (await SELF.fetch(`${ORIGIN}/login?next=${encodeURIComponent("//evil.example")}`)).text();
+    expect(page).not.toContain('name="next"');
   });
 
   it("refuses a sign-in posted from another site, and stops after 10 attempts from one address", async () => {
     const a = await admin();
-    expect((await post("/console/login", { handle: a.handle, access_code: a.code }, { origin: "https://evil.example" })).status).toBe(403);
-    expect((await post("/console/login", { handle: a.handle, access_code: a.code }, { origin: "" })).status).toBe(403);
+    expect((await post("/login", { handle: a.handle, access_code: a.code }, { origin: "https://evil.example" })).status).toBe(403);
+    expect((await post("/login", { handle: a.handle, access_code: a.code }, { origin: "" })).status).toBe(403);
 
     const from = ip();
-    for (let i = 0; i < 10; i++) expect((await post("/console/login", { handle: a.handle, access_code: "nope-nope" }, { "cf-connecting-ip": from })).status).toBe(401);
-    const limited = await post("/console/login", { handle: a.handle, access_code: a.code }, { "cf-connecting-ip": from });
+    for (let i = 0; i < 10; i++) expect((await post("/login", { handle: a.handle, access_code: "nope-nope" }, { "cf-connecting-ip": from })).status).toBe(401);
+    const limited = await post("/login", { handle: a.handle, access_code: a.code }, { "cf-connecting-ip": from });
     expect(limited.status).toBe(429);
     expect(limited.headers.get("retry-after")).toBe("600");
   });
 
-  it("refuses a change without the session's CSRF value or from another origin, and signs out", async () => {
+  it("refuses a change without the session's CSRF value or from another origin, and signs out everywhere", async () => {
     const b = await signIn(await admin());
     const handle = `x-${uid()}`;
     expect((await post("/console/members", { handle }, { cookie: b.cookie })).status).toBe(403);
@@ -128,10 +154,13 @@ describe("console sign-in", () => {
     expect((await post("/console/members", { handle, csrf: await b.csrf() }, { cookie: b.cookie, origin: "https://evil.example" })).status).toBe(403);
     expect(await env.DB.prepare("SELECT 1 FROM members WHERE handle = ?").bind(handle).first()).toBeNull();
 
-    const out = await b.submit("/console/logout");
+    expect((await post("/logout", { csrf: "0".repeat(64) }, { cookie: b.cookie })).status).toBe(403);
+    const out = await b.submit("/logout");
     expect(out.status).toBe(303);
-    expect(out.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(out.headers.get("location")).toBe("/");
+    expect(out.headers.get("set-cookie")).toMatch(/^__Host-handoff-session=; .*Max-Age=0/);
     expect((await b.get("/console/overview")).status).toBe(303);
+    expect((await b.get("/assets")).headers.get("location")).toBe("/login?next=%2Fassets");
   });
 });
 

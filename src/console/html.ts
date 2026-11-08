@@ -235,6 +235,8 @@ export interface Viewer {
   tenant: string;
   /** True on the control center. With tenant "", the viewer is its operator and gets Ops and Tenants. */
   control: boolean;
+  /** Has the admin grant: the left menu adds the console's pages. Always true on console pages. */
+  admin: boolean;
   csrf: string;
 }
 
@@ -246,7 +248,7 @@ export const pagesFor = (v: Viewer): Page[] =>
 export const csrfField = (v: Viewer): Html => `<input type="hidden" name="csrf" value="${esc(v.csrf)}">`;
 
 /** The header of the sign-up and sign-in pages. With newTab, every link opens elsewhere: the page shows a code only once. */
-export const flowHeader = (link = "/console/login", label = "Sign in", newTab = false): Html => {
+export const flowHeader = (link = "/login", label = "Sign in", newTab = false): Html => {
   const t = newTab ? ' target="_blank" rel="noopener"' : "";
   return `<header class="flow-top"><a class="brand" href="/"${t}>${BRAND_ICON}<span>Handoff</span></a><a class="small u" href="${esc(link)}"${t}>${esc(label)} ↗</a></header>`;
 };
@@ -288,7 +290,7 @@ export interface NavUser {
   tenant: string;
   control: boolean;
   admin: boolean;
-  /** The sign-out form. Each area posts to its own sign-out with its own CSRF value; either one ends both sessions. */
+  /** The sign-out form: it posts to /logout with the session's CSRF value. */
   signOut: Html;
 }
 
@@ -304,7 +306,7 @@ export function sideNav(u: NavUser, current: "assets" | Page): Html {
   return `<nav class="side" aria-label="Handoff">
     <a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a>
     <a href="/assets"${on("assets")}>Assets</a>
-    <a href="${u.admin ? "/console/connect" : "/connect"}"${on("connect")}>Assistant setup</a>
+    <a href="/connect"${on("connect")}>Assistant setup</a>
     ${team.length ? `<div class="sect">${section}</div>\n    ${team.map((p) => `<a href="/console/${p}"${on(p)}>${label(p)}</a>`).join("\n    ")}` : ""}
     <div class="nav-separator"></div>
     ${u.control ? `<a href="/">Home</a>` : `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>`}
@@ -317,34 +319,16 @@ export function sideNav(u: NavUser, current: "assets" | Page): Html {
 }
 
 export function shell(page: Page, v: Viewer, title: string, body: Html, enhancement?: PageEnhancement): Html {
-  const signOut = `<form method="post" action="/console/logout">${csrfField(v)}<button type="submit">Sign out</button></form>`;
+  const signOut = `<form method="post" action="/logout">${csrfField(v)}<button type="submit">Sign out</button></form>`;
   return document(
     v.control ? `${title} · ${v.tenant || "operator"}` : title,
     `<div class="shell">
-  ${sideNav({ handle: v.handle, tenant: v.tenant, control: v.control, admin: true, signOut }, page)}
+  ${sideNav({ handle: v.handle, tenant: v.tenant, control: v.control, admin: v.admin, signOut }, page)}
   <main>
-${v.control ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Hosted service operator"}</div>\n` : ""}${body}
+${v.control && v.admin ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Hosted service operator"}</div>\n` : ""}${body}
   </main>
 </div>`, enhancement,
   );
-}
-
-export function loginPage(error?: string, opts: { needsSetup?: boolean; control?: boolean; team?: string; next?: "connect" | "overview" } = {}): Html {
-  return document("Sign in", `${flowHeader(opts.control ? "/join" : "/connect", opts.control ? "Create a team" : "Assistant setup")}
-<div class="flow-wrap"><div class="flow-grid">
-  <section class="flow-intro"><span class="kicker">${opts.control ? "Team administration" : "Your Handoff server"}</span><h1>Sign in.</h1><p>Manage the members and the assistants connected to Handoff.</p><div class="flow-switch"><div><strong>Just connecting an assistant?</strong><p class="flow-note">You don't need to sign in here.</p></div><a class="u" href="/connect">Setup guide →</a></div></section>
-  <form method="post" action="/console/login" class="flow-panel" autocomplete="off">
-    <div class="t">${opts.control ? "Team admin sign-in" : "Admin sign-in"}</div>
-    ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
-    <input type="hidden" name="next" value="${opts.next === "connect" ? "connect" : "overview"}">
-    ${opts.control ? `<div><label class="lbl" for="team">Team name</label><input id="team" name="team" class="field" autofocus autocapitalize="none" spellcheck="false" placeholder="acme" value="${esc(opts.team ?? "")}"></div>` : ""}
-    <div><label class="lbl" for="handle">Username</label><input id="handle" name="handle" class="field" required${opts.control ? "" : " autofocus"} autocapitalize="none" spellcheck="false" placeholder="tim"></div>
-    <div><label class="lbl" for="code">Access code</label><input id="code" name="access_code" type="password" class="field" required></div>
-    <button type="submit" class="btn primary">Sign in →</button>
-    <div class="flow-note">Use the access code you saved when your account was created. Only ${opts.control ? "team admins" : "admins"} can enter.</div>
-    ${opts.needsSetup ? `<div class="flow-note">Deployed this server? <a href="/console/setup">Complete the initial setup</a>.</div>` : ""}
-  </form>
-</div></div>`);
 }
 
 /** Setup codes shorter than this do not open /console/setup. */
@@ -371,7 +355,7 @@ export function setupPage(ready: boolean, error?: string, opts: { tooShort?: boo
     <div class="t">Set up this server</div>
     <div class="small">This server has no admin yet, and ${why}. Do one of these:</div>
     <div class="small"><strong>In the Cloudflare dashboard:</strong> open this Worker, then Settings, then Variables and Secrets. ${opts.tooShort ? "Replace" : "Add"} the secret named <span class="mono">HANDOFF_SETUP_CODE</span> with one of ${SETUP_CODE_MIN} characters or more, deploy, and reload this page.</div>
-    <div class="small"><strong>From a copy of the repository:</strong> <span class="mono">npm run member:add -- &lt;you&gt;</span>, then <span class="mono">npm run admin -- &lt;you&gt;</span>, and sign in at <a class="u" href="/console/login">/console/login</a>.</div>
+    <div class="small"><strong>From a copy of the repository:</strong> <span class="mono">npm run member:add -- &lt;you&gt;</span>, then <span class="mono">npm run admin -- &lt;you&gt;</span>, and sign in at <a class="u" href="/login">/login</a>.</div>
   </div>`;
   return document(
     "Set up",

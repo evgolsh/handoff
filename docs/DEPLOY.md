@@ -78,7 +78,7 @@ The **Handoff console** at your deployment's `/console` manages people, connecti
 In the Handoff console:
 
 1. Open **Members** to add a teammate or manage codes. The first member, seeded by setup or created at `/console/setup`, is the admin; ordinary members can connect assistants but cannot sign in to the admin console.
-2. Open **Connect an assistant** (`/console/connect`). Teammates use the public `/connect` guide without needing admin access.
+2. Open **Assistant setup** (`/connect`). Teammates use the same page; they need no admin access.
 3. Add **your own deployment URL ending in `/mcp`**, sign in with your Handoff username and code, and approve access in each assistant. All of one person's assistants use that person's same username. Different people get different usernames and codes on the same deployment.
 4. Send a self-handoff in one assistant and read it in a second connected as you. Then send to a teammate's username. The [README](../README.md#after-you-install) has prompts.
 

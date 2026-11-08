@@ -73,7 +73,7 @@ export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): H
   return shell("overview", v, "Your team", `
 <header class="team-welcome"><div><span class="kicker">Your workspace</span><h1>${esc(v.tenant)}</h1><p>${connected ? "Members, connected assistants and live handoffs." : "Your team is ready. Connect your first assistant."}</p></div></header>
 <section class="team-start" aria-label="Get started">
-  <div><span class="kicker">${connected ? "Next" : "Start here"}</span><h2>${connected ? "Connect another assistant." : "Connect your first assistant."}</h2><p>Choose Claude, Codex, ChatGPT or Hermes. Follow the setup steps, then sign in as <strong>${esc(v.handle)}</strong>.</p><a class="btn primary" href="/console/connect">${connected ? "Connect an assistant" : "Choose your assistant"} →</a></div>
+  <div><span class="kicker">${connected ? "Next" : "Start here"}</span><h2>${connected ? "Connect another assistant." : "Connect your first assistant."}</h2><p>Choose Claude, Codex, ChatGPT or Hermes. Follow the setup steps, then sign in as <strong>${esc(v.handle)}</strong>.</p><a class="btn primary" href="/connect">${connected ? "Connect an assistant" : "Choose your assistant"} →</a></div>
   <div class="team-steps">
     <div class="team-step"><span>1</span><div><strong>Connect</strong><p>Add Handoff to the assistants you use.</p></div></div>
     <div class="team-step"><span>2</span><div><strong>Send a brief</strong><p>Say “Hand this off” in your first chat.</p></div></div>
@@ -403,7 +403,7 @@ export function assistantsPage(v: Viewer, d: AssistantsData, now: number, note: 
   if (v.tenant) return shell("assistants", v, "Connections", `
 <header class="team-welcome"><div><span class="kicker">Your team's assistants</span><h1>Connections.</h1><p>See who's connected, and sign out an assistant when you need to.</p></div></header>
 ${flash(note)}
-${d.rows.length ? `<section class="people-list" aria-label="Assistant connections">${d.rows.map(r => `<article class="person-row"><div><strong>${esc(r.client?.name ?? r.announced?.name ?? "Assistant")}</strong> <span class="chip ${r.connected ? "ok" : ""}">${r.connected ? "connected" : "signed out"}</span><p>${esc(r.subject)} · ${r.client?.host ? `${esc(r.client.host)} · ` : ""}Last used ${when(r.last_seen, now)}</p></div>${r.connected ? `<a class="btn sm" href="/console/assistants/disconnect?member=${encodeURIComponent(r.subject)}&amp;client=${encodeURIComponent(r.client_id)}">Disconnect…</a>` : ""}</article>`).join("")}</section><div><a class="btn primary" href="/console/connect">Connect another assistant →</a></div>` : `<section class="empty-connections"><h2>No assistants connected yet.</h2><p>Choose an assistant and follow its setup steps.</p><a class="btn primary" href="/console/connect">Connect an assistant →</a></section>`}
+${d.rows.length ? `<section class="people-list" aria-label="Assistant connections">${d.rows.map(r => `<article class="person-row"><div><strong>${esc(r.client?.name ?? r.announced?.name ?? "Assistant")}</strong> <span class="chip ${r.connected ? "ok" : ""}">${r.connected ? "connected" : "signed out"}</span><p>${esc(r.subject)} · ${r.client?.host ? `${esc(r.client.host)} · ` : ""}Last used ${when(r.last_seen, now)}</p></div>${r.connected ? `<a class="btn sm" href="/console/assistants/disconnect?member=${encodeURIComponent(r.subject)}&amp;client=${encodeURIComponent(r.client_id)}">Disconnect…</a>` : ""}</article>`).join("")}</section><div><a class="btn primary" href="/connect">Connect another assistant →</a></div>` : `<section class="empty-connections"><h2>No assistants connected yet.</h2><p>Choose an assistant and follow its setup steps.</p><a class="btn primary" href="/connect">Connect an assistant →</a></section>`}
 <details class="troubleshooting"><summary>Sign-in troubleshooting</summary><div class="grid2"><div class="panel"><div class="t">Tokens refused · ${WINDOW_DAYS} days</div>${rejected}</div><div class="panel"><div class="t">Wrong sign-in codes · ${WINDOW_DAYS} days</div>${bad}</div></div></details>`);
 
   return shell(
@@ -444,7 +444,7 @@ function cleanupSummary(e: EventRow): string {
   add("refresh_tokens", "refresh tokens");
   add("unused_clients", "unused registrations");
   add("revocations", "revocations");
-  add("console_sessions", "console sessions");
+  add("sessions", "sessions");
   return parts.length ? `removed ${parts.join(", ")}` : "nothing to remove";
 }
 
@@ -500,7 +500,7 @@ export function opsPage(v: Viewer, cfg: Config, d: OpsData, note: string | null)
     ${kv([
       ["packets", `${num(c.packets_live ?? 0)} live · ${num(c.packets ?? 0)} kept`],
       ["tickets", `${num(c.tickets_live ?? 0)} open upload or download links`],
-      ["members", `${num(c.members ?? 0)} · ${plural(c.admins ?? 0, "admin")} · ${plural(c.console_sessions ?? 0, "console session")}`],
+      ["members", `${num(c.members ?? 0)} · ${plural(c.admins ?? 0, "admin")} · ${plural(c.sessions ?? 0, "signed-in browser")}`],
       ["assistants", `${plural(c.refresh_live ?? 0, "refresh token")} live · ${plural(c.clients ?? 0, "registration")} · ${plural(c.revocations ?? 0, "recent revocation")}`],
       ["events", `${num(c.events ?? 0)}${d.oldestEvent ? ` · since ${when(d.oldestEvent, now)}` : ""} · kept 30 days`],
       [

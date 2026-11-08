@@ -76,11 +76,27 @@ describe("connect page", () => {
     expect(html).not.toMatch(/https:\/\/fonts\.|googleapis/);
   });
 
-  it("/b, where the homepage draft was reviewed, now redirects to the homepage; a private install has no /b", async () => {
-    const res = await home("/b");
-    expect(res.status).toBe(301);
-    expect(res.headers.get("location")).toBe("/");
-    expect((await SELF.fetch(`${ORIGIN}/b`, { redirect: "manual" })).status).toBe(404);
+  it("a signed-in browser's public pages lead to Assets, not to Sign in, and no shared cache keeps either version", async () => {
+    const cookie = "__Host-handoff-session=some-session";
+    for (const path of ["/", "/privacy", "/about", "/contact"]) {
+      const out = await home(path);
+      expect(out.headers.get("cache-control"), path).toBe("private, no-cache");
+      expect(await out.text(), path).toContain('href="/login">Sign in</a>');
+      const res = await worker.fetch(new Request(`${ORIGIN}${path}`, { headers: { cookie } }), control, createExecutionContext());
+      const html = await res.text();
+      expect(html, path).not.toContain(">Sign in</a>");
+      expect(html, path).toContain('href="/assets">');
+    }
+    const signedIn = await (await worker.fetch(new Request(`${ORIGIN}/`, { headers: { cookie } }), control, createExecutionContext())).text();
+    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Open Assets</a>');
+    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Open Assets <span aria-hidden="true">→</span></a>');
+    expect(signedIn).not.toContain('class="site-button primary" href="/join">');
+    // A private install's pages say the same.
+    const priv = await (await SELF.fetch(`${ORIGIN}/privacy`, { headers: { cookie } })).text();
+    expect(priv).not.toContain(">Sign in</a>");
+    expect(priv).toContain('href="/assets">Assets</a>');
+    // Old paths are gone.
+    for (const path of ["/b", "/admin"]) expect((await home(path)).status, path).toBe(404);
   });
 
   it("the sign-in page uses the same fonts and the light and dark palette", async () => {
@@ -138,8 +154,8 @@ describe("connect page", () => {
     // The homepage is the brand link: no "Use cases" item in the menu or footer.
     expect(html).not.toContain(">Use cases</a>");
     expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
-    // Members and admins sign in at Assets; an admin's console is in its left menu.
-    expect(html).toContain('<a class="nav-link nav-secondary" href="/assets">Sign in</a>');
+    // Everyone signs in at /login; an admin's console is in the app's left menu.
+    expect(html).toContain('<a class="nav-link nav-secondary" href="/login">Sign in</a>');
     expect(html).not.toContain(">Manage team</a>");
     expect(html).toContain("Handoff · Your notes and files, from your assistant to theirs.");
     expect(html).toContain('href="/llms.txt"');

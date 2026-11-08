@@ -526,7 +526,7 @@ export async function ops(env: Env, cfg: Config, now = Date.now()): Promise<OpsD
               (SELECT COUNT(*) FROM tickets WHERE used_at IS NULL AND expires_at > ?) AS tickets_live,
               (SELECT COUNT(*) FROM members) AS members,
               (SELECT COUNT(*) FROM admin_members) AS admins,
-              (SELECT COUNT(*) FROM admin_sessions WHERE expires_at > ?) AS console_sessions,
+              (SELECT COUNT(*) FROM member_sessions WHERE expires_at > ?) AS sessions,
               (SELECT COUNT(*) FROM oauth_clients) AS clients,
               (SELECT COUNT(*) FROM oauth_refresh_tokens WHERE revoked_at IS NULL AND expires_at > ?) AS refresh_live,
               (SELECT COUNT(*) FROM access_revocations) AS revocations,

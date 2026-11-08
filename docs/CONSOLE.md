@@ -1,7 +1,6 @@
 # Console
 
-`PUBLIC_URL/console` is the admin console: server-rendered pages, with small scripts for assistant setup and copying sign-in details. It replaced the first admin
-console at `/admin` (2026-10-26), which now redirects here. Code: `src/console/`.
+`PUBLIC_URL/console` is the admin console: server-rendered pages, with small scripts for copying sign-in details. Code: `src/console/`.
 
 The left menu is the same on the console and on Assets: Assets first, then Assistant setup, then the console pages
 for an admin. A private install has Overview, Members, Assistants and Ops. On the hosted service (`HANDOFF_MODE=control`,
@@ -11,14 +10,15 @@ for the accounts without a team.
 
 ## Who can open it
 
-Members whose username is in `admin_members`. Every member, admin or not, also has Assets at `/assets`
-(see the README). Its session has its own cookie and never opens the console. An admin who signs in on either
-page gets both sessions, the console still checks the admin grant on every request, and signing out of either
-ends both. The operator grants admin in a terminal:
+Members whose username is in `admin_members`. Everyone signs in at `/login` with their username and access code
+(and team, on the hosted service), and gets one session for every page: Assets at `/assets`, Assistant setup at
+`/connect`, and for an admin the console. The console checks the admin grant on every request and sends a member
+without it to Assets. A page that needs a session sends the browser to `/login?next=<that page>` and back again;
+`next` only takes a path on this site. Sign out (`POST /logout`) ends the session. The operator grants admin in a terminal:
 
 ```sh
 npm run admin -- tim              # grant (the member must exist: npm run member:add -- tim)
-npm run admin -- tim --revoke     # revoke; ends that admin's console sessions
+npm run admin -- tim --revoke     # revoke; the console closes on their next request
 ```
 
 On the hosted service add `--hosted` (it uses `wrangler.hosted.jsonc`). A lost operator code:
@@ -26,21 +26,19 @@ On the hosted service add `--hosted` (it uses `wrangler.hosted.jsonc`). A lost o
 
 `npm run setup` (scripts/deploy.mjs) makes the first member it seeds an admin. A server deployed with the
 Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SETUP_CODE` secret and a username
-once, makes that member the admin and shows the code (docs/DEPLOY.md). Sign in at `/console/login` with the
-member username and access code.
+once, makes that member the admin, signs them in and shows the code (docs/DEPLOY.md). Later, sign in at `/login`.
 
 On the control center, `/join` creates a team and makes its creator that team's admin. The browser is signed
 in to the new team, replacing any session it had, and the access code is shown once. If the session cannot be
-started, the code is still shown and Continue to setup opens sign-in with the team filled in. The normal flow is Create team → Save sign-in → Connect. Members added in
+started, the code is still shown and Continue to setup opens `/login` with the team filled in. The normal flow is Create team → Save sign-in → Connect. Members added in
 the console can connect assistants but cannot open the console.
 
-Team admins sign in with team, username and access code; the operator leaves team empty. `/console/login?team=acme`
-opens the console only if the browser's session belongs to `acme`, otherwise it shows the sign-in form for
-`acme`. To change accounts, sign out first.
+Team admins sign in with team, username and access code; the operator leaves team empty. `/login?team=acme`
+goes straight on only if the browser's session belongs to `acme`, otherwise it shows the sign-in form for `acme`.
+Signing in as someone else replaces the browser's session.
 
-`/console/connect` keeps assistant setup inside the signed-in workspace and shows the current team and username.
-`/connect` remains a public guide even when an admin is signed in, so links from the project site do not send them back into the console. Share this public guide with ordinary members.
-The login continuation accepts only `next=connect`; it cannot redirect to an arbitrary URL.
+`/connect` is the public setup guide. Signed in, it is a page of the app, with the left menu and the current team
+and username. The public pages' header shows Assets instead of Sign in when the browser has a session.
 
 ## Pages
 
@@ -88,13 +86,14 @@ Each action asks first on a page of its own, except Add and Run cleanup.
 
 ## How it is kept safe
 
-- Session: a random token in a `__Host-handoff-console` cookie (Secure, HttpOnly, SameSite=Strict, Path=/),
-  12 hours. D1 keeps only its sha256, bound to the member's code hash, so a code reset ends the session.
-  The admin grant and the code hash are checked on every request.
+- Session: one per browser for the whole site (Assets, Assistant setup and the console), a random token in a
+  `__Host-handoff-session` cookie (Secure, HttpOnly, SameSite=Strict, Path=/), 12 hours. D1 keeps only its
+  sha256, bound to the member's code hash, so a code reset ends the session. The console checks the admin grant
+  and the code hash on every request.
 - Changes are form POSTs that must carry this origin's `Origin` header and the session's CSRF value
   (sha256 of the session token, in a hidden field). Pages use `referrer-policy: same-origin`: with
   `no-referrer` a browser sends `Origin: null` and the check would refuse the form.
-- Console sign-in: at most 10 attempts per 10 minutes per client IP (only a hash of the IP is stored).
+- Sign-in (`/login`): at most 10 attempts per 10 minutes per client IP (only a hash of the IP is stored).
 - Pages: `no-store`, `noindex`, and a CSP with `default-src 'none'`, `form-action 'self'` and
   `frame-ancestors 'none'`. Setup and new-code pages allow only their nonce script; other console pages allow
   no script. Copying requires a button click, and codes never enter browser storage or URLs.

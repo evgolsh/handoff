@@ -107,20 +107,20 @@ A completed CLI install does **not** need `HANDOFF_SETUP_CODE` or `/console/setu
 
 Have the user save each once-only member access code in a password manager before closing the terminal. Prefer the private terminal/password-manager flow over echoing credentials into an agent chat. Never put codes in source control, public messages, logs you publish, or handoff briefs. Share only a person's own username and code with that person.
 
-Open **the printed `/console` URL**, which leads to console login. The user signs in with the first seeded username and its member access code. They should see:
+Open **the printed `/console` URL**, which leads to sign-in. The user signs in with the first seeded username and its member access code. They should see:
 
 - **Members** for adding teammates and managing access codes.
-- **Connect an assistant** (`/console/connect`) for their assistant setup.
+- **Assistant setup** (`/connect`) for their assistant setup.
 - **Assistants** for connections and disconnection.
 - **Ops** for deployment health and updates.
 
 This is Handoff's console, not Cloudflare's dashboard. Cloudflare owns infrastructure, account settings and billing. Handoff owns membership and assistant connections. Ordinary teammates need neither Cloudflare accounts nor console admin access; use the public `/connect` page for them.
 
-If console sign-in fails, check the username, code and admin grant. Do not silently reset a code, create another deployment or invent a bootstrap secret.
+If signing in at `/login` fails, check the username and code; if the console then sends the owner to Assets, check the admin grant. Do not silently reset a code, create another deployment or invent a bootstrap secret.
 
 ## 4. Connect assistants
 
-Use `/console/connect` as the owner, or the deployment's public `/connect` guide. It has host-specific instructions, compatibility status and warnings. Choose the user's actual host; a CLI command for Codex does not configure every Codex app route, and a connector visible in one plan may not be available in another.
+Use the deployment's `/connect` guide. It has host-specific instructions, compatibility status and warnings. Choose the user's actual host; a CLI command for Codex does not configure every Codex app route, and a connector visible in one plan may not be available in another.
 
 **Every connection must use the user's own deployment URL ending in `/mcp`**, not `https://handoff.infraworks.net/mcp` or a copied example. In the commands below, `https://handoff.acme.workers.dev` is fictional: replace it with the verified output origin.
 
@@ -201,7 +201,7 @@ Report briefly:
 
 - The verified deployment origin, console URL and Connect URL, and the owner's username. Do not repeat secrets.
 - Which assistants are connected and which manual approvals remain.
-- What actually passed: deployment metadata, console sign-in, single-client round trip, cross-assistant read and/or file test. Distinguish untested paths.
+- What actually passed: deployment metadata, sign-in and the console, single-client round trip, cross-assistant read and/or file test. Distinguish untested paths.
 - Where the deployment clone is kept, the requirement to preserve its config, and how to add teammates through Members.
 
 A live Worker alone is not end-to-end onboarding. If you cannot complete a manual step, state exactly what is waiting for the user rather than claiming the installation and connections are finished.

@@ -1,4 +1,4 @@
-import { bytes, document, esc, flowHeader, plural, sideNav, utc, when, type Html, type NavUser } from "../console/html";
+import { bytes, document, esc, plural, sideNav, utc, when, type Html, type NavUser } from "../console/html";
 import type { HandoffWithFiles, PacketView, UnsentFile } from "../domain/service";
 import { MAX_NOTE_CHARS } from "../domain/service";
 import { FILE_ICON } from "./style";
@@ -21,7 +21,7 @@ main.assets{align-items:stretch}
 .assets-wrap{width:100%;max-width:920px;display:flex;flex-direction:column;gap:16px}
 .assets-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .eyebrow{margin:0;font-size:13px;color:var(--muted)}
-.assets h1,.assets-signin h1{margin:2px 0 0;font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere}
+.assets h1{margin:2px 0 0;font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere}
 .lead{margin:4px 0 0;color:var(--muted);font-size:14px}
 .btn.lg{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 14px;font-size:14px;text-decoration:none}
 .btn svg{width:16px;height:16px}
@@ -79,8 +79,6 @@ a.asset-name:hover{text-decoration:underline;text-underline-offset:3px}
 .preview-body .md{padding:18px 22px;max-height:70vh;overflow:auto;max-width:none}
 .preview-cut{padding:8px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line-soft);background:var(--panel)}
 .say{font-size:14px;color:var(--muted);margin:4px 0 0}
-.assets-signin{max-width:440px;margin:4vh auto 64px;padding:0 16px}
-.assets-signin .lead{margin:6px 0 0}
 @media(max-width:640px){
   .assets h1{font-size:24px}
   .asset{grid-template-columns:28px minmax(0,1fr);padding:16px 14px;gap:10px}
@@ -130,33 +128,12 @@ const nav = (v: AssetsViewer): NavUser => ({
   tenant: v.tenant,
   control: v.control,
   admin: v.admin,
-  signOut: `<form method="post" action="/assets/logout">${csrf(v)}<button type="submit">Sign out</button></form>`,
+  signOut: `<form method="post" action="/logout">${csrf(v)}<button type="submit">Sign out</button></form>`,
 });
 
 /** A signed-in page: the left menu and the page's content. */
 const appPage = (v: AssetsViewer, title: string, body: Html, nonce: string): Html =>
   document(title, `<div class="shell">\n  ${sideNav(nav(v), "assets")}\n  <main class="assets" id="main"><div class="assets-wrap">${body}</div></main>\n</div>`, { nonce, script: ASSETS_SCRIPT, style: ASSETS_CSS }, SITE);
-
-/** The sign-in form. On the hosted service a member also names their team. */
-export function assetsLoginPage(opts: { control: boolean; error?: string; team?: string }, nonce: string): Html {
-  return document(
-    "Sign in",
-    `${flowHeader("/connect", "Assistant setup")}
-<main class="assets-signin">
-  <form method="post" action="/assets/login" class="flow-panel" autocomplete="off">
-    <div><p class="eyebrow">Handoff</p><h1>Sign in</h1><p class="lead">Your handoffs and files, in one place.</p></div>
-    ${opts.error ? `<div class="flash" role="alert">${esc(opts.error)}</div>` : ""}
-    ${opts.control ? `<div><label class="lbl" for="team">Team name</label><input id="team" name="team" class="field" autofocus autocapitalize="none" spellcheck="false" placeholder="smiths" value="${esc(opts.team ?? "")}"></div>` : ""}
-    <div><label class="lbl" for="handle">Username</label><input id="handle" name="handle" class="field" required${opts.control ? "" : " autofocus"} autocapitalize="none" spellcheck="false" placeholder="${opts.control ? "anna" : "tom"}"></div>
-    <div><label class="lbl" for="code">Access code</label><input id="code" name="access_code" type="password" class="field" required></div>
-    <button type="submit" class="btn primary">Sign in</button>
-    <p class="flow-note">Use the username and access code you use with your assistants. A team admin manages the team from here too.${opts.control ? ` No team yet? <a href="/join">Create one</a>.` : ""}</p>
-  </form>
-</main>`,
-    { nonce, script: ASSETS_SCRIPT, style: ASSETS_CSS },
-    SITE,
-  );
-}
 
 const typeLabel = (mime: string | null): string =>
   mime === "application/pdf" ? "PDF" : mime === "image/png" ? "PNG" : mime === "image/jpeg" ? "JPEG" : mime === "text/markdown" ? "Markdown" : mime === "text/plain" ? "Text" : "File";

@@ -8,7 +8,7 @@ import { ORIGIN } from "./helpers";
 // Setup is open only while no member is an admin, so each test starts from empty tables.
 beforeEach(async () => {
   await env.DB.batch(
-    ["admin_sessions", "admin_members", "admin_login_limits", "events", "members"].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
+    ["member_sessions", "admin_members", "admin_login_limits", "events", "members"].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
   );
 });
 const SETUP = "correct-horse-battery-staple";
@@ -52,7 +52,7 @@ describe("first admin at /console/setup (servers deployed without a terminal)", 
 
   it("with a setup code: points to setup from the login and Connect pages, and refuses wrong codes and other origins", async () => {
     expect(await (await fetchWith(SETUP, "/console/setup")).text()).toContain('<form method="post" action="/console/setup"');
-    expect(await (await fetchWith(SETUP, "/console/login")).text()).toContain('href="/console/setup"');
+    expect(await (await fetchWith(SETUP, "/login")).text()).toContain('href="/console/setup"');
     expect(await (await fetchWith(SETUP, "/connect")).text()).toContain('href="/console/setup"');
 
     const wrong = await submit({ setup_code: "not-the-setup-code", handle: "owner" });
@@ -76,17 +76,17 @@ describe("first admin at /console/setup (servers deployed without a terminal)", 
     expect(await admins()).toEqual(["owner"]);
 
     const cookie = (res.headers.get("set-cookie") ?? "").split(";")[0]!;
-    expect(cookie).toMatch(/^__Host-handoff-console=/);
+    expect(cookie).toMatch(/^__Host-handoff-session=/);
     expect((await fetchWith(SETUP, "/console/overview", { headers: { cookie } })).status).toBe(200);
 
     // Closed: the page sends you to sign in, and the setup code makes no one else an admin.
     const again = await fetchWith(SETUP, "/console/setup");
     expect(again.status).toBe(303);
-    expect(again.headers.get("location")).toBe("/console/login");
+    expect(again.headers.get("location")).toBe("/login");
     expect((await submit({ setup_code: SETUP, handle: "intruder" })).status).toBe(303);
     expect(await admins()).toEqual(["owner"]);
     expect(await env.DB.prepare("SELECT 1 FROM members WHERE handle = 'intruder'").first()).toBeNull();
-    expect(await (await fetchWith(SETUP, "/console/login")).text()).not.toContain('href="/console/setup"');
+    expect(await (await fetchWith(SETUP, "/login")).text()).not.toContain('href="/console/setup"');
     expect(await (await fetchWith(SETUP, "/connect")).text()).not.toContain('href="/console/setup"');
   });
 

@@ -1,5 +1,4 @@
--- Sessions of Assets (/assets). Any member signs in there with their username and access code.
--- Kept apart from admin_sessions, so a member's session never opens the console.
+-- Browser sessions: one per signed-in member, started at /login (see 0004). The console also checks admin_members.
 CREATE TABLE IF NOT EXISTS member_sessions (
   token_hash TEXT PRIMARY KEY,
   handle TEXT NOT NULL REFERENCES members(handle) ON DELETE CASCADE,

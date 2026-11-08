@@ -26,6 +26,9 @@ import { connectHeaders, connectPage } from "./http/connect";
 import { useCasesHeaders, useCasesPage } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
 import { assetsRoutes } from "./http/assets";
+import { loginRoutes } from "./http/login";
+import { handleOf, tenantOf } from "./domain/tenant";
+import { hasSessionCookie, isAdmin, sessionFrom } from "./console/session";
 import { agentRoutes, notFoundMarkdown } from "./http/agents";
 import { inviteRoutes } from "./http/invite";
 import { mcpCallsIn, recordMcpCalls } from "./store/telemetry";
@@ -35,7 +38,7 @@ import { receiveUpdateCheck } from "./update-check";
 import { DEPLOY_PATH, DEPLOY_URL } from "./http/header";
 import { handleJoin, joinHeaders, joinPage } from "./http/join";
 import { publicStats } from "./console/stats";
-import { CONSOLE_HEADERS, document as consoleDocument, esc } from "./console/html";
+import { CONSOLE_HEADERS, document as consoleDocument, esc, interactiveHeaders } from "./console/html";
 
 export type Variables = AppVariables & { service: HandoffService };
 
@@ -99,23 +102,28 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
 
   // Public home and Connect pages. A deployed instance is "active" once it has an admin (so members can sign in).
   const isActive = (c: { env: Env }) => hasAdmin(c.env.DB).then((yes) => yes, () => false);
-  const home = async (c: { get: (k: "cfg") => Variables["cfg"]; env: Env }) => {
+  type PageContext = { get: (k: "cfg") => Variables["cfg"]; env: Env; req: { header: (n: string) => string | undefined } };
+  const home = async (c: PageContext) => {
     const active = await isActive(c);
-    return new Response(useCasesPage(c.get("cfg"), { active }), { headers: useCasesHeaders() });
+    return new Response(useCasesPage(c.get("cfg"), { active, signedIn: hasSessionCookie(c.req.header("cookie")) }), { headers: useCasesHeaders() });
   };
-  const connect = async (c: { get: (k: "cfg") => Variables["cfg"]; env: Env }) => {
+  // Signed in, Assistant setup is a page of the app, with its left menu; otherwise the public guide.
+  const connect = async (c: PageContext) => {
     const nonce = newNonce();
-    const active = await isActive(c);
-    return new Response(connectPage(c.get("cfg"), nonce, { needsSetup: !active }), { headers: connectHeaders(nonce) });
+    const cfg = c.get("cfg");
+    const s = await sessionFrom(c.env.DB, c.req.header("cookie"));
+    if (s) {
+      const viewer = { handle: handleOf(s.handle), identity: s.handle, tenant: tenantOf(s.handle), control: cfg.mode === "control", admin: await isAdmin(c.env.DB, s.handle), csrf: s.csrf };
+      // The app's headers: its menu posts the sign-out form, which the public page's policy would block.
+      return new Response(connectPage(cfg, nonce, { viewer }), { headers: interactiveHeaders(nonce) });
+    }
+    return new Response(connectPage(cfg, nonce, { needsSetup: !(await isActive(c)) }), { headers: connectHeaders(nonce) });
   };
   // A private install serves its console and Connect page; the homepage lives on the control center.
   const control = (c: { get: (k: "cfg") => Variables["cfg"] }) => c.get("cfg").mode === "control";
   const homeOrConnect = (c: Parameters<typeof home>[0] & { redirect: (to: string, status: 303) => Response }) => (control(c) ? home(c) : c.redirect("/connect", 303));
   app.get("/", (c) => homeOrConnect(c));
   app.get("/use-cases", (c) => homeOrConnect(c));
-  // The draft homepage that was reviewed at /b is now "/".
-  app.get("/b", (c) => (control(c) ? c.redirect("/", 301) : c.notFound()));
-  // Public for everyone, signed-in admins included: the console has its own copy at /console/connect.
   app.get("/connect", (c) => connect(c));
   app.get("/healthz", (c) => c.json({ ok: true }));
 
@@ -153,6 +161,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   // The update check's receiving end (src/update-check.ts): 404 unless UPDATE_CHECK_RECEIVER=1.
   app.get("/v1/update-check", (c) => receiveUpdateCheck(c.env, new URL(c.req.url)));
   app.route("/", consoleRoutes());
+  app.route("/", loginRoutes());
   app.route("/", assetsRoutes());
   app.route("/", inviteRoutes());
 

@@ -3,29 +3,16 @@ import { bodyLimit } from "hono/body-limit";
 import type { Variables } from "../app";
 import type { Env } from "../env";
 import type { Principal } from "../auth/verify";
-import { identityFrom, verifyMemberCode } from "../auth/builtin";
 import { HandoffError } from "../domain/errors";
 import { base64url } from "../domain/ids";
 import { handleOf, tenantOf } from "../domain/tenant";
 import type { AttachmentRow } from "../store/repository";
 import { recordEvent } from "../store/events";
 import { bytes, esc, interactiveHeaders, problemPage, type Html } from "../console/html";
-import {
-  ASSETS_SESSIONS,
-  cookieToken,
-  csrfOk,
-  endSessions,
-  isAdmin,
-  loginAllowed,
-  redirectSetting,
-  sameOrigin,
-  sessionFrom,
-  startSessions,
-  type Session,
-} from "../console/session";
+import { csrfOk, isAdmin, sameOrigin, sessionFrom, type Session } from "../console/session";
 import { attachmentResponse } from "./routes";
 import { renderBrief } from "./markdown";
-import { assetsLoginPage, assetsPage, filePage, handoffPage, previewKind, type AssetsViewer, type FileCard, type Flash, type Preview } from "./assets-page";
+import { assetsPage, filePage, handoffPage, previewKind, type AssetsViewer, type FileCard, type Flash, type Preview } from "./assets-page";
 
 type Body = Record<string, string | File | (string | File)[]>;
 type AssetsVariables = Variables & { session: Session; body: Body };
@@ -80,8 +67,7 @@ function inlineResponse(a: AttachmentRow, blob: { body: ReadableStream<Uint8Arra
 }
 
 /**
- * Assets at /assets. Any member signs in with their username and access code; an admin's sign-in also opens the
- * console. They see their unsent files and live handoffs in one list, open a handoff to read its brief and see
+ * Assets at /assets, for any signed-in member (see /login). They see their unsent files and live handoffs in one list, open a handoff to read its brief and see
  * its files, upload a file for their assistant to send, and remove an unsent file. Every change is a form POST
  * from this origin carrying the session's CSRF value.
  */
@@ -136,9 +122,13 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     return kind === "text" ? { kind, text, cut } : { kind, html: renderBrief(text), cut };
   };
 
-  const loginPage = (c: C, error?: string, team?: string, status = 200) =>
-    respond((nonce) => assetsLoginPage({ control: c.get("cfg").mode === "control", error, team }, nonce), status);
-  const sessionOf = (c: C) => sessionFrom(c.env.DB, cookieToken(c.req.header("cookie"), ASSETS_SESSIONS), ASSETS_SESSIONS);
+  const sessionOf = (c: C) => sessionFrom(c.env.DB, c.req.header("cookie"));
+  /** Not signed in: sign in, then come back to this page (a form's page, for a POST). */
+  const toLogin = (c: { req: { method: string; url: string } }) => {
+    const u = new URL(c.req.url);
+    const back = c.req.method === "GET" || c.req.method === "HEAD" ? `${u.pathname}${u.search}` : "/assets";
+    return redirect(`/login?next=${encodeURIComponent(back)}`);
+  };
 
   // Forms are small, except the upload: one file of the largest size this server takes, and the form around it.
   app.use("/assets/*", async (c, next) => {
@@ -151,7 +141,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
 
   app.get("/assets", async (c) => {
     const s = await sessionOf(c);
-    if (!s) return loginPage(c);
+    if (!s) return toLogin(c);
     const q = (k: string) => c.req.query(k);
     const older = q("older");
     try {
@@ -174,36 +164,10 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     }
   });
 
-  app.post("/assets/login", async (c) => {
-    const db = c.env.DB;
-    const cfg = c.get("cfg");
-    if (!sameOrigin(c.req.header("origin"), cfg.publicUrl)) {
-      return problem("Sign-in refused", "The sign-in form must be sent from this server's own page.", 403);
-    }
-    if (!(await loginAllowed(db, c.req.header("cf-connecting-ip"), "assets-login"))) {
-      const res = loginPage(c, "Too many attempts. Try again in 10 minutes.", undefined, 429);
-      res.headers.set("retry-after", "600");
-      return res;
-    }
-    const form = (await c.req.parseBody()) as Body;
-    const identity = identityFrom(cfg, str(form, "team"), str(form, "handle"));
-    const code = str(form, "access_code");
-    const valid = identity !== null && code.length > 0 && code.length <= 256 && (await verifyMemberCode(db, identity, code)) === identity;
-    // One sign-in: every member gets Assets, and an admin the console as well.
-    const cookies = valid && identity ? await startSessions(db, identity) : [];
-    if (cookies.length === 0) {
-      await recordEvent(db, { kind: "assets", name: "login", subject: identity, outcome: "refused" }, { unauthenticated: true });
-      const msg = cfg.mode === "control" ? "That team, username and access code do not match." : "That username and access code do not match.";
-      return loginPage(c, msg, str(form, "team"), 401);
-    }
-    await recordEvent(db, { kind: "assets", name: "login", subject: identity, outcome: "ok" });
-    return redirectSetting("/assets", cookies);
-  });
-
   // Everything below needs a session; a POST also needs this origin and the session's CSRF value.
   app.use("/assets/*", async (c, next) => {
     const s = await sessionOf(c);
-    if (!s) return c.req.method === "GET" || c.req.method === "HEAD" ? redirect("/assets") : loginPage(c, "Your session ended. Sign in again.", undefined, 401);
+    if (!s) return toLogin(c);
     if (c.req.method !== "GET" && c.req.method !== "HEAD") {
       if (!sameOrigin(c.req.header("origin"), c.get("cfg").publicUrl)) {
         return problem("Refused", "Changes must be sent from this server's own pages.", 403);
@@ -215,9 +179,6 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     c.set("session", s);
     await next();
   });
-
-  // Signing out here also signs an admin out of the console: one sign-in, one sign-out.
-  app.post("/assets/logout", async (c) => redirectSetting("/assets", await endSessions(c.env.DB, c.req.header("cookie"))));
 
   app.post("/assets/upload", async (c) => {
     const s = c.get("session");

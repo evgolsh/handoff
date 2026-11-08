@@ -8,8 +8,7 @@ import { ORIGIN, PDF, PNG, ZIP_HEAD, call, errorText, expectOk, token } from "./
 /** Assets: any member signs in, sees their handoffs and files in one list, opens a handoff to read its brief and see its files, and uploads a file for their assistant. */
 const CODES = { tim: "code-of-tim-1", tom: "code-of-tom-1", amy: "code-of-amy-1" } as const;
 type Who = keyof typeof CODES;
-const ASSETS = "__Host-handoff-assets";
-const CONSOLE = "__Host-handoff-console";
+const COOKIE = "__Host-handoff-session";
 
 let ip = 0;
 const form = (path: string, fields: Record<string, string>, extra: Record<string, string> = {}) =>
@@ -20,7 +19,7 @@ const form = (path: string, fields: Record<string, string>, extra: Record<string
     headers: { origin: ORIGIN, "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": `203.0.113.${++ip % 250}`, ...extra },
     body: new URLSearchParams(fields),
   });
-const signIn = (handle: string, code: string, extra: Record<string, string> = {}) => form("/assets/login", { handle, access_code: code, ...extra });
+const signIn = (handle: string, code: string, extra: Record<string, string> = {}) => form("/login", { handle, access_code: code, ...extra });
 
 /** The name=value pairs a response sets, by cookie name. */
 const cookiesOf = (res: Response): Record<string, string> =>
@@ -28,19 +27,21 @@ const cookiesOf = (res: Response): Record<string, string> =>
 
 interface Sess {
   cookie: string;
-  /** Set for an admin: the console session the same sign-in started. */
-  console?: string;
   csrf: string;
 }
 async function sessionOf(who: Who): Promise<Sess> {
   const res = await signIn(who, CODES[who]);
   expect(res.status).toBe(303);
   expect(res.headers.get("location")).toBe("/assets");
-  const set = cookiesOf(res);
-  const cookie = set[ASSETS]!;
+  const cookie = cookiesOf(res)[COOKIE]!;
   const page = await (await SELF.fetch(`${ORIGIN}/assets`, { headers: { cookie } })).text();
-  return { cookie, console: set[CONSOLE], csrf: /name="csrf" value="([^"]+)"/.exec(page)![1]! };
+  return { cookie, csrf: /name="csrf" value="([^"]+)"/.exec(page)![1]! };
 }
+/** Where a session's browser lands on Assets: 200 while signed in, the sign-in page once it ended. */
+const assetsStatus = async (s: Sess) => {
+  const res = await SELF.fetch(`${ORIGIN}/assets`, { redirect: "manual", headers: { cookie: s.cookie } });
+  return res.status === 303 ? res.headers.get("location") : res.status;
+};
 
 const pageOf = async (s: Sess, query = "") => (await SELF.fetch(`${ORIGIN}/assets${query}`, { headers: { cookie: s.cookie } })).text();
 
@@ -90,22 +91,22 @@ describe("Assets (/assets)", () => {
   });
 
   it("any member signs in with their username and access code; a wrong code or another site's form is refused", async () => {
-    const page = await SELF.fetch(`${ORIGIN}/assets`);
-    expect(page.status).toBe(200);
-    const html = await page.text();
-    expect(html).toContain('action="/assets/login"');
+    const page = await SELF.fetch(`${ORIGIN}/assets`, { redirect: "manual" });
+    expect(page.status).toBe(303);
+    expect(page.headers.get("location")).toBe("/login?next=%2Fassets");
+    const html = await (await SELF.fetch(`${ORIGIN}/login?next=%2Fassets`)).text();
+    expect(html).toContain('action="/login"');
     expect(html).toContain("<h1>Sign in</h1>");
     expect(html).not.toContain('name="team"');
-    expect(page.headers.get("content-security-policy")).toContain("default-src 'none'");
 
     expect((await signIn("tom", "wrong-code")).status).toBe(401);
-    const foreign = await form("/assets/login", { handle: "tom", access_code: CODES.tom }, { origin: "https://evil.example" });
+    const foreign = await form("/login", { handle: "tom", access_code: CODES.tom }, { origin: "https://evil.example" });
     expect(foreign.status).toBe(403);
 
     // tom is not an admin: he gets Assets only.
     const ok = await signIn("tom", CODES.tom);
     expect(ok.status).toBe(303);
-    expect(ok.headers.getSetCookie()).toEqual([expect.stringMatching(/^__Host-handoff-assets=[^;]+; Path=\/; Secure; HttpOnly; SameSite=Strict/)]);
+    expect(ok.headers.getSetCookie()).toEqual([expect.stringMatching(/^__Host-handoff-session=[^;]+; Path=\/; Secure; HttpOnly; SameSite=Strict/)]);
     const s = await sessionOf("tom");
     const mine = await pageOf(s);
     expect(mine).toContain("<strong>tom</strong>");
@@ -115,65 +116,52 @@ describe("Assets (/assets)", () => {
     expect(mine).toContain("Nothing here yet.");
   });
 
-  it("one sign-in: an admin gets Assets and the console, a member's session alone never opens the console", async () => {
+  it("one sign-in opens every page: an admin moves between Assets, the console and Assistant setup with one session", async () => {
+    // tom is not an admin: his session opens Assets and Assistant setup; the console sends him back to Assets.
     const tom = await sessionOf("tom");
-    const consoleRes = await SELF.fetch(`${ORIGIN}/console/overview`, { redirect: "manual", headers: { cookie: tom.cookie } });
+    const consoleRes = await get("/console/overview", tom);
     expect(consoleRes.status).toBe(303);
-    expect(consoleRes.headers.get("location")).toBe("/console/login");
+    expect(consoleRes.headers.get("location")).toBe("/assets");
+    expect(await assetsStatus(tom)).toBe(200);
 
-    // tim is an admin: the same sign-in started both sessions, each with its own cookie.
+    // tim is an admin: one cookie, and every page knows him.
     const tim = await sessionOf("tim");
-    expect(tim.console).toMatch(/^__Host-handoff-console=/);
     expect(await pageOf(tim)).toContain('<a href="/console/overview">Overview</a>');
-    expect((await SELF.fetch(`${ORIGIN}/console/overview`, { redirect: "manual", headers: { cookie: tim.console! } })).status).toBe(200);
-    // The Assets cookie is still not a console session, and the reverse.
-    expect((await SELF.fetch(`${ORIGIN}/console/overview`, { redirect: "manual", headers: { cookie: tim.cookie } })).status).toBe(303);
-    const asAssets = tim.console!.replace(`${CONSOLE}=`, `${ASSETS}=`);
-    expect(await (await SELF.fetch(`${ORIGIN}/assets`, { headers: { cookie: asAssets } })).text()).toContain('action="/assets/login"');
-
-    // Signing in on the console also opens Assets.
-    const viaConsole = cookiesOf(await form("/console/login", { handle: "tim", access_code: CODES.tim }));
-    expect(Object.keys(viaConsole).sort()).toEqual([ASSETS, CONSOLE]);
-    expect(await (await SELF.fetch(`${ORIGIN}/assets`, { headers: { cookie: viaConsole[ASSETS]! } })).text()).toContain("<h1>Assets</h1>");
-
-    // A console sign-in refused to a member who is not an admin starts no session at all.
-    const refused = await form("/console/login", { handle: "tom", access_code: CODES.tom });
-    expect(refused.status).toBe(401);
-    expect(refused.headers.getSetCookie()).toEqual([]);
+    for (const path of ["/assets", "/console/overview", "/console/members", "/connect"]) {
+      const res = await get(path, tim);
+      expect(res.status, path).toBe(200);
+      expect(menuOf(await res.text()), path).toContain("<strong>tim</strong>");
+    }
+    // Following a sign-in link while signed in goes straight on.
+    const again = await get("/login?next=%2Fconsole%2Fmembers", tim);
+    expect(again.headers.get("location")).toBe("/console/members");
 
     // A revoked admin grant closes the console, and its pages leave the menu; Assets stays.
     await env.DB.prepare("DELETE FROM admin_members WHERE handle = 'tim'").run();
-    expect((await SELF.fetch(`${ORIGIN}/console/overview`, { redirect: "manual", headers: { cookie: tim.console! } })).status).toBe(303);
+    expect((await get("/console/overview", tim)).headers.get("location")).toBe("/assets");
     expect(await pageOf(tim)).not.toContain('href="/console/');
   });
 
-  it("signing out of either area ends both sessions", async () => {
+  it("signing out from any page ends the one session; a reset access code ends it too", async () => {
     const tim = await sessionOf("tim");
-    // The browser sends both cookies (both Path=/).
-    const out = await post({ ...tim, cookie: `${tim.cookie}; ${tim.console}` }, "/assets/logout", {});
+    const out = await post(tim, "/logout", {});
     expect(out.status).toBe(303);
-    expect(out.headers.getSetCookie().join("\n")).toMatch(new RegExp(`${ASSETS}=; [^\\n]*Max-Age=0[\\s\\S]*${CONSOLE}=; [^\\n]*Max-Age=0`));
-    expect(await pageOf(tim)).toContain('action="/assets/login"');
-    expect((await SELF.fetch(`${ORIGIN}/console/overview`, { redirect: "manual", headers: { cookie: tim.console! } })).status).toBe(303);
+    expect(out.headers.get("location")).toBe("/");
+    expect(out.headers.getSetCookie()).toEqual([expect.stringMatching(/^__Host-handoff-session=; [^\n]*Max-Age=0/)]);
+    expect(await assetsStatus(tim)).toBe("/login?next=%2Fassets");
+    expect((await get("/console/overview", tim)).headers.get("location")).toBe("/login?next=%2Fconsole%2Foverview");
 
+    // The console's sign-out is the same one.
     const again = await sessionOf("tim");
-    const consolePage = await (await SELF.fetch(`${ORIGIN}/console/overview`, { headers: { cookie: again.console! } })).text();
+    const consolePage = await (await get("/console/overview", again)).text();
     expect(consolePage).toContain('<a href="/assets">Assets</a>');
     const consoleCsrf = /name="csrf" value="([^"]+)"/.exec(consolePage)![1]!;
-    const both = `${again.console}; ${again.cookie}`;
-    const consoleOut = await SELF.fetch(`${ORIGIN}/console/logout`, {
-      method: "POST",
-      redirect: "manual",
-      headers: { origin: ORIGIN, cookie: both, "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ csrf: consoleCsrf }),
-    });
-    expect(consoleOut.status).toBe(303);
-    expect(await pageOf(again)).toContain('action="/assets/login"');
+    expect((await post({ ...again, csrf: consoleCsrf }, "/logout", {})).status).toBe(303);
+    expect(await assetsStatus(again)).toBe("/login?next=%2Fassets");
 
-    // A reset access code ends the session too.
     const tom = await sessionOf("tom");
     await upsertMember(env.DB, "tom", "a-new-code-for-tom");
-    expect(await pageOf(tom)).toContain('action="/assets/login"');
+    expect(await assetsStatus(tom)).toBe("/login?next=%2Fassets");
   });
 
   it("an upload is stored like an assistant's upload, owned by the uploader and shown only to them, with no ids in the text", async () => {
@@ -211,7 +199,10 @@ describe("Assets (/assets)", () => {
     expect((await upload(tom, "vat.pdf", PDF, "application/pdf", undefined, "not-the-csrf")).status).toBe(403);
     const fd = new FormData();
     fd.append("file", new File([PDF], "vat.pdf", { type: "application/pdf" }));
-    expect((await SELF.fetch(`${ORIGIN}/assets/upload`, { method: "POST", headers: { origin: ORIGIN }, body: fd })).status).toBe(401);
+    // With no session the browser goes to sign in, then back to Assets; nothing is stored.
+    const anon = await SELF.fetch(`${ORIGIN}/assets/upload`, { method: "POST", redirect: "manual", headers: { origin: ORIGIN }, body: fd });
+    expect(anon.status).toBe(303);
+    expect(anon.headers.get("location")).toBe("/login?next=%2Fassets");
     const ready = await env.DB.prepare("SELECT COUNT(*) AS n FROM attachments WHERE owner = 'tom' AND state = 'ready'").first<{ n: number }>();
     expect(ready?.n).toBe(0);
   });
@@ -380,21 +371,21 @@ describe("Assets (/assets)", () => {
     expect(m).toContain('<a href="/connect">Assistant setup</a>');
     expect(m.indexOf(">Assets</a>")).toBeLessThan(m.indexOf(">Assistant setup</a>"));
     expect(m).not.toContain('href="/console/');
-    expect(m).toContain('action="/assets/logout"');
+    expect(m).toContain('action="/logout"');
 
     const tim = await sessionOf("tim");
     const t = menuOf(await pageOf(tim));
-    expect(t).toContain('<a href="/console/connect">Assistant setup</a>');
+    expect(t).toContain('<a href="/connect">Assistant setup</a>');
     for (const [path, label] of [["overview", "Overview"], ["members", "Members"], ["assistants", "Assistants"], ["ops", "Ops"]]) {
       expect(t).toContain(`<a href="/console/${path}">${label}</a>`);
     }
     expect(t).toContain('<span class="chip">admin</span>');
-    // The console has the same menu, with Assets first and its own sign-out.
-    const c = menuOf(await (await SELF.fetch(`${ORIGIN}/console/members`, { headers: { cookie: tim.console! } })).text());
+    // The console has the same menu, with Assets first and the same sign-out.
+    const c = menuOf(await (await get("/console/members", tim)).text());
     expect(c).toContain('<a href="/assets">Assets</a>');
     expect(c).toContain('<a href="/console/members" class="on" aria-current="page">Members</a>');
     expect(c.indexOf(">Assets</a>")).toBeLessThan(c.indexOf(">Members</a>"));
-    expect(c).toContain('action="/console/logout"');
+    expect(c).toContain('action="/logout"');
     // Every handoff and file page keeps the menu: no page is a dead end.
     const id = await uploaded(tom, "lease.pdf");
     expect(menuOf(await pageOf(tom, `/file/${id}`))).toContain('class="on" aria-current="page">Assets</a>');
@@ -521,7 +512,7 @@ describe("Assets (/assets)", () => {
   });
 
   it("on the control center the sign-in names the team", async () => {
-    const res = await worker.fetch(new Request(`${ORIGIN}/assets`), { ...env, HANDOFF_MODE: "control" }, createExecutionContext());
+    const res = await worker.fetch(new Request(`${ORIGIN}/login`), { ...env, HANDOFF_MODE: "control" }, createExecutionContext());
     const html = await res.text();
     expect(html).toContain('name="team"');
     expect(html).not.toContain("—");

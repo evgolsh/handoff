@@ -6,14 +6,13 @@
  * Usage:
  *   npm run member:add -- <username> [access_code] [--local | --hosted]
  * --hosted runs it on the hosted service (wrangler.hosted.jsonc), for example to reset the operator's code.
- * --playground is the old name of --hosted.
  */
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const isLocal = args.includes("--local");
-const config = args.includes("--hosted") || args.includes("--playground") ? ["-c", "wrangler.hosted.jsonc"] : [];
+const config = args.includes("--hosted") ? ["-c", "wrangler.hosted.jsonc"] : [];
 const positional = args.filter((a) => !a.startsWith("-"));
 const rawHandle = (positional[0] ?? "").trim().toLowerCase();
 
