@@ -28,11 +28,12 @@ describe("connect page", () => {
     expect(html).toContain(`hermes mcp add handoff --url ${ORIGIN}/mcp --auth oauth`);
     expect(html).toContain(`codex mcp add handoff --url ${ORIGIN}/mcp`);
     for (const host of ["Claude Code", "Hermes", "Claude", "Codex", "ChatGPT"]) expect(html).toContain(`<span class="tab-name">${host}</span>`);
-    // Each host says how far it was tested. All five are tested; the legend lists only levels in use.
-    const tags = [...html.matchAll(/<span class="tab-state">([^<]+)<\/span>/g)].map((m) => m[1]);
-    expect(tags).toEqual(["Tested", "Tested", "Tested", "Tested", "Tested"]);
-    expect(html).toContain("Tested: sign-in and sending worked with Handoff.");
-    expect(html).not.toContain("Partly tested: the guide says which part.");
+    // Each guide's badge says how far it was tested, with the meaning on hover. The tabs name the assistant only:
+    // a dot on a tab reads as "connected".
+    const tags = [...html.matchAll(/<span class="badge" title="([^"]+)"><span class="dot [a-z]+" aria-hidden="true"><\/span>([^<]+)<\/span>/g)].map((m) => [m[2], m[1]]);
+    expect(tags).toEqual(Array(5).fill(["Tested", "Tested: sign-in and sending worked with Handoff."]));
+    expect(html).not.toMatch(/role="tab"[^>]*>(?:(?!<\/button>).)*class="dot/s);
+    expect(html).not.toContain("About these guides");
     // Every tab has the assistant's mark: the Claude logo, the OpenAI logo, or Hermes's (a CSS mask image).
     expect(html.match(/<span class="tab-logo [a-z-]+" aria-hidden="true">/g)?.length).toBe(5);
     expect(html).toContain('<span class="tab-logo hermes" aria-hidden="true"></span>');
@@ -133,6 +134,14 @@ describe("connect page", () => {
     expect(html).toContain('id="how"');
     const steps = [...html.matchAll(/<span class="how-n">\d+<\/span><h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
     expect(steps).toEqual(["Add Handoff to your assistant", "Create your team", "Invite your partner", "Hand off"]);
+    // The step cards end with their text: no link pinned under some of them, none that sends a visitor to sign in.
+    // The browser route is one note under the cards.
+    const how = html.slice(html.indexOf('id="how"'), html.indexOf('id="use-cases"'));
+    expect(how).not.toMatch(/<\/p><a [^>]*>[^<]*<\/a><\/li>/);
+    expect(how).not.toContain('href="/assets"');
+    expect(how).toContain('<p class="examples-note">Prefer to start in the browser? <a href="/join">Create a team →</a></p>');
+    // The FAQ links the guide for assistants instead of printing its address.
+    expect(html).toMatch(/from <a href="https:\/\/[^"]+\/llms\.txt">[^<]+\/llms\.txt<\/a>\./);
     expect(html).toContain("invite anna to Handoff");
     expect(html).toContain('id="faq"');
     // The hosted story ends with its questions; the private server follows, with the install demo inside it.

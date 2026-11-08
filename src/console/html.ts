@@ -174,7 +174,7 @@ export function ago(iso: string | null | undefined, now: number): string {
   if (!iso) return "never";
   const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
   if (s < 45) return "just now";
-  if (s < 90 * 60) return `${Math.max(1, Math.round(s / 60))} min ago`;
+  if (s < 60 * 60) return `${Math.max(1, Math.round(s / 60))} min ago`;
   if (s < 36 * 3600) return `${Math.round(s / 3600)} h ago`;
   return `${Math.round(s / 86400)} d ago`;
 }

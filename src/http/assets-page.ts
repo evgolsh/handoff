@@ -51,13 +51,12 @@ main.assets{align-items:stretch}
 .st-soon{font-size:12px;color:var(--warn)}
 .hollow{width:10px;height:10px;border-radius:50%;border:2px solid var(--muted);flex:none}
 .dot.new{background:var(--accent)}
-.say-box{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:12px;padding:8px 8px 8px 12px;border:1px solid var(--line-soft);border-radius:6px;background:var(--ground);font-size:13px}
-.say-box q{font-weight:500;flex:1 1 200px;overflow-wrap:anywhere}
-.new-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;align-items:start;padding:16px 20px;background:var(--select);border:1px solid var(--accent);border-radius:8px}
-.new-line{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--muted)}
-.new-line strong{color:var(--accent);font-weight:500}
-.new-card .asset-name{display:inline-block;margin-top:4px;font-size:17px}
-.new-card .say-box{background:var(--panel)}
+.say-box{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-top:8px;font-size:12px;color:var(--muted)}
+.say-box q{color:var(--ink);font-weight:500;overflow-wrap:anywhere}
+.say-box .btn.sm{padding:2px 8px;font-size:11px;border-color:var(--line)}
+.say-box .btn.sm:hover{border-color:var(--accent);color:var(--accent)}
+.asset.unread{box-shadow:inset 3px 0 0 var(--accent)}
+.asset.unread:first-child{border-top-left-radius:7px}.asset.unread:last-child{border-bottom-left-radius:7px}
 .first-steps{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-soft)}
 .first-steps>li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;padding:18px 20px;border-bottom:1px solid var(--line-soft)}
 .first-steps>li:last-child{border-bottom:0}
@@ -77,6 +76,7 @@ main.assets{align-items:stretch}
 .pt{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--panel);position:relative;border:2px solid var(--muted)}
 .pt.ok{background:var(--ok);border-color:var(--ok);color:var(--panel)}
 .pt.wait{border-style:dashed}
+.pt.done{border:0}.pt.done::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--muted)}
 .pt svg{width:11px;height:11px;stroke-width:3.2}
 .tl.ok>span:nth-child(2){font-weight:500;color:var(--ok)}
 .tl .when{font-size:13px;color:var(--muted);white-space:nowrap}
@@ -135,8 +135,7 @@ a.asset-name:hover{text-decoration:underline;text-underline-offset:3px}
   .asset{grid-template-columns:28px minmax(0,1fr);padding:16px 14px;gap:10px}
   .asset-icon{width:28px;height:32px}
   .asset-meta,.asset-status{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 12px;text-align:left;white-space:normal}
-  .new-card{grid-template-columns:minmax(0,1fr);padding:16px}
-  .new-card>.btn{width:100%}
+  .say-box .btn.sm{padding:4px 10px;font-size:12px}
   .seg{display:flex;width:100%}.seg a{flex:1;text-align:center;padding:8px 10px}
   .tl{grid-template-columns:18px minmax(0,1fr)}.tl .when{grid-column:2}
   .first-steps>li{padding:16px 14px}
@@ -251,7 +250,7 @@ export function statusOf(me: string, h: PacketViewLike & Delivery, now: number):
     // A handoff to the viewer (or to themselves): their own pickups.
     if (picked.length) return { tone: "ok", label: sent ? "Picked up" : "You picked it up", meta: [`${where(last(picked))} · ${ago(last(picked).at, now)}`] };
     if (opened.length) return { tone: "seen", label: sent ? "Opened" : "You opened it", meta: [`in the browser · ${ago(last(opened).at, now)}`] };
-    return sent ? { tone: "wait", label: "Not picked up yet", meta: [`Sent ${ago(h.created_at, now)}`] } : { tone: "new", label: "New", meta: [ago(h.created_at, now)] };
+    return sent ? { tone: "wait", label: "Not picked up yet", meta: [] } : { tone: "new", label: "New", meta: [] };
   }
   const meta: string[] = [];
   const waiting = h.waiting.length ? [`${names(h.waiting)} not yet`] : [];
@@ -266,7 +265,7 @@ export function statusOf(me: string, h: PacketViewLike & Delivery, now: number):
     if (who.length === 1) meta.push(`in the browser · ${ago(last(opened).at, now)}`);
     return { tone: "seen", label: `Opened by ${names(who)}`, meta: [...meta, ...waiting] };
   }
-  return { tone: "wait", label: "Not picked up yet", meta: [`Sent ${ago(h.created_at, now)}`] };
+  return { tone: "wait", label: "Not picked up yet", meta: [] };
 }
 
 type PacketViewLike = { from: string; to: string; created_at: string };
@@ -276,7 +275,7 @@ const MARK: Record<Status["tone"], Html> = { ok: CHECK_ICON, seen: EYE_ICON, wai
 function statusBlock(st: Status, expiresAt: string, now: number): Html {
   return `<div class="asset-status">
       <span class="st ${st.tone}">${MARK[st.tone]}${esc(st.label)}</span>
-      ${st.meta.map((m) => `<span class="st-meta">${esc(m)}</span>`).join("")}
+      ${st.meta.length ? `<span class="st-meta">${esc(st.meta.join(" · "))}</span>` : ""}
       ${expiresSoon(expiresAt, now)}
     </div>`;
 }
@@ -301,31 +300,17 @@ function fileRow(v: AssetsViewer, f: UnsentFile, now: number, unsentTtlMs: numbe
   </article>`;
 }
 
-function handoffRow(v: AssetsViewer, h: HandoffWithFiles, now: number): Html {
+function handoffRow(v: AssetsViewer, h: HandoffWithFiles, now: number, unread = false): Html {
   const files = fileChips(h);
-  return `<article class="asset">
+  return `<article class="asset${unread ? " unread" : ""}">
     <span class="asset-icon">${HANDOFF_ICON}</span>
     <div>
       <a class="asset-name" href="${handoffHref(h.packet_id)}">${esc(h.title)}</a>
       <div class="asset-sub">${esc(direction(v.handle, h))} · ${fileCount(h.attachments.length)} · ${when(h.created_at, now)}</div>
       ${files ? `<div class="asset-files">${files}</div>` : ""}
+      ${unread ? sayBox(`Continue the handoff from ${h.from}.`) : ""}
     </div>
     ${statusBlock(statusOf(v.handle, h, now), h.expires_at, now)}
-  </article>`;
-}
-
-/** A handoff someone sent the viewer that they have not opened or picked up yet. */
-function newCard(h: HandoffWithFiles, now: number): Html {
-  const files = fileChips(h);
-  return `<article class="new-card">
-    <div>
-      <p class="new-line"><span class="dot new"></span><span><strong>New</strong> · ${esc(direction("", h).replace(/^From/, "from"))} · ${when(h.created_at, now)}</span></p>
-      <a class="asset-name" href="${handoffHref(h.packet_id)}">${esc(h.title)}</a>
-      <div class="asset-sub">${fileCount(h.attachments.length)}${Date.parse(h.expires_at) - now < SOON_MS ? ` · ${expiresSoon(h.expires_at, now)}` : ""}</div>
-      ${files ? `<div class="asset-files">${files}</div>` : ""}
-      ${sayBox(`Continue the handoff from ${h.from}.`, "Or tell your assistant")}
-    </div>
-    <a class="btn primary lg" href="${handoffHref(h.packet_id)}">Open</a>
   </article>`;
 }
 
@@ -396,14 +381,14 @@ export function assetsPage(v: AssetsViewer, d: AssetsData, nonce: string): Html 
   const ttlDays = plural(Math.max(1, Math.round(d.unsentTtlMs / 86_400_000)), "day");
   const ready = d.unsent.length
     ? `<section class="assets-sect" aria-labelledby="ready-h">
-    <div class="sect-head"><h2 class="sect-h" id="ready-h">Ready to send</h2><span class="sect-note">Only you see these until your assistant sends one. Files not sent within ${ttlDays} are deleted.</span></div>
+    <div class="sect-head"><h2 class="sect-h" id="ready-h">Ready to send</h2><span class="sect-note">Private to you until sent</span></div>
     <div class="assets-list">${d.unsent.map((f) => fileRow(v, f, d.now, d.unsentTtlMs)).join("")}</div>
   </section>`
     : "";
   const fresh = d.unseen.length
     ? `<section class="assets-sect" aria-labelledby="new-h">
     <div class="sect-head"><h2 class="sect-h" id="new-h">New for you</h2></div>
-    ${d.unseen.map((h) => newCard(h, d.now)).join("")}
+    <div class="assets-list">${d.unseen.map((h) => handoffRow(v, h, d.now, true)).join("")}</div>
   </section>`
     : "";
   const empty = d.older
@@ -506,7 +491,7 @@ function pickupLine(me: string, k: Pickup): string {
   return you ? `You picked it up${app}` : `Picked up by ${k.by}${app}`;
 }
 
-const DOT: Html = '<span class="pt"></span>';
+const DOT: Html = '<span class="pt done"></span>';
 
 /** Sent, each pickup in time order, and (for the sender) the recipients still to pick it up. */
 function timeline(me: string, h: PacketView, d: Delivery & { sent_via: string | null }, now: number): Html {
@@ -538,12 +523,12 @@ export function handoffPage(v: AssetsViewer, h: PacketView, d: Delivery & { sent
   <header>
     <p class="eyebrow">${esc(direction(v.handle, h))} · ${count}</p>
     <h1>${esc(h.title)}</h1>
-    <p class="lead">Sent ${when(h.created_at, now)}${d.sent_via ? ` from ${esc(d.sent_via)}` : ""}</p>
+    <p class="lead">Sent ${when(h.created_at, now)} · ${expires(h.expires_at, now)}</p>
   </header>
   <section class="panel status-panel" aria-label="Status">
     <h2 class="t">Status</h2>
     ${timeline(v.handle, h, d, now)}
-    <div class="status-foot"><span>${expires(h.expires_at, now)}.${sender ? " Revoking it means no one can open it again." : ""}</span>${sender ? `<a class="btn sm danger" href="${revokeHref(h.packet_id)}">Revoke</a>` : ""}</div>
+    ${sender ? `<div class="status-foot"><span>Revoking it means no one can open it again.</span><a class="btn sm danger" href="${revokeHref(h.packet_id)}">Revoke</a></div>` : ""}
   </section>
   <section class="panel brief" aria-label="Brief"><h2 class="t">Brief</h2><div class="md">${brief}</div></section>
   ${files.length ? `<h2 class="files-h">Files</h2>${files.map(fileCard).join("")}` : ""}

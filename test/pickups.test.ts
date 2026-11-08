@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createExecutionContext, env } from "cloudflare:test";
 import worker from "../src/index";
 import { upsertMember } from "../src/auth/builtin";
+import { ago } from "../src/console/html";
 import { ORIGIN, call, errorText, expectOk, token } from "./helpers";
 
 /**
@@ -108,8 +109,12 @@ describe("pickups: did she get it?", () => {
     expect(row).toContain("Picked up by anna</span>");
     expect(row).toContain("in ChatGPT · just now");
     const page = await (await fetchAs(`/assets/handoff/${id}`, { headers: { cookie: joe.cookie } })).text();
-    expect(page).toContain("<p class=\"lead\">Sent <span");
-    expect(page).toContain("Sent by you from Claude");
+    // The header says when it was sent and when it expires; the timeline says from where, with solid dots for
+    // what happened and no second "Sent from Claude".
+    expect(page).toMatch(/<p class="lead">Sent <span title="[^"]+">just now<\/span> · <span title="[^"]+">Expires in \d+ days<\/span><\/p>/);
+    expect(page).toContain('<span class="pt done"></span><span>Sent by you from Claude</span>');
+    expect(page.match(/from Claude/g)?.length).toBe(1);
+    expect(page).toContain('<a class="btn sm danger" href="/assets/handoff/');
     expect(page).toContain("<span>Picked up by anna in ChatGPT</span>");
     expect(page).not.toContain("anna picks it up by saying");
 
@@ -143,7 +148,11 @@ describe("pickups: did she get it?", () => {
     expect(rowOf(annaPage, "Weekend plan")).toContain("You opened it</span>");
     // joe still sees what anna says to pick it up, until her assistant does.
     const page = await (await fetchAs(`/assets/handoff/${id}`, { headers: { cookie: joe.cookie } })).text();
-    expect(page).toContain("<span>Opened by anna in the browser</span>");
+    expect(page).toContain('<span class="pt done"></span><span>Opened by anna in the browser</span>');
+    // Only the sender sees Revoke.
+    const hers = await (await fetchAs(`/assets/handoff/${id}`, { headers: { cookie: anna.cookie } })).text();
+    expect(hers).not.toContain('<div class="status-foot">');
+    expect(hers).not.toContain(">Revoke</a>");
     expect(page).toContain("anna picks it up by saying <q>Continue the handoff from joe.</q>");
   });
 
@@ -155,7 +164,8 @@ describe("pickups: did she get it?", () => {
     const row = rowOf(await joe.page(), "Holiday packing list");
     expect(row).toContain("To the team · Brief only");
     expect(row).toContain("Picked up by anna</span>");
-    expect(row).toContain("ben not yet");
+    // One line under the status: where, when, and who has not yet.
+    expect(row).toContain('<span class="st-meta">in ChatGPT · just now · ben not yet</span>');
     const page = await (await fetchAs(`/assets/handoff/${id}`, { headers: { cookie: joe.cookie } })).text();
     expect(page).toContain("Waiting for ben");
     expect((await joe.mcp("handoff_inbox")).content[0]!.text).toContain("picked up by anna in ChatGPT at ");
@@ -245,5 +255,14 @@ describe("pickups: did she get it?", () => {
     expect(page).toContain("Your first handoff");
     expect(page).not.toContain("Invite my partner");
     expect(page).toContain("<q>Hand this off to joe.</q>");
+  });
+
+  it("times past the hour read in hours", () => {
+    const now = Date.parse("2026-11-09T12:00:00Z");
+    const before = (min: number) => new Date(now - min * 60_000).toISOString();
+    expect(ago(before(59), now)).toBe("59 min ago");
+    expect(ago(before(60), now)).toBe("1 h ago");
+    expect(ago(before(83), now)).toBe("1 h ago");
+    expect(ago(before(95), now)).toBe("2 h ago");
   });
 });

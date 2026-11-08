@@ -174,7 +174,7 @@ describe("Assets (/assets)", () => {
     const page = await pageOf(tom, `?uploaded=${id}`);
     expect(page).toContain("Uploaded <strong>vat-q3-summary.pdf</strong>. Tell your assistant: <q>Hand this off with vat-q3-summary.pdf.</q>");
     expect(page).toContain(">Ready to send</h2>");
-    expect(page).toContain("Only you see these until your assistant sends one.");
+    expect(page).toContain('<span class="sect-note">Private to you until sent</span>');
     expect(page).toContain("Deleted in 7 days");
     expect(page).toContain('<q>Hand this off with vat-q3-summary.pdf.</q><button type="button" class="btn sm" data-copy="Hand this off with vat-q3-summary.pdf."');
     expect(page).toContain("Signed copy");
@@ -306,8 +306,11 @@ describe("Assets (/assets)", () => {
     // tom has not opened either handoff from tim yet: both are new for him.
     const theirs = await pageOf(tom);
     expect(theirs).toContain(">New for you</h2>");
-    expect(theirs).toContain("<strong>New</strong> · from tim · ");
-    expect(theirs).toContain("<strong>New</strong> · from tim, to the team · ");
+    // They are ordinary rows, marked unread, with the sentence to tell the assistant.
+    expect(theirs.match(/<article class="asset unread">/g)?.length).toBe(2);
+    expect(theirs).toContain(">From tim · ");
+    expect(theirs).toContain(">From tim, to the team · ");
+    expect(theirs).toContain('<span class="st new"><span class="dot new"></span>New</span>');
     expect(theirs).toContain("<q>Continue the handoff from tim.</q>");
     expect(theirs).not.toContain("Notes for my laptop");
     // Filters: Sent has nothing of tom's; Received has tim's two.

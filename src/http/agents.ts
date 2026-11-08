@@ -445,7 +445,7 @@ export function faq(cfg: Config): { q: string; a: string }[] {
     },
     {
       q: "Can my assistant set it up for me?",
-      a: `Mostly. You add Handoff to your assistant once and approve the sign-in; your assistant can walk you through it from ${f.site}/llms.txt. After that, inviting your partner and sending handoffs are things you ask for in the chat.`,
+      a: `Mostly. You add Handoff to your assistant once and approve the sign-in; your assistant can walk you through it from [${f.host}/llms.txt](${f.site}/llms.txt). After that, inviting your partner and sending handoffs are things you ask for in the chat.`,
     },
     {
       q: "Can we run it on our own server?",

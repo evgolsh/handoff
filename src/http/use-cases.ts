@@ -8,7 +8,7 @@ import { faq, homeJsonLd } from "./agents";
 const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 /** Escapes, then turns [label](/path) into a link: the FAQ answers are shared with the Markdown homepage. */
-const linkify = (s: string): string => esc(s).replace(/\[([^\]]+)\]\(((?:https:\/\/|\/)[^)\s]*)\)/g, '<a href="$2">$1</a>');
+const linkify = (s: string): string => esc(s).replace(/\[([^\]]+)\]\(((?:https?:\/\/|\/)[^)\s]*)\)/g, '<a href="$2">$1</a>');
 
 const USE_CASES = [
   { id:"household-last-mile", label:"Family & household", title:"Your partner finishes the paperwork.",
@@ -77,7 +77,7 @@ const PAGE_CSS = `
   .how-grid .how-n { font:500 11px var(--mono); color:var(--faint); }
   .how-grid h3 { font-size:19px; font-weight:500; letter-spacing:-.02em; }
   .how-grid p { font-size:14px; color:var(--muted); line-height:1.55; }
-  .how-grid a { font-size:14px; font-weight:500; text-decoration:none; margin-top:auto; padding-top:6px; }
+  .how-grid p a { color:var(--ink); text-decoration:underline; text-decoration-color:var(--faint); text-underline-offset:3px; }
   .ask { margin-top:24px; display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr); gap:24px; align-items:center; padding:24px 28px; border:1px dashed var(--line); border-radius:8px; }
   .ask h3 { font-size:17px; font-weight:500; } .ask p { font-size:13px; color:var(--muted); margin-top:6px; }
   .ask blockquote { margin:0; padding-left:16px; border-left:2px solid var(--accent); font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
@@ -97,9 +97,9 @@ const PAGE_CSS = `
   .install-note { font-size:13px; color:var(--muted); margin-top:16px; }
   @media(max-width:1180px) { .install-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .install-card:last-child { grid-column:1/-1; } .how-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media(max-width:760px) { .install-grid,.how-grid,.ask { grid-template-columns:1fr; } .install-card { padding:20px; } }
-  .section-head { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:36px; }
+  .section-head { display:flex; flex-direction:column; align-items:flex-start; gap:10px; margin-bottom:32px; }
   .section-head h2,.watch h2,.closing h2 { font-size:clamp(30px,3vw,44px); font-weight:500; letter-spacing:-.04em; line-height:1.15; max-width:22ch; margin-top:12px; text-wrap:balance; }
-  .section-head > p { font-size:14px; color:var(--muted); max-width:36ch; }
+  .section-head > p { font-size:15px; color:var(--muted); max-width:58ch; }
   .cases { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
   .case { min-width:0; padding:32px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }
   .case-number { color:var(--faint); margin-right:12px; }
@@ -205,11 +205,12 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; signedIn?: b
     ? `<section id="how" class="section" aria-labelledby="how-title">
     <div class="section-head"><div><p class="eyebrow">How it works</p><h2 id="how-title">Set up once, then ask your assistant.</h2></div><p>Setup takes about five minutes. Then you hand off by asking your assistant.</p></div>
     <ol class="how-grid">
-      <li><span class="how-n">01</span><h3>Add Handoff to your assistant</h3><p>Claude, ChatGPT, Codex, Claude Code or Hermes. Assistant setup has the steps for each.</p><a href="/connect">Assistant setup →</a></li>
-      <li><span class="how-n">02</span><h3>Create your team</h3><p>On the sign-in page that opens, choose Create a team, then pick a team name and your username. Up to ${cfg.tenantMembersCap} people.</p><a href="/join">Or create it in the browser →</a></li>
+      <li><span class="how-n">01</span><h3>Add Handoff to your assistant</h3><p>Claude, ChatGPT, Codex, Claude Code or Hermes. <a href="/connect">Assistant setup</a> has the steps for each.</p></li>
+      <li><span class="how-n">02</span><h3>Create your team</h3><p>On the sign-in page that opens, choose Create a team, then pick a team name and your username. Up to ${cfg.tenantMembersCap} people.</p></li>
       <li><span class="how-n">03</span><h3>Invite your partner</h3><p>Ask your assistant “invite anna to Handoff” and send her the link it gives you. She gets her access code and connects her own assistant.</p></li>
-      <li><span class="how-n">04</span><h3>Hand off</h3><p>“Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.” A file on your phone? Upload it in Assets.</p><a href="/assets">Assets →</a></li>
+      <li><span class="how-n">04</span><h3>Hand off</h3><p>“Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.” A file on your phone? Upload it in Assets.</p></li>
     </ol>
+    <p class="examples-note">Prefer to start in the browser? <a href="/join">Create a team →</a></p>
     <div class="ask"><div><h3>Or let your assistant walk you through it.</h3><p>Claude and ChatGPT can read Handoff’s guide for assistants and take you through each step.</p></div>
       <blockquote>Set up Handoff so I can send files and instructions to my wife’s assistant. Read ${esc(cfg.publicUrl.replace(/^https?:\/\//, ""))}/llms.txt</blockquote></div>
   </section>`
@@ -257,7 +258,7 @@ ${pageHeader("use-cases", { active, mode: cfg.mode, signedIn: opts.signedIn })}
     </div>
   </section>
   <section class="principles" aria-label="What travels with your work">
-    <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. Open a handoff in Assets to read the brief and see the files.</p></article>
+    <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. Open a handoff on the web in Assets to read the brief and view the files.</p></article>
     <article><h2>Their own assistant.</h2><p>Your partner can use ChatGPT while you use Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.</p></article>
     <article><h2>Storage, not AI.</h2><p>Handoff keeps the brief and files and deletes them after ${days(open ? cfg.defaultExpiryHours : PRIVATE_DEFAULT_EXPIRY_HOURS)}. It makes no model calls and needs no API keys.</p></article>
   </section>

@@ -175,7 +175,7 @@ function hostPanel(h: Host, first: boolean, url: string): string {
     )
     .join("\n        ");
   return `<section class="panel host" id="panel-${h.id}" role="tabpanel" aria-labelledby="tab-${h.id}" tabindex="0"${first ? "" : " data-later"}>
-      <div class="host-head"><h3 class="host-name">${esc(h.name)}</h3><span class="badge">${dot(h.level)}${esc(h.tag)}</span></div>
+      <div class="host-head"><h3 class="host-name">${esc(h.name)}</h3><span class="badge" title="${esc(LEGEND[h.level])}">${dot(h.level)}${esc(h.tag)}</span></div>
       ${h.intro ? `<p class="host-intro">${inline(h.intro)}</p>` : ""}
       <ol class="steps">
         ${steps}
@@ -198,14 +198,15 @@ const PAGE_CSS = `
   .setup-identity,.access-notice { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:16px 20px; border:1px solid var(--line); border-radius:10px; font-size:13px; background:var(--panel); }
   .setup-identity span+span,.access-notice p { color:var(--muted); font-size:12px; }
   .setup-identity strong { margin-left:5px; }.setup-identity [aria-hidden] { padding:0 12px;color:var(--faint); }
-  .access-notice p { margin-top:5px; }.access-notice strong { font-weight:500; }
-  .setup-address { display:flex; gap:16px; align-items:center; justify-content:space-between; padding:18px 0 24px; }
+  .setup-identity,.access-notice { margin-bottom:28px; }
+  .access-notice p { margin-top:5px; }.access-notice strong { font-weight:500; }.access-notice p strong { color:var(--ink); }
+  .setup-address { display:flex; gap:14px; align-items:center; }
   .setup-address>div { min-width:0; }.setup-address code { display:block; font:12px/1.6 var(--mono);overflow-wrap:anywhere; }
   .addr-label { display:block; color:var(--muted); font-size:11px; margin-bottom:4px; }
   .prompt-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
   .prompt-row > button { flex:none; margin-top:10px; }
   .next-note { color:var(--muted); font-size:12px; margin-top:16px; line-height:1.6; }.next-note a { text-decoration:underline;text-underline-offset:3px; }
-  .guide-evidence summary,.privacy summary,.rail-note summary { cursor:pointer; color:var(--muted); font-size:12px; padding:8px 0; }
+  .guide-evidence summary,.privacy summary { cursor:pointer; color:var(--muted); font-size:12px; padding:8px 0; }
   .guide-evidence[open] summary { margin-bottom:8px; }.guide-evidence .status { padding:0;margin:0 0 10px; }
   .privacy { border-top:1px solid var(--line); }.privacy>summary { font-size:13px; padding:22px 0; }
 
@@ -218,18 +219,12 @@ const PAGE_CSS = `
   .rail { position:sticky; top:24px; display:grid; gap:20px; }
   .tabs { display:grid; gap:4px; }
   .tabs[hidden] { display:none; }
-  [role=tab] { display:grid; grid-template-columns:18px minmax(0,1fr) 8px; align-items:center; gap:10px; width:100%; min-height:46px; padding:10px 14px; border:1px solid transparent; border-radius:6px; background:none; color:var(--muted); font:500 14px/1.3 var(--sans); text-align:left; cursor:pointer; }
+  [role=tab] { display:grid; grid-template-columns:18px minmax(0,1fr); align-items:center; gap:10px; width:100%; min-height:46px; padding:10px 14px; border:1px solid transparent; border-radius:6px; background:none; color:var(--muted); font:500 14px/1.3 var(--sans); text-align:left; cursor:pointer; }
   [role=tab]:hover { color:var(--ink); background:var(--line-soft); }
   [role=tab][aria-selected=true] { color:var(--ink); background:var(--panel); border-color:var(--line); }
-  .tab-state { display:none; font:10px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
-  [role=tab] .dot { margin-right:-4px; }
   .tab-logo { display:grid; place-items:center; width:18px; height:18px; }
   .tab-logo svg { width:17px; height:17px; }
   .tab-logo.hermes { background:currentColor; -webkit-mask:url("${HERMES_MASK}") center/contain no-repeat; mask:url("${HERMES_MASK}") center/contain no-repeat; }
-  .rail-note { padding:16px 15px 0; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
-  .rail-note p + p { margin-top:8px; }
-  .legend { display:grid; grid-template-columns:8px minmax(0,1fr); gap:12px; align-items:start; }
-  .legend .dot { margin-top:5px; }
 
   .dot { display:inline-block; flex:none; width:8px; height:8px; border-radius:50%; }
   .dot.tested { background:var(--ok); }
@@ -269,6 +264,8 @@ const PAGE_CSS = `
   .say.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .say li { padding:22px 24px; display:block; }
   .say-quote { margin:12px 0; font-size:21px; font-weight:500; letter-spacing:-.025em; }
+  .say.three .say-quote { font-size:19px; }
+  @media(min-width:761px) { .say li { display:grid; grid-row:span 3; grid-template-rows:subgrid; row-gap:0; align-content:start; } }
   .say-text { max-width:58ch; font-size:14px; color:var(--muted); }
   .privacy { padding-bottom:24px; }
   .kv { display:grid; grid-template-columns:96px minmax(0,1fr); margin:0; border-top:1px solid var(--line); }
@@ -292,17 +289,14 @@ const PAGE_CSS = `
   }
   @media(max-width:760px) {
     .split { display:flex; flex-direction:column; gap:16px; }
-    .split > *,.tabs,.rail-note { width:100%; }
+    .split > *,.tabs { width:100%; }
     .rail { display:contents; }
     .tabs { grid-template-columns:1fr 1fr; padding:4px; border-radius:8px; background:var(--line-soft); }
-    [role=tab] { grid-template-columns:18px auto 8px; justify-content:center; min-height:44px; padding:8px 10px; font-size:13px; }
+    [role=tab] { grid-template-columns:18px auto; justify-content:center; min-height:44px; padding:8px 10px; font-size:13px; }
     [role=tab]:last-child { grid-column:1/-1; }
-    .tab-state { display:none; }
-    [role=tab] .dot { margin-right:0; }
     .panels { order:1; }
-    .rail-note { order:2; padding:0 4px; border-top:0; }
-    .legend .dot { margin-top:6px; }
     .section-head { flex-direction:column; align-items:flex-start; gap:10px; }
+    .section-head .setup-address { width:100%; justify-content:space-between; }
     .say,.say.three,.gate-cards { grid-template-columns:1fr; gap:16px; }
   }
   @media(max-width:600px) {
@@ -324,13 +318,12 @@ const PAGE_CSS = `
 /** Inside the console, the sidebar takes 220px, so the tabs stack above the panel up to a tablet's width. */
 const CONSOLE_SPLIT_CSS = `@media(max-width:960px) {
   .shell .connect-content .split { display:flex; flex-direction:column; gap:16px; }
-  .shell .connect-content .split > *,.shell .connect-content .tabs,.shell .connect-content .rail-note { width:100%; }
+  .shell .connect-content .split > *,.shell .connect-content .tabs { width:100%; }
   .shell .connect-content .rail { display:contents; }
   .shell .connect-content .tabs { grid-template-columns:1fr 1fr; padding:4px; border-radius:8px; background:var(--line-soft); }
-  .shell .connect-content [role=tab] { grid-template-columns:18px auto 8px; justify-content:center; min-height:44px; padding:8px 10px; font-size:13px; }
+  .shell .connect-content [role=tab] { grid-template-columns:18px auto; justify-content:center; min-height:44px; padding:8px 10px; font-size:13px; }
   .shell .connect-content [role=tab]:last-child { grid-column:1/-1; }
   .shell .connect-content .panels { order:1; }
-  .shell .connect-content .rail-note { order:2; padding:0 4px; border-top:0; }
 }`;
 
 const CONNECT_SCRIPT = `(function () {
@@ -456,7 +449,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   const tabs = list
     .map(
       (h, i) =>
-        `<button type="button" role="tab" id="tab-${h.id}" aria-controls="panel-${h.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${tabLogo(h)}<span class="tab-name">${esc(h.name)}</span>${dot(h.level)}<span class="tab-state">${esc(h.tag)}</span></button>`,
+        `<button type="button" role="tab" id="tab-${h.id}" aria-controls="panel-${h.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${tabLogo(h)}<span class="tab-name">${esc(h.name)}</span></button>`,
     )
     .join("");
   const mainBody = opts.needsSetup
@@ -490,21 +483,14 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <p class="lead">Choose the app you use. Add Handoff, then sign in.</p>
     </section>
     ${opts.viewer ? `<div class="setup-identity"><span>${opts.viewer.tenant ? `Team <strong>${esc(opts.viewer.tenant)}</strong> <span aria-hidden="true">/</span> ` : ""}Username <strong>${esc(opts.viewer.handle)}</strong></span><span>Use your saved access code when asked to sign in.</span></div>` : (control
-      ? `<div class="access-notice"><div><strong>New to Handoff? You create your team when you sign in.</strong><p>Add Handoff to your assistant below. On the sign-in page that opens, choose Create a team. Invited? Use the username and access code from your invitation.</p></div><a class="u" href="/join">Create a team in the browser →</a></div>`
+      ? `<div class="access-notice"><div><strong>New to Handoff? You create your team when you sign in.</strong><p>Add Handoff to your assistant below, then choose <strong>Create a team</strong> on the sign-in page that opens, or <a class="u" href="/join">create a team in the browser</a>. Invited? Use the username and access code from your invitation.</p></div></div>`
       : `<div class="access-notice"><div><strong>Have your username and access code ready.</strong><p>Ask the person who runs this server for your sign-in details.</p></div><a class="u" href="/login">Sign in →</a></div>`)}
-    <div class="setup-address"><div><span class="addr-label">Server address</span><code>${shownUrl}</code></div>${copyButton(url, "Copy the server address")}</div>
 
   <section class="section setup" id="assistants" aria-labelledby="assistant-title">
-    <div class="section-head"><h2 id="assistant-title">Choose your assistant</h2><p>Follow the steps for your app.</p></div>
+    <div class="section-head"><h2 id="assistant-title">Choose your assistant</h2><div class="setup-address"><div><span class="addr-label">Server address</span><code>${shownUrl}</code></div>${copyButton(url, "Copy the server address")}</div></div>
     <div class="split">
       <div class="rail">
         <div class="tabs" role="tablist" aria-label="Assistant" aria-orientation="vertical" hidden>${tabs}</div>
-        <details class="rail-note"><summary>About these guides</summary>
-          ${(["tested", "partial", "docs"] as const)
-            .filter((l) => list.some((h) => h.level === l))
-            .map((l) => `<p class="legend">${dot(l)}${LEGEND[l]}</p>`)
-            .join("\n          ")}
-        </details>
       </div>
       <div class="panels">
     ${list.map((h, i) => hostPanel(h, i === 0, url)).join("\n    ")}
