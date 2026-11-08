@@ -118,6 +118,8 @@ export interface AssetsViewer {
   /** Has the admin grant: the menu adds the team's pages. */
   admin: boolean;
   csrf: string;
+  /** The other accounts this browser is signed in to (identities), for the account menu. */
+  others: string[];
 }
 
 export type Flash = { text: Html; ok: boolean } | null;
@@ -128,7 +130,8 @@ const nav = (v: AssetsViewer): NavUser => ({
   tenant: v.tenant,
   control: v.control,
   admin: v.admin,
-  signOut: `<form method="post" action="/logout">${csrf(v)}<button type="submit">Sign out</button></form>`,
+  csrf: v.csrf,
+  others: v.others,
 });
 
 /** A signed-in page: the left menu and the page's content. */

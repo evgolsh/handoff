@@ -14,7 +14,8 @@ Members whose username is in `admin_members`. Everyone signs in at `/login` with
 (and team, on the hosted service), and gets one session for every page: Assets at `/assets`, Assistant setup at
 `/connect`, and for an admin the console. The console checks the admin grant on every request and sends a member
 without it to Assets. A page that needs a session sends the browser to `/login?next=<that page>` and back again;
-`next` only takes a path on this site. Sign out (`POST /logout`) ends the session. The operator grants admin in a terminal:
+`next` only takes a path on this site. A session lasts 30 days and is renewed while used. Sign out (`POST /logout`)
+ends the browser's sessions. The operator grants admin in a terminal:
 
 ```sh
 npm run admin -- tim              # grant (the member must exist: npm run member:add -- tim)
@@ -29,13 +30,20 @@ Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SE
 once, makes that member the admin, signs them in and shows the code (docs/DEPLOY.md). Later, sign in at `/login`.
 
 On the control center, `/join` creates a team and makes its creator that team's admin. The browser is signed
-in to the new team, replacing any session it had, and the access code is shown once. If the session cannot be
+in to the new team, which becomes its active account, and the access code is shown once. If the session cannot be
 started, the code is still shown and Continue to setup opens `/login` with the team filled in. The normal flow is Create team → Save sign-in → Connect. Members added in
 the console can connect assistants but cannot open the console.
 
 Team admins sign in with team, username and access code; the operator leaves team empty. `/login?team=acme`
-goes straight on only if the browser's session belongs to `acme`, otherwise it shows the sign-in form for `acme`.
-Signing in as someone else replaces the browser's session.
+goes straight on only if the browser's active session belongs to `acme`, otherwise it shows the sign-in form for `acme`.
+
+A browser can be signed in to up to five accounts, one per team on the hosted service. The account menu at the
+bottom of the left menu lists them: one click (`POST /switch`) makes another the active one, "Sign in to another
+team" opens `/login?add=1`, and "Sign out of all" ends every session of the browser. Signing in again as the same
+member replaces that member's session. On the hosted service the browser remembers the teams it signed in to (the
+`__Host-handoff-teams` cookie, names only), and `/login` and the assistant sign-in page fill in the latest. Signing
+in for an assistant on this site's own page also signs the browser in; a sign-in form posted from another site
+answers the assistant but starts no browser session.
 
 `/connect` is the public setup guide. Signed in, it is a page of the app, with the left menu and the current team
 and username. The public pages' header shows Assets instead of Sign in when the browser has a session.
@@ -86,10 +94,14 @@ Each action asks first on a page of its own, except Add and Run cleanup.
 
 ## How it is kept safe
 
-- Session: one per browser for the whole site (Assets, Assistant setup and the console), a random token in a
-  `__Host-handoff-session` cookie (Secure, HttpOnly, SameSite=Strict, Path=/), 12 hours. D1 keeps only its
-  sha256, bound to the member's code hash, so a code reset ends the session. The console checks the admin grant
-  and the code hash on every request.
+- Session: one per account for the whole site (Assets, Assistant setup and the console). The
+  `__Host-handoff-session` cookie (Secure, HttpOnly, SameSite=Strict, Path=/) holds a random token per account,
+  the active one first, at most five. D1 keeps only each token's sha256, bound to the member's code hash, so a code
+  reset ends the session. A session ends after 30 days without use (renewed at most once a day); the cookie lives
+  400 days because D1 decides, and the sign-in page clears a cookie whose sessions all ended. The console checks
+  the admin grant and the code hash on every request.
+- Remembered teams: `__Host-handoff-teams` (Secure, HttpOnly, SameSite=Lax so an assistant's sign-in link sees it)
+  holds up to five team names. It is not a credential.
 - Changes are form POSTs that must carry this origin's `Origin` header and the session's CSRF value
   (sha256 of the session token, in a hidden field). Pages use `referrer-policy: same-origin`: with
   `no-referrer` a browser sends `Origin: null` and the check would refuse the form.

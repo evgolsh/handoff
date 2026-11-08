@@ -44,18 +44,31 @@ nav.side a{display:block;padding:9px 10px;border-radius:6px}
 nav.side a.on{background:var(--ink);color:var(--ground);font-weight:500}
 nav.side .sect{margin:14px 10px 4px 10px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 nav.side .grow{flex-grow:1}
-nav.side .who{padding:10px;border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:6px}
-nav.side .who form{display:inline}
-nav.side .who button{font:inherit;font-size:12px;background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+nav.side .who{padding:6px 0 0;border-top:1px solid var(--line-soft);position:relative}
+nav.side .account summary{list-style:none;cursor:pointer;padding:8px 10px;border-radius:6px;display:flex;align-items:center;gap:8px}
+nav.side .account summary::-webkit-details-marker{display:none}
+nav.side .account summary::after{content:"";flex:none;margin-left:auto;width:7px;height:7px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(-135deg) translate(-2px,-2px)}
+nav.side .acct-id{display:flex;flex-direction:column;min-width:0;line-height:1.35}
+nav.side .acct-team{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+nav.side .account[open] summary::after{transform:rotate(45deg) translate(-2px,-2px)}
+nav.side .account summary:hover,nav.side .account[open] summary{background:var(--line-soft)}
+nav.side .account-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px;box-shadow:0 12px 28px #0003;display:flex;flex-direction:column;gap:2px}
+nav.side .account-menu a,nav.side .account-menu button{display:block;width:100%;text-align:left;font:inherit;font-size:13px;color:var(--ink);background:none;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;text-decoration:none}
+nav.side .account-menu a:hover,nav.side .account-menu button:hover{background:var(--line-soft)}
+nav.side .account-menu form{display:block;margin:0}
+nav.side .account-menu .account-head{margin:4px 10px 2px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+nav.side .account-menu hr{border:0;border-top:1px solid var(--line-soft);margin:4px 0}
 main{flex:999 1 560px;min-width:0;padding:24px 28px;display:flex;flex-direction:column;gap:16px}
 nav.side .nav-separator{height:1px;background:var(--line);margin:12px 8px}
 @media (max-width:760px){
   /* A phone: the menu is a short bar above the page. The brand and who is signed in, then the links. */
   .shell{align-content:flex-start}
   nav.side{flex:1 1 100%;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 4px;border-right:0;border-bottom:1px solid var(--line);padding:10px 12px}
-  nav.side a{order:3;padding:8px 10px}
-  nav.side a.brand{order:0;flex:1 1 auto;padding:4px 6px}
-  nav.side .who{order:1;flex-direction:row;align-items:center;gap:12px;border-top:0;padding:4px 6px}
+  nav.side > a{order:3;padding:8px 10px}
+  nav.side > a.brand{order:0;flex:1 1 auto;padding:4px 6px}
+  nav.side .who{order:1;border-top:0;padding:0}
+  nav.side .account summary{padding:6px 8px}
+  nav.side .account-menu{left:auto;right:0;bottom:auto;top:calc(100% + 4px);min-width:220px}
   nav.side .nav-separator{order:2;flex-basis:100%;height:0;margin:2px 0;background:none}
   nav.side .sect,nav.side .grow{display:none}
   main{padding:16px}
@@ -238,6 +251,8 @@ export interface Viewer {
   /** Has the admin grant: the left menu adds the console's pages. Always true on console pages. */
   admin: boolean;
   csrf: string;
+  /** The other accounts this browser is signed in to (identities), for the account menu. */
+  others: string[];
 }
 
 /** Which pages this viewer gets: Ops for the deployment's operator only; Tenants for the control center's operator. */
@@ -290,8 +305,35 @@ export interface NavUser {
   tenant: string;
   control: boolean;
   admin: boolean;
-  /** The sign-out form: it posts to /logout with the session's CSRF value. */
-  signOut: Html;
+  /** The session's CSRF value, for the account menu's forms. */
+  csrf: string;
+  /** The other accounts this browser is signed in to (identities). */
+  others: string[];
+}
+
+/** An account as the menu names it: "smiths · joe" on the hosted service, the username on a private server. */
+const accountLabel = (identity: string): string => {
+  const i = identity.indexOf("/");
+  return i < 0 ? identity : `${identity.slice(0, i)} · ${identity.slice(i + 1)}`;
+};
+
+/**
+ * Who is signed in, at the bottom of the left menu (top right on a phone). It opens a menu, without a script:
+ * the browser's other accounts (one click makes one active), signing in to another, and signing out of all.
+ */
+function accountMenu(u: NavUser): Html {
+  const field = `<input type="hidden" name="csrf" value="${esc(u.csrf)}">`;
+  const others = u.others
+    .map((id) => `<form method="post" action="/switch">${field}<input type="hidden" name="to" value="${esc(id)}"><button type="submit" class="acct">${esc(accountLabel(id))}</button></form>`)
+    .join("");
+  return `<details class="account">
+      <summary><span class="dot live"></span><span class="acct-id"><span><strong>${esc(u.handle)}</strong>${u.admin ? ` <span class="chip">${u.tenant || !u.control ? "admin" : "operator"}</span>` : ""}</span>${u.tenant ? `<span class="acct-team">${esc(u.tenant)}</span>` : ""}</span></summary>
+      <div class="account-menu">
+        ${others ? `<p class="account-head">Switch to</p>${others}<hr>` : ""}
+        <a href="/login?add=1">${u.control ? "Sign in to another team" : "Sign in as someone else"}</a>
+        <form method="post" action="/logout">${field}<button type="submit">${u.others.length ? "Sign out of all" : "Sign out"}</button></form>
+      </div>
+    </details>`;
 }
 
 /**
@@ -312,18 +354,16 @@ export function sideNav(u: NavUser, current: "assets" | Page): Html {
     ${u.control ? `<a href="/">Home</a>` : `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>`}
     <div class="grow"></div>
     <div class="who">
-      <div><span class="dot live"></span> ${u.tenant ? `<span class="muted">${esc(u.tenant)} ·</span> ` : ""}<strong>${esc(u.handle)}</strong>${u.admin ? ` <span class="chip">${u.tenant || !u.control ? "admin" : "operator"}</span>` : ""}</div>
-      <div class="small muted">${u.signOut}</div>
+      ${accountMenu(u)}
     </div>
   </nav>`;
 }
 
 export function shell(page: Page, v: Viewer, title: string, body: Html, enhancement?: PageEnhancement): Html {
-  const signOut = `<form method="post" action="/logout">${csrfField(v)}<button type="submit">Sign out</button></form>`;
   return document(
     v.control ? `${title} · ${v.tenant || "operator"}` : title,
     `<div class="shell">
-  ${sideNav({ handle: v.handle, tenant: v.tenant, control: v.control, admin: v.admin, signOut }, page)}
+  ${sideNav({ handle: v.handle, tenant: v.tenant, control: v.control, admin: v.admin, csrf: v.csrf, others: v.others }, page)}
   <main>
 ${v.control && v.admin ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Hosted service operator"}</div>\n` : ""}${body}
   </main>

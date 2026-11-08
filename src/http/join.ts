@@ -1,7 +1,7 @@
 import type { Config } from "../env";
 import { createTeam } from "../domain/teams";
 import { CONSOLE_HEADERS, document, esc, flowHeader, flowProgress, interactiveHeaders, type Html } from "../console/html";
-import { startSession } from "../console/session";
+import { rememberTeam, startSession } from "../console/session";
 import { COPY_SCRIPT } from "./clipboard";
 
 /**
@@ -46,7 +46,7 @@ export function joinedPage(team: string, handle: string, code: string, signedIn:
 export const joinHeaders = (nonce?: string): Record<string, string> => nonce ? interactiveHeaders(nonce) : { ...CONSOLE_HEADERS };
 
 /** Handles the sign-up form. Returns the page to show and its status. */
-export async function handleJoin(db: D1Database, cfg: Config, form: Record<string, string>, ip: string | undefined, nonce: string): Promise<{ status: number; body: Html; cookies?: string[] }> {
+export async function handleJoin(db: D1Database, cfg: Config, form: Record<string, string>, ip: string | undefined, nonce: string, header?: string): Promise<{ status: number; body: Html; cookies?: string[] }> {
   const made = await createTeam(db, cfg, form.team ?? "", form.handle ?? "", ip);
   if (!made.ok) return { status: made.status, body: joinPage(cfg, { error: made.error, team: made.team, handle: made.handle }) };
   const { team, handle, identity, code } = made;
@@ -54,9 +54,10 @@ export async function handleJoin(db: D1Database, cfg: Config, form: Record<strin
   // to the sign-in for this team.
   let cookie: string | null = null;
   try {
-    cookie = await startSession(db, identity);
+    cookie = await startSession(db, identity, header);
   } catch {
     cookie = null;
   }
-  return { status: 200, body: joinedPage(team, handle, code, cookie !== null, nonce, cfg.publicUrl), cookies: cookie ? [cookie] : [] };
+  // The new team becomes the active one; the browser's other accounts stay signed in, and the team is remembered.
+  return { status: 200, body: joinedPage(team, handle, code, cookie !== null, nonce, cfg.publicUrl), cookies: cookie ? [cookie, rememberTeam(header, team)] : [rememberTeam(header, team)] };
 }

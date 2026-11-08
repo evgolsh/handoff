@@ -24,7 +24,8 @@ const form = (fields: Record<string, string>, extra: Record<string, string> = {}
 async function join(team: string, handle: string, oldCookie = "") {
   const res = await fetchAs(ctl, "/join", form({ team, handle }, { cookie: oldCookie }));
   const text = await res.text();
-  return { status: res.status, code: /hf-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text, cookie: res.headers.get("set-cookie"), headers: res.headers };
+  const cookie = res.headers.getSetCookie().find((c) => c.startsWith("__Host-handoff-session=")) ?? null;
+  return { status: res.status, code: /hf-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text, cookie, headers: res.headers };
 }
 
 interface Session {
@@ -191,12 +192,15 @@ describe("the control center", () => {
     expect(guideText).toContain(`Team <strong>${team}</strong>`);
     expect(guideText).toContain('<a href="/connect" class="on" aria-current="page">Assistant setup</a>');
     expect(guideText).toContain('action="/logout"');
-    expect(guideText).not.toContain(oldTeam);
+    // The page is the new team's; the old team stays signed in, offered in the account menu.
+    const withoutMenu = (t: string) => t.replace(/<details class="account">[\s\S]*?<\/details>/, "");
+    expect(withoutMenu(guideText)).not.toContain(oldTeam);
+    if (previous === "team admin") expect(guideText).toContain(`<input type="hidden" name="to" value="${oldTeam}/tim">`);
     expect(guideText).not.toContain(created.code!);
     const overview = await s.page("/console/overview");
     expect(overview.status).toBe(200);
     expect(overview.text).toContain(`Team administration · <strong>${team}</strong>`);
-    expect(overview.text).not.toContain(oldTeam);
+    expect(withoutMenu(overview.text)).not.toContain(oldTeam);
     for (const path of ["/console/ops", "/console/tenants"]) expect((await s.page(path)).location).toBe("/console/overview");
 
     // A stale success page must not silently open whichever account happens to be signed in now.
@@ -243,6 +247,8 @@ describe("the control center", () => {
       expect(created.status).toBe(200);
       expect(created.code).toMatch(/^hf-/);
       expect(created.cookie).toBeNull();
+      // The team is remembered, so the sign-in page fills it in.
+      expect(created.headers.getSetCookie().join("\n")).toContain(`__Host-handoff-teams=${team};`);
       expect(created.text).toContain("Save the code above");
       const target = await withCookie(ctl, old.cookie!.split(";")[0]!).page(`/login?team=${team}`);
       expect(target.status).toBe(200);

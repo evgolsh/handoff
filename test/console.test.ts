@@ -97,7 +97,9 @@ describe("sign-in", () => {
     expect(res.headers.get("location")).toBe("/console/members");
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toMatch(/^__Host-handoff-session=[A-Za-z0-9_-]{40,};/);
-    for (const flag of ["Path=/", "Secure", "HttpOnly", "SameSite=Strict", "Max-Age=43200"]) expect(setCookie).toContain(flag);
+    // The cookie outlives the session (400 days, the most browsers keep): D1 decides when the session ends, after
+    // 30 days unless it is used.
+    for (const flag of ["Path=/", "Secure", "HttpOnly", "SameSite=Strict", "Max-Age=34560000"]) expect(setCookie).toContain(flag);
     const raw = /^__Host-handoff-session=([^;]+)/.exec(setCookie)![1]!;
     const stored = await env.DB.prepare("SELECT token_hash FROM member_sessions WHERE handle = ?").bind(a.handle).all<{ token_hash: string }>();
     expect(stored.results.map((r) => r.token_hash)).toContain(await sha256Hex(raw));

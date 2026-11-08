@@ -109,7 +109,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     }
     await recordEvent(db, { kind: "console", name: "setup", subject: handle, outcome: "ok" });
     const res = html(setupDonePage(handle, code));
-    const cookie = await startSession(db, handle);
+    const cookie = await startSession(db, handle, c.req.header("cookie"));
     if (cookie) res.headers.append("set-cookie", cookie);
     return res;
   });
@@ -133,7 +133,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
   });
 
   // The session holds the stored identity; pages show the handle and scope everything to the tenant.
-  const viewer = (s: Session, control: boolean): Viewer => ({ handle: handleOf(s.handle), identity: s.handle, tenant: tenantOf(s.handle), control, admin: true, csrf: s.csrf });
+  const viewer = (s: Session, control: boolean): Viewer => ({ handle: handleOf(s.handle), identity: s.handle, tenant: tenantOf(s.handle), control, admin: true, csrf: s.csrf, others: s.others });
   const tenantOfSession = (s: Session) => tenantOf(s.handle);
   const audit = (db: D1Database, s: Session, name: string, extra: { client_id?: string; member?: string } = {}) =>
     recordEvent(db, { kind: "console", name, subject: s.handle, client_id: extra.client_id ?? null, outcome: "ok", detail: extra.member ? { member: extra.member } : null });

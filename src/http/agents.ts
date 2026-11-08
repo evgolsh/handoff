@@ -508,7 +508,7 @@ On Cloudflare (Workers, a D1 database and Cloudflare's file storage), which proc
 
 ## Cookies
 
-Only a sign-in cookie for Assets and the console. No tracking or advertising cookies, and no third-party scripts.
+A sign-in cookie keeps you signed in to Assets and the console, up to five accounts per browser. A session ends after 30 days without use, or when you sign out.${f.hosted ? " A second cookie remembers the names of the teams you signed in to on this browser, so the sign-in page can fill one in." : ""} No tracking or advertising cookies, and no third-party scripts.
 
 ## Changes
 
@@ -918,7 +918,7 @@ export function notFoundMarkdown(cfg: Config): Response {
   return new Response(NOT_FOUND_MD(cfg), { status: 404, headers: { ...MD_HEADERS, "cache-control": "no-store" } });
 }
 
-const PRIVACY_UPDATED = "7 November 2026";
+const PRIVACY_UPDATED = "8 November 2026";
 
 /**
  * Routes. Mounted before the pages: a Markdown request for a public page is answered here, and every public

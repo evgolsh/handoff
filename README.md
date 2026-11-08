@@ -79,7 +79,7 @@ There they also upload a file for their assistant to send, such as a scan on the
 
 Then they say "Hand this off with lease.pdf". The assistant attaches the file by its name. If no file or more than one file has that name, nothing is sent and the assistant asks which one.
 
-Everyone signs in once, at `/login`, and every page knows them: the left menu has Assets, Assistant setup, and for an admin the team pages of the console. Sign out ends the session everywhere.
+Everyone signs in once, at `/login`, and every page knows them: the left menu has Assets, Assistant setup, and for an admin the team pages of the console. A session lasts 30 days and is renewed while used. The account menu at the bottom of the left menu switches between accounts signed in on this browser, signs in to another, and signs out.
 
 ## Updates
 
@@ -110,7 +110,7 @@ On Cloudflare's free plan a private server has room for 100,000 requests and 1,0
 - Identity comes from the signed access token (`sub`, ES256, issuer `PUBLIC_URL`, audience `PUBLIC_URL/mcp`). Clients register via RFC 7591 or an HTTPS client metadata document, with redirect validation and PKCE S256. OAuth authorization codes last 10 minutes, access tokens 8 hours, rotating refresh tokens 30 days.
 - A packet is readable by its sender, its named recipient, or every member for a team packet. Everyone else gets "not found". Only the sender revokes a team packet.
 - Attachments are readable only through a live packet. Download URLs last 10 minutes and packet access is rechecked on each fetch.
-- One browser session per signed-in member (`/login`; cookie HttpOnly, SameSite=Strict, 12 hours). The console checks the admin grant on every request. Forms check the origin and a per-session CSRF value. A file matched by name is searched only among the caller's own unsent files.
+- Browser sessions (`/login`; cookie HttpOnly, SameSite=Strict, up to five accounts per browser, 30 days renewed while used, stored in D1 only as hashes). The console checks the admin grant on every request. Forms check the origin and a per-session CSRF value. A file matched by name is searched only among the caller's own unsent files.
 - An invitation link works once and expires after 7 days. Opening it only shows who sent it; the access code is set and shown after a button press, so a messenger's link preview does not use it up.
 - Resetting a member's access code or removing them signs out their assistants. Disconnect in the console signs out one connection.
 - Server-side file imports are off until `IMPORT_HOST_ALLOWLIST` names allowed hosts. Imports require HTTPS and public DNS, refuse redirects and bound the size. Signed URLs are not stored or logged.

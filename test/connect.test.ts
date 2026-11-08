@@ -77,7 +77,7 @@ describe("connect page", () => {
   });
 
   it("a signed-in browser's public pages lead to Assets, not to Sign in, and no shared cache keeps either version", async () => {
-    const cookie = "__Host-handoff-session=some-session";
+    const cookie = `__Host-handoff-session=${"s".repeat(43)}`;
     for (const path of ["/", "/privacy", "/about", "/contact"]) {
       const out = await home(path);
       expect(out.headers.get("cache-control"), path).toBe("private, no-cache");

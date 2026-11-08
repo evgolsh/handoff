@@ -80,6 +80,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     control: c.get("cfg").mode === "control",
     admin: await isAdmin(c.env.DB, s.handle),
     csrf: s.csrf,
+    others: s.others,
   });
 
   const page = async (c: C, s: Session, opts: { flash?: Flash | ((unsentIds: Map<string, string>) => Flash); status?: number; uploadOpen?: boolean; cursor?: string }): Promise<Response> => {

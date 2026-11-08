@@ -257,7 +257,15 @@ export interface CreateTeamForm {
   handle?: string;
 }
 
-export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient | null, errorMsg?: string, create: CreateTeamForm = {}): string {
+/** The sign-in form's team: the one typed before an error, or the one this browser last signed in to; with suggestions. */
+export interface SignInTeam {
+  team?: string;
+  teams?: string[];
+}
+
+export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient | null, errorMsg?: string, create: CreateTeamForm = {}, known: SignInTeam = {}): string {
+  const team = known.team ?? known.teams?.[0] ?? "";
+  const teams = known.teams ?? [];
   const hasOAuth = Boolean(params.client_id || params.redirect_uri);
   let returnsTo = "";
   try {
@@ -281,13 +289,13 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
         cfg.mode === "control"
           ? `<div class="field">
         <label for="team">Team</label>
-        <input id="team" name="team" type="text" autocomplete="organization" autocapitalize="none" spellcheck="false" autofocus placeholder="your team name">
+        <input id="team" name="team" type="text"${teams.length ? ' list="known-teams"' : ""} autocomplete="organization" autocapitalize="none" spellcheck="false"${team ? "" : " autofocus"} placeholder="your team name" value="${esc(team)}">${teams.length ? `<datalist id="known-teams">${teams.map((t) => `<option value="${esc(t)}">`).join("")}</datalist>` : ""}
       </div>`
           : ""
       }
       <div class="field">
         <label for="handle">Username</label>
-        <input id="handle" name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required${cfg.mode === "control" ? "" : " autofocus"}>
+        <input id="handle" name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required${cfg.mode === "control" && !team ? "" : " autofocus"}>
       </div>
       <div class="field">
         <label for="access_code">Access code</label>
@@ -400,11 +408,11 @@ export function teamCreatedAuthorizePage(cfg: Config, params: AuthorizeParams, c
   return page.replace(/<div class="panel">[\s\S]*<\/main>/, `${panel}\n</main>`);
 }
 
-export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, form: Record<string, string>): Promise<Response> {
+export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, form: Record<string, string>, teams: string[] = []): Promise<Response> {
   const params = parseAuthorizeParams(form);
   const client = await registeredClient(db, params.client_id, params.redirect_uri);
   const bad = (msg: string, status = 400) =>
-    new Response(builtinAuthorizePage(cfg, params, client, msg), { status, headers: authorizeHeaders() });
+    new Response(builtinAuthorizePage(cfg, params, client, msg, {}, { team: form.team ?? "", teams }), { status, headers: authorizeHeaders() });
 
   if (params.response_type !== "code") return bad("Unsupported response_type (expected code).");
   if (params.code_challenge_method !== "S256" || !params.code_challenge) {
