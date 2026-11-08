@@ -6,7 +6,7 @@ import { newTicketToken, nowIso, sha256Hex } from "../domain/ids";
  * D1 keeps only its hash, bound to the member's code hash, so a code reset ends the session. Two kinds: the
  * console, where only members in admin_members sign in (the operator grants that with `npm run admin`), and
  * Assets (/assets), where any member signs in. Each kind has its own cookie and table, so a member's
- * account session never opens the console. One sign-in starts both for an admin (startSessions), and signing
+ * Assets session never opens the console. One sign-in starts both for an admin (startSessions), and signing
  * out ends both (endSessions).
  */
 export interface SessionKind {
@@ -16,7 +16,7 @@ export interface SessionKind {
   adminOnly: boolean;
 }
 export const CONSOLE_SESSIONS: SessionKind = { cookie: "__Host-handoff-console", table: "admin_sessions", adminOnly: true };
-export const ACCOUNT_SESSIONS: SessionKind = { cookie: "__Host-handoff-account", table: "member_sessions", adminOnly: false };
+export const ASSETS_SESSIONS: SessionKind = { cookie: "__Host-handoff-assets", table: "member_sessions", adminOnly: false };
 
 export const COOKIE = CONSOLE_SESSIONS.cookie;
 export const SESSION_SECONDS = 12 * 60 * 60;
@@ -86,7 +86,7 @@ export async function startSession(db: D1Database, handle: string, kind: Session
  */
 export async function startSessions(db: D1Database, handle: string): Promise<string[]> {
   const cookies: string[] = [];
-  for (const kind of [CONSOLE_SESSIONS, ACCOUNT_SESSIONS]) {
+  for (const kind of [CONSOLE_SESSIONS, ASSETS_SESSIONS]) {
     const cookie = await startSession(db, handle, kind);
     if (cookie) cookies.push(cookie);
   }
@@ -95,11 +95,11 @@ export async function startSessions(db: D1Database, handle: string): Promise<str
 
 /** Signing out of either area ends this browser's sessions of both kinds. Returns the Set-Cookie values that clear them. */
 export async function endSessions(db: D1Database, cookieHeader: string | undefined): Promise<string[]> {
-  for (const kind of [ACCOUNT_SESSIONS, CONSOLE_SESSIONS]) {
+  for (const kind of [ASSETS_SESSIONS, CONSOLE_SESSIONS]) {
     const raw = cookieToken(cookieHeader, kind);
     if (raw) await db.prepare(`DELETE FROM ${kind.table} WHERE token_hash = ?`).bind(await sha256Hex(raw)).run();
   }
-  return [sessionCookie("", 0, ACCOUNT_SESSIONS), sessionCookie("", 0, CONSOLE_SESSIONS)];
+  return [sessionCookie("", 0, ASSETS_SESSIONS), sessionCookie("", 0, CONSOLE_SESSIONS)];
 }
 
 /** Whether the member has the admin grant (the left menu then shows the team's pages). */

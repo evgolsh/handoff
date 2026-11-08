@@ -11,7 +11,7 @@ import type { AttachmentRow } from "../store/repository";
 import { recordEvent } from "../store/events";
 import { bytes, esc, interactiveHeaders, problemPage, type Html } from "../console/html";
 import {
-  ACCOUNT_SESSIONS,
+  ASSETS_SESSIONS,
   cookieToken,
   csrfOk,
   endSessions,
@@ -36,7 +36,7 @@ const PAGE_SIZE = 20;
 /** The most of a text or Markdown file a page shows; Download has the rest. */
 const TEXT_PREVIEW_BYTES = 256 * 1024;
 const BACK = { site: "Handoff", href: "/assets", label: "Back to Assets" };
-const redirect = (to: string, status = 303): Response => new Response(null, { status, headers: { location: to, "cache-control": "no-store" } });
+const redirect = (to: string): Response => new Response(null, { status: 303, headers: { location: to, "cache-control": "no-store" } });
 const str = (body: Body, key: string): string => (typeof body[key] === "string" ? (body[key] as string) : "");
 const newNonce = (): string => base64url(crypto.getRandomValues(new Uint8Array(16)));
 
@@ -53,7 +53,7 @@ const respond = (render: (nonce: string) => Html, status = 200): Response => {
 const problem = (title: string, text: string, status: number): Response => respond(() => problemPage(title, text, BACK), status);
 
 /** The page acts as the signed-in member, like their assistants do: same identity, same access rules. */
-const principalOf = (s: Session): Principal => ({ subject: s.handle, scopes: [], clientId: "files", token: "" });
+const principalOf = (s: Session): Principal => ({ subject: s.handle, scopes: [], clientId: "assets", token: "" });
 
 /**
  * A stored file shown in the page. Only the types the upload admits are shown, as the type the bytes were checked
@@ -138,14 +138,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
 
   const loginPage = (c: C, error?: string, team?: string, status = 200) =>
     respond((nonce) => assetsLoginPage({ control: c.get("cfg").mode === "control", error, team }, nonce), status);
-  const sessionOf = (c: C) => sessionFrom(c.env.DB, cookieToken(c.req.header("cookie"), ACCOUNT_SESSIONS), ACCOUNT_SESSIONS);
-
-  // Assets was My account (/account), and before that the files page (/files). Old links and open tabs follow;
-  // 307 keeps a form's method and body, and the new routes check its origin and CSRF value as usual.
-  for (const old of ["/files", "/account"]) {
-    app.all(old, (c) => redirect(`/assets${new URL(c.req.url).search}`, 307));
-    app.all(`${old}/*`, (c) => redirect(`${c.req.path.replace(old, "/assets")}${new URL(c.req.url).search}`, 307));
-  }
+  const sessionOf = (c: C) => sessionFrom(c.env.DB, cookieToken(c.req.header("cookie"), ASSETS_SESSIONS), ASSETS_SESSIONS);
 
   // Forms are small, except the upload: one file of the largest size this server takes, and the form around it.
   app.use("/assets/*", async (c, next) => {
@@ -187,7 +180,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     if (!sameOrigin(c.req.header("origin"), cfg.publicUrl)) {
       return problem("Sign-in refused", "The sign-in form must be sent from this server's own page.", 403);
     }
-    if (!(await loginAllowed(db, c.req.header("cf-connecting-ip"), "account-login"))) {
+    if (!(await loginAllowed(db, c.req.header("cf-connecting-ip"), "assets-login"))) {
       const res = loginPage(c, "Too many attempts. Try again in 10 minutes.", undefined, 429);
       res.headers.set("retry-after", "600");
       return res;
@@ -199,11 +192,11 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     // One sign-in: every member gets Assets, and an admin the console as well.
     const cookies = valid && identity ? await startSessions(db, identity) : [];
     if (cookies.length === 0) {
-      await recordEvent(db, { kind: "files", name: "login", subject: identity, outcome: "refused" }, { unauthenticated: true });
+      await recordEvent(db, { kind: "assets", name: "login", subject: identity, outcome: "refused" }, { unauthenticated: true });
       const msg = cfg.mode === "control" ? "That team, username and access code do not match." : "That username and access code do not match.";
       return loginPage(c, msg, str(form, "team"), 401);
     }
-    await recordEvent(db, { kind: "files", name: "login", subject: identity, outcome: "ok" });
+    await recordEvent(db, { kind: "assets", name: "login", subject: identity, outcome: "ok" });
     return redirectSetting("/assets", cookies);
   });
 
@@ -237,11 +230,11 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     if (file.size > svc.cfg.maxAttachmentBytes) return failed(`That file is larger than ${esc(bytes(svc.cfg.maxAttachmentBytes))}.`, 413);
     try {
       const { attachment, renamed } = await svc.webUpload(principalOf(s), { name: file.name, type: file.type, bytes: new Uint8Array(await file.arrayBuffer()) }, str(body, "note"));
-      await recordEvent(c.env.DB, { kind: "files", name: "upload", subject: s.handle, outcome: "ok" });
+      await recordEvent(c.env.DB, { kind: "assets", name: "upload", subject: s.handle, outcome: "ok" });
       return redirect(`/assets?uploaded=${encodeURIComponent(attachment.id)}${renamed ? "&renamed=1" : ""}`);
     } catch (e) {
       if (!(e instanceof HandoffError)) throw e;
-      await recordEvent(c.env.DB, { kind: "files", name: "upload", subject: s.handle, outcome: e.code });
+      await recordEvent(c.env.DB, { kind: "assets", name: "upload", subject: s.handle, outcome: e.code });
       return failed(`Not uploaded. ${esc(e.message)}`, e.status);
     }
   });
@@ -254,7 +247,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
       if (!(e instanceof HandoffError)) throw e;
       return page(c, s, { flash: { ok: false, text: "That file is in a handoff now, or was already removed." }, status: e.status });
     }
-    await recordEvent(c.env.DB, { kind: "files", name: "remove", subject: s.handle, outcome: "ok" });
+    await recordEvent(c.env.DB, { kind: "assets", name: "remove", subject: s.handle, outcome: "ok" });
     return redirect("/assets?removed=1");
   });
 
@@ -274,7 +267,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
         cards.push({ ...d, view: `/assets/view/${base}`, download: `/assets/download/${base}`, preview: await preview(c, attachment) });
       }
       const v = await viewer(c, s);
-      await recordEvent(c.env.DB, { kind: "files", name: "open", subject: s.handle, outcome: "ok" });
+      await recordEvent(c.env.DB, { kind: "assets", name: "open", subject: s.handle, outcome: "ok" });
       return respond((nonce) => handoffPage(v, h, renderBrief(h.brief), cards, Date.now(), nonce));
     } catch (e) {
       if (!(e instanceof HandoffError)) throw e;
@@ -290,7 +283,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
       try {
         const { attachment } = await svc.readAttachment(principalOf(s), c.req.param("packet"), c.req.param("attachment"));
         const blob = await svc.openBlob(attachment);
-        await recordEvent(c.env.DB, { kind: "files", name: inline ? "view" : "download", subject: s.handle, outcome: "ok" });
+        await recordEvent(c.env.DB, { kind: "assets", name: inline ? "view" : "download", subject: s.handle, outcome: "ok" });
         return inline ? inlineResponse(attachment, blob) : attachmentResponse(attachment, blob);
       } catch (e) {
         if (!(e instanceof HandoffError)) throw e;

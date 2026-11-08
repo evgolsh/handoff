@@ -1,4 +1,4 @@
--- Sessions of the member file page (/files). Any member signs in there with their username and access code.
+-- Sessions of Assets (/assets). Any member signs in there with their username and access code.
 -- Kept apart from admin_sessions, so a member's session never opens the console.
 CREATE TABLE IF NOT EXISTS member_sessions (
   token_hash TEXT PRIMARY KEY,

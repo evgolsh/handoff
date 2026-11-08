@@ -19,17 +19,17 @@ const BACK_ICON = svg('<path d="m15 18-6-6 6-6"/>');
 const ASSETS_CSS = `
 main.assets{align-items:stretch}
 .assets-wrap{width:100%;max-width:920px;display:flex;flex-direction:column;gap:16px}
-.acct-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.assets-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .eyebrow{margin:0;font-size:13px;color:var(--muted)}
-.assets h1,.acct-signin h1{margin:2px 0 0;font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere}
+.assets h1,.assets-signin h1{margin:2px 0 0;font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere}
 .lead{margin:4px 0 0;color:var(--muted);font-size:14px}
 .btn.lg{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 14px;font-size:14px;text-decoration:none}
 .btn svg{width:16px;height:16px}
-.acct-upload{gap:14px;padding:18px 20px}
-.acct-upload[hidden]{display:none}
-.acct-upload input[type=file]{background:var(--ground)}
-.acct-actions{display:flex;gap:8px;flex-wrap:wrap}
-.acct-list{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.assets-upload{gap:14px;padding:18px 20px}
+.assets-upload[hidden]{display:none}
+.assets-upload input[type=file]{background:var(--ground)}
+.assets-actions{display:flex;gap:8px;flex-wrap:wrap}
+.assets-list{background:var(--panel);border:1px solid var(--line);border-radius:8px}
 .asset{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line-soft)}
 .asset:last-child{border-bottom:0}
 .asset-icon{display:flex;align-items:center;justify-content:center;width:32px;height:36px;border:1px solid var(--line-soft);border-radius:6px;background:var(--ground);color:var(--muted)}
@@ -47,8 +47,8 @@ a.asset-name:hover{text-decoration:underline;text-underline-offset:3px}
 .asset-meta form{margin:0}
 .link-btn{font:inherit;font-size:12px;background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;text-decoration-color:var(--faint);text-underline-offset:3px;cursor:pointer}
 .link-btn:hover{color:var(--danger)}
-.acct-empty{padding:28px 20px;color:var(--muted);font-size:14px}
-.acct-more{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px}
+.assets-empty{padding:28px 20px;color:var(--muted);font-size:14px}
+.assets-more{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px}
 .flash q,.say q{font-weight:500}
 .back{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);text-decoration:none;align-self:flex-start}
 .back svg{width:15px;height:15px}.back:hover{color:var(--ink)}
@@ -79,15 +79,15 @@ a.asset-name:hover{text-decoration:underline;text-underline-offset:3px}
 .preview-body .md{padding:18px 22px;max-height:70vh;overflow:auto;max-width:none}
 .preview-cut{padding:8px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line-soft);background:var(--panel)}
 .say{font-size:14px;color:var(--muted);margin:4px 0 0}
-.acct-signin{max-width:440px;margin:4vh auto 64px;padding:0 16px}
-.acct-signin .lead{margin:6px 0 0}
+.assets-signin{max-width:440px;margin:4vh auto 64px;padding:0 16px}
+.assets-signin .lead{margin:6px 0 0}
 @media(max-width:640px){
   .assets h1{font-size:24px}
   .asset{grid-template-columns:28px minmax(0,1fr);padding:16px 14px;gap:10px}
   .asset-icon{width:28px;height:32px}
   .asset-meta{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 14px;text-align:left;white-space:normal}
   .btn.lg{min-height:44px}
-  .acct-upload .field{font-size:16px}
+  .assets-upload .field{font-size:16px}
   .brief{padding:16px}
   /* Phones show no PDF inside a page (Android shows nothing; iPhone one page). Opening it uses the phone's own viewer. */
   .preview-body.pdf iframe{display:none}
@@ -142,7 +142,7 @@ export function assetsLoginPage(opts: { control: boolean; error?: string; team?:
   return document(
     "Sign in",
     `${flowHeader("/connect", "Assistant setup")}
-<main class="acct-signin">
+<main class="assets-signin">
   <form method="post" action="/assets/login" class="flow-panel" autocomplete="off">
     <div><p class="eyebrow">Handoff</p><h1>Sign in</h1><p class="lead">Your handoffs and files, in one place.</p></div>
     ${opts.error ? `<div class="flash" role="alert">${esc(opts.error)}</div>` : ""}
@@ -233,29 +233,29 @@ export function assetsPage(v: AssetsViewer, d: AssetsData, nonce: string): Html 
     .map((r) => r.html)
     .join("");
   const empty = d.older
-    ? `<div class="acct-empty">No older handoffs.</div>`
-    : `<div class="acct-empty">Nothing here yet. Handoffs you send or receive, and files you upload, show up here until they expire.</div>`;
+    ? `<div class="assets-empty">No older handoffs.</div>`
+    : `<div class="assets-empty">Nothing here yet. Handoffs you send or receive, and files you upload, show up here until they expire.</div>`;
   const more =
     d.older || d.nextCursor
-      ? `<div class="acct-more">${d.older ? `<a class="u" href="/assets">Back to the newest</a>` : "<span></span>"}${d.nextCursor ? `<a class="u" href="/assets?older=${encodeURIComponent(d.nextCursor)}">Show older handoffs</a>` : ""}</div>`
+      ? `<div class="assets-more">${d.older ? `<a class="u" href="/assets">Back to the newest</a>` : "<span></span>"}${d.nextCursor ? `<a class="u" href="/assets?older=${encodeURIComponent(d.nextCursor)}">Show older handoffs</a>` : ""}</div>`
       : "";
   return appPage(
     v,
     "Assets",
-    `<div class="acct-head">
+    `<div class="assets-head">
     <div><h1>${d.older ? "Older handoffs" : "Assets"}</h1><p class="lead">Handoffs you sent or received, and files you uploaded.</p></div>
     <a class="btn primary lg" href="/assets?upload=1#upload" data-upload>${PLUS_ICON}Upload file</a>
   </div>
   ${flashBox(d.flash)}
-  <form method="post" action="/assets/upload" enctype="multipart/form-data" class="panel acct-upload" id="upload"${d.uploadOpen ? "" : " hidden"}>
+  <form method="post" action="/assets/upload" enctype="multipart/form-data" class="panel assets-upload" id="upload"${d.uploadOpen ? "" : " hidden"}>
     ${csrf(v)}
     <div class="t">Upload a file</div>
     <div><label class="lbl" for="file">File</label><input id="file" name="file" type="file" class="field" required accept=".pdf,.png,.jpg,.jpeg,.txt,.md,application/pdf,image/png,image/jpeg,text/plain,text/markdown"></div>
     <div><label class="lbl" for="note">Note for your assistant (optional)</label><input id="note" name="note" class="field" maxlength="${MAX_NOTE_CHARS}" placeholder="Signed lease, final version"></div>
     <p class="small muted">PDF, PNG, JPEG, text or Markdown, up to ${esc(bytes(d.maxBytes))}. Only you can see it until your assistant sends it in a handoff. A file not sent within 7 days is deleted.</p>
-    <div class="acct-actions"><button type="submit" class="btn primary lg">Upload</button><a class="btn lg" href="/assets" data-cancel>Cancel</a></div>
+    <div class="assets-actions"><button type="submit" class="btn primary lg">Upload</button><a class="btn lg" href="/assets" data-cancel>Cancel</a></div>
   </form>
-  <section class="acct-list" aria-label="Assets">${rows || empty}</section>
+  <section class="assets-list" aria-label="Assets">${rows || empty}</section>
   ${more}`,
     nonce,
   );

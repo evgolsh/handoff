@@ -2,7 +2,7 @@ import { nowIso } from "../domain/ids";
 
 /** What the console shows about activity. Never content: no titles, briefs, file names, codes or tokens. */
 export interface HandoffEvent {
-  kind: "tool" | "initialize" | "auth" | "sign_in" | "token" | "client_metadata" | "console" | "files" | "cleanup" | "update_check" | "visit";
+  kind: "tool" | "initialize" | "auth" | "sign_in" | "token" | "client_metadata" | "console" | "assets" | "cleanup" | "update_check" | "visit";
   name?: string | null;
   subject?: string | null;
   client_id?: string | null;

@@ -9,7 +9,7 @@ import { base64url, nowIso, sha256Hex } from "../domain/ids";
 import { recordEvent, revokeAccess } from "../store/events";
 import { CONSOLE_HEADERS, SETUP_CODE_MIN, esc, interactiveHeaders, loginPage, problemPage, setupDonePage, setupPage, type Html, type Viewer } from "./html";
 import { connectPage } from "../http/connect";
-import { ACCOUNT_SESSIONS, cookieToken, csrfOk, endSessions, loginAllowed, redirectSetting, sameOrigin, sessionFrom, startSession, startSessions, type Session } from "./session";
+import { ASSETS_SESSIONS, cookieToken, csrfOk, endSessions, loginAllowed, redirectSetting, sameOrigin, sessionFrom, startSession, startSessions, type Session } from "./session";
 import { assistants, controlCenter, members, ops, overview, teamOverview } from "./stats";
 import { assistantsPage, codePage, confirmPage, membersPage, opsPage, overviewPage, teamOverviewPage, tenantsPage } from "./views";
 
@@ -145,8 +145,8 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     }
     await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "ok" });
     // One sign-in: the admin also gets their Assets session.
-    const accountCookie = await startSession(db, handle, ACCOUNT_SESSIONS);
-    return redirectSetting(form.next === "connect" ? "/console/connect" : "/console/overview", accountCookie ? [consoleCookie, accountCookie] : [consoleCookie]);
+    const assetsCookie = await startSession(db, handle, ASSETS_SESSIONS);
+    return redirectSetting(form.next === "connect" ? "/console/connect" : "/console/overview", assetsCookie ? [consoleCookie, assetsCookie] : [consoleCookie]);
   });
 
   // Everything below needs a session; a POST also needs this origin and the session's CSRF value.

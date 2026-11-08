@@ -117,7 +117,7 @@ describe("agent files on the hosted service", () => {
     const robots = await (await get(hosted, "/robots.txt")).text();
     expect(robots).toContain("Allow: /");
     expect(robots).toContain("Disallow: /console");
-    expect(robots).toContain("Disallow: /account");
+    expect(robots).toContain("Disallow: /assets");
     expect(robots).toContain(`Sitemap: ${ORIGIN}/sitemap.xml`);
     const sitemap = await (await get(hosted, "/sitemap.xml")).text();
     expect(sitemap).toContain(`<loc>${ORIGIN}/</loc>`);

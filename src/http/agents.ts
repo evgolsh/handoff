@@ -800,7 +800,7 @@ export function discoveryLinks(cfg: Config, path: string): string {
 }
 
 /** Paths an agent or search engine should not crawl. */
-const PRIVATE_PATHS = ["/console", "/assets", "/account", "/authorize", "/oauth/", "/v1/", "/invite/"];
+const PRIVATE_PATHS = ["/console", "/assets", "/authorize", "/oauth/", "/v1/", "/invite/"];
 
 export function robotsTxt(cfg: Config): string {
   const lines = ["User-agent: *", "Content-Signal: search=yes, ai-input=yes, ai-train=yes", "Allow: /", ...PRIVATE_PATHS.map((p) => `Disallow: ${p}`)];
