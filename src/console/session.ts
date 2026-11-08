@@ -5,7 +5,7 @@ import { newTicketToken, nowIso, sha256Hex } from "../domain/ids";
  * Browser sessions. The browser holds a random token in a __Host- cookie (Secure, HttpOnly, SameSite=Strict);
  * D1 keeps only its hash, bound to the member's code hash, so a code reset ends the session. Two kinds: the
  * console, where only members in admin_members sign in (the operator grants that with `npm run admin`), and
- * My account (/account), where any member signs in. Each kind has its own cookie and table, so a member's
+ * Assets (/assets), where any member signs in. Each kind has its own cookie and table, so a member's
  * account session never opens the console. One sign-in starts both for an admin (startSessions), and signing
  * out ends both (endSessions).
  */
@@ -80,7 +80,7 @@ export async function startSession(db: D1Database, handle: string, kind: Session
 }
 
 /**
- * One sign-in for both areas, after the member's code was checked: a My account session for every member, and a
+ * One sign-in for both areas, after the member's code was checked: an Assets session for every member, and a
  * console session too when the member is an admin. The console still checks the admin grant on every request.
  * Returns the Set-Cookie values, the console's first; empty if the member does not exist.
  */
@@ -102,7 +102,7 @@ export async function endSessions(db: D1Database, cookieHeader: string | undefin
   return [sessionCookie("", 0, ACCOUNT_SESSIONS), sessionCookie("", 0, CONSOLE_SESSIONS)];
 }
 
-/** Whether the member has the admin grant (My account then links to the console). */
+/** Whether the member has the admin grant (the left menu then shows the team's pages). */
 export async function isAdmin(db: D1Database, handle: string): Promise<boolean> {
   return !!(await db.prepare("SELECT 1 AS ok FROM admin_members WHERE handle = ?").bind(handle).first());
 }

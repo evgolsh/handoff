@@ -26,7 +26,7 @@ Trigger: the user asks to hand off, pass on, or continue this work in another as
      holds the file, run the returned `curl` command (macOS, Linux) or `powershell` command (Windows) exactly as
      returned. Do not build your own command by pasting a file name into a shell. Then pass the `attachment_id`
      values in `attachment_ids`.
-   - A file the user uploaded in My account on the server (`/account`): pass its name in `attachment_names`, for
+   - A file the user uploaded in Assets on the server (`/assets`): pass its name in `attachment_names`, for
      example `["lease.pdf"]`, or its id in `attachment_ids`. `handoff_inbox` lists these unsent files. If a name
      matches none or several, nothing is sent and the error lists the candidates: ask the user which one.
    - Accepted: PDF, PNG, JPEG, plain text, Markdown, up to the size limit the tool reports.

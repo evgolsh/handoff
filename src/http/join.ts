@@ -51,7 +51,7 @@ export async function handleJoin(db: D1Database, cfg: Config, form: Record<strin
   if (!made.ok) return { status: made.status, body: joinPage(cfg, { error: made.error, team: made.team, handle: made.handle }) };
   const { team, handle, identity, code } = made;
   // The team is already saved. A session failure must not hide its one-time access code.
-  // One sign-in: the new admin gets both the console and the My account session.
+  // One sign-in: the new admin gets both the console and the Assets session.
   let cookies: string[] = [];
   try {
     cookies = await startSessions(db, identity);

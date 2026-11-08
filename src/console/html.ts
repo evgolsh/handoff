@@ -48,11 +48,16 @@ nav.side .who{padding:10px;border-top:1px solid var(--line-soft);display:flex;fl
 nav.side .who form{display:inline}
 nav.side .who button{font:inherit;font-size:12px;background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer}
 main{flex:999 1 560px;min-width:0;padding:24px 28px;display:flex;flex-direction:column;gap:16px}
+nav.side .nav-separator{height:1px;background:var(--line);margin:12px 8px}
 @media (max-width:760px){
-  nav.side{flex:1 1 100%;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:0;border-bottom:1px solid var(--line);padding:12px 16px}
-  nav.side a.brand{padding:4px 8px;width:100%}
+  /* A phone: the menu is a short bar above the page. The brand and who is signed in, then the links. */
+  .shell{align-content:flex-start}
+  nav.side{flex:1 1 100%;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 4px;border-right:0;border-bottom:1px solid var(--line);padding:10px 12px}
+  nav.side a{order:3;padding:8px 10px}
+  nav.side a.brand{order:0;flex:1 1 auto;padding:4px 6px}
+  nav.side .who{order:1;flex-direction:row;align-items:center;gap:12px;border-top:0;padding:4px 6px}
+  nav.side .nav-separator{order:2;flex-basis:100%;height:0;margin:2px 0;background:none}
   nav.side .sect,nav.side .grow{display:none}
-  nav.side .who{border-top:0;padding:4px 8px;margin-left:auto}
   main{padding:16px}
 }
 .head{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
@@ -125,8 +130,7 @@ form.inline{display:inline}
 .person-actions{position:relative;flex:none}.person-actions summary{cursor:pointer;font-size:12px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;list-style:none}.person-actions summary::-webkit-details-marker{display:none}.person-actions>div{position:absolute;right:0;top:calc(100% + 6px);min-width:150px;display:grid;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:8px;z-index:5;box-shadow:0 8px 24px #00000012}.person-actions a{padding:10px;font-size:12px;white-space:nowrap}
 .empty-connections{padding:48px 28px;text-align:center;border:1px dashed var(--line);border-radius:14px}.empty-connections h2{font-size:25px;font-weight:500;letter-spacing:-.025em;margin:0 0 12px}.empty-connections p{color:var(--muted);margin:0 0 24px}.empty-connections .btn{padding:12px 18px}
 .troubleshooting{margin-top:12px}.troubleshooting>summary{cursor:pointer;padding:12px 0;color:var(--muted);font-size:12px}.troubleshooting .grid2{margin-top:12px}
-nav.side .nav-separator{height:1px;background:var(--line);margin:12px 8px}
-@media(max-width:760px){.flow-wrap{margin-top:24px}.flow-grid{grid-template-columns:1fr;gap:24px}.flow-intro h1{margin-top:8px}.flow-intro>p{max-width:none}.flow-progress{gap:12px;flex-wrap:wrap}.flow-facts{margin:16px 0}.team-start{grid-template-columns:1fr}.team-steps{border-left:0;border-top:1px solid var(--line)}.team-shortcuts{grid-template-columns:1fr}.team-welcome{padding-top:8px}.team-welcome h1{font-size:28px}nav.side .nav-separator{display:none}}
+@media(max-width:760px){.flow-wrap{margin-top:24px}.flow-grid{grid-template-columns:1fr;gap:24px}.flow-intro h1{margin-top:8px}.flow-intro>p{max-width:none}.flow-progress{gap:12px;flex-wrap:wrap}.flow-facts{margin:16px 0}.team-start{grid-template-columns:1fr}.team-steps{border-left:0;border-top:1px solid var(--line)}.team-shortcuts{grid-template-columns:1fr}.team-welcome{padding-top:8px}.team-welcome h1{font-size:28px}}
 @media(max-width:420px){.flow-top{padding:20px}.flow-wrap{padding:0 20px}.flow-panel{padding:22px}.flow-progress{gap:10px;font-size:11px}.flow-progress span{width:20px;height:20px}.flow-grid{gap:20px}.team-start>div{padding:24px}.credential-meta{gap:12px}}
 @media(max-width:1000px){.team-management{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:no-preference){.btn,.field,.team-shortcuts a{transition:border-color .15s,background .15s,box-shadow .15s}}
@@ -277,26 +281,47 @@ ${enhancement ? `<script nonce="${esc(enhancement.nonce)}">${enhancement.script}
 </html>`;
 }
 
+/** Who the left menu is for. Every member gets Assets and Assistant setup; an admin also their team's pages. */
+export interface NavUser {
+  /** The handle people see. */
+  handle: string;
+  tenant: string;
+  control: boolean;
+  admin: boolean;
+  /** The sign-out form. Each area posts to its own sign-out with its own CSRF value; either one ends both sessions. */
+  signOut: Html;
+}
+
+/**
+ * The left menu of every signed-in page, Assets and console alike: Assets first (the product), then Assistant
+ * setup, then an admin's team pages. The brand and Home lead back to the site.
+ */
+export function sideNav(u: NavUser, current: "assets" | Page): Html {
+  const on = (p: string) => (p === current ? ' class="on" aria-current="page"' : "");
+  const label = (p: Page) => (u.tenant && p === "overview" ? "Your team" : u.tenant && p === "assistants" ? "Connections" : NAV.find(([q]) => q === p)![1]);
+  const team = u.admin ? pagesFor({ tenant: u.tenant, control: u.control } as Viewer).filter((p) => p !== "connect") : [];
+  const section = u.tenant ? "Team" : u.control ? "Operator" : "Server";
+  return `<nav class="side" aria-label="Handoff">
+    <a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a>
+    <a href="/assets"${on("assets")}>Assets</a>
+    <a href="${u.admin ? "/console/connect" : "/connect"}"${on("connect")}>Assistant setup</a>
+    ${team.length ? `<div class="sect">${section}</div>\n    ${team.map((p) => `<a href="/console/${p}"${on(p)}>${label(p)}</a>`).join("\n    ")}` : ""}
+    <div class="nav-separator"></div>
+    ${u.control ? `<a href="/">Home</a>` : `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>`}
+    <div class="grow"></div>
+    <div class="who">
+      <div><span class="dot live"></span> ${u.tenant ? `<span class="muted">${esc(u.tenant)} ·</span> ` : ""}<strong>${esc(u.handle)}</strong>${u.admin ? ` <span class="chip">${u.tenant || !u.control ? "admin" : "operator"}</span>` : ""}</div>
+      <div class="small muted">${u.signOut}</div>
+    </div>
+  </nav>`;
+}
+
 export function shell(page: Page, v: Viewer, title: string, body: Html, enhancement?: PageEnhancement): Html {
-  const allowed = new Set(pagesFor(v));
-  const links = NAV.filter(([p]) => allowed.has(p))
-    .map(([p, label]) => `<a href="/console/${p}"${p === page ? ' class="on" aria-current="page"' : ""}>${v.tenant && p === "overview" ? "Your team" : v.tenant && p === "assistants" ? "Connections" : label}</a>`)
-    .join("\n    ");
+  const signOut = `<form method="post" action="/console/logout">${csrfField(v)}<button type="submit">Sign out</button></form>`;
   return document(
     v.control ? `${title} · ${v.tenant || "operator"}` : title,
     `<div class="shell">
-  <nav class="side" aria-label="Console">
-    <a class="brand" href="/">${BRAND_ICON}<span>Handoff</span></a>
-    ${links}
-    <div class="nav-separator"></div>
-    <a href="/account">My account</a>
-    ${v.control ? `<a href="/">Home</a>` : `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>`}
-    <div class="grow"></div>
-    <div class="who">
-      <div><span class="dot live"></span> ${v.tenant ? `<span class="muted">${esc(v.tenant)} ·</span> ` : ""}<strong>${esc(v.handle)}</strong> <span class="chip">${v.tenant || !v.control ? "admin" : "operator"}</span></div>
-      <div class="small muted"><form method="post" action="/console/logout">${csrfField(v)}<button type="submit">${v.control ? "Sign out / switch account" : "sign out"}</button></form></div>
-    </div>
-  </nav>
+  ${sideNav({ handle: v.handle, tenant: v.tenant, control: v.control, admin: true, signOut }, page)}
   <main>
 ${v.control ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Hosted service operator"}</div>\n` : ""}${body}
   </main>

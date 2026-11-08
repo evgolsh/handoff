@@ -72,7 +72,7 @@ const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
 function toolList(): string {
   return [
     "- `handoff_send`: send a brief and files to a username, to `team` (everyone in the team), or to yourself.",
-    "- `handoff_inbox`: list handoffs sent to you, and the files you uploaded in My account.",
+    "- `handoff_inbox`: list handoffs sent to you, and the files you uploaded in Assets.",
     "- `handoff_read`: read a brief and its files.",
     "- `handoff_upload_url`: upload a file from a computer (Codex, Claude Code, a terminal).",
     "- `handoff_revoke`: take a handoff back. Content already read cannot be recalled.",
@@ -230,7 +230,7 @@ ${connectSteps(cfg)}
 
 ## Then
 
-Say “hand this off to anna” in one assistant and “continue the handoff from joe” in the other. To upload a file from a phone, sign in to My account at ${f.site}/account.
+Say “hand this off to anna” in one assistant and “continue the handoff from joe” in the other. To read a handoff and see its files in a browser, or upload a file from a phone, sign in to Assets at ${f.site}/assets.
 `;
 }
 
@@ -265,7 +265,7 @@ Call \`handoff_invite\` with the username the person should have (for example \`
 ## Send ("hand this off")
 
 1. Write a brief from the conversation: the purpose, the decisions and their reasons, the constraints, the next useful step, references, and open questions. Do not paste the transcript. Mark unknowns as unknown.
-2. Attach only files the person chose. ChatGPT: pass selected files in \`files\`. A computer (Codex, Claude Code, a terminal): call \`handoff_upload_url\` and run the returned command in the file's folder. Files the person uploaded in My account (${f.site}/account): pass their names in \`attachment_names\`.
+2. Attach only files the person chose. ChatGPT: pass selected files in \`files\`. A computer (Codex, Claude Code, a terminal): call \`handoff_upload_url\` and run the returned command in the file's folder. Files the person uploaded in Assets (${f.site}/assets): pass their names in \`attachment_names\`.
 3. Call \`handoff_send\` with \`title\`, \`brief\`, \`to\` (a username such as \`anna\`, \`team\`, or nothing for the person's own other assistant), the files, and a fresh \`idempotency_key\`. Retrying with the same key returns the same handoff.
 4. Tell the person the title, who it went to, and when it expires. The other assistant does not open it by itself: the recipient asks for it.
 
@@ -395,7 +395,7 @@ Get started: ${f.site}/join · or tell your assistant: “Set up Handoff so I ca
 
 ## What travels
 
-- **Your notes and the files.** The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. A file on your phone? Upload it in My account.
+- **Your notes and the files.** The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. Open a handoff in Assets to read the brief and see the files.
 - **Their own assistant.** Your partner can use ChatGPT while you use Claude. Each person signs in with their own username.
 - **Storage, not AI.** Handoff keeps the brief and files and deletes them after ${days(f.days)} by default. It makes no model calls.
 
@@ -476,7 +476,7 @@ Handoff has no AI inside: it makes no model calls, and nothing you send is used 
 
 - **Your account:** your team name and username, and a salted hash of your access code. Not your email, name or phone number.
 - **What you send:** each handoff's title, brief and files, exactly as your assistant sent them, and who sent it to whom.
-- **Files you upload** in My account or through an assistant, until you send or delete them.
+- **Files you upload** in Assets or through an assistant, until you send or delete them.
 - **Sign-ins:** the assistants you connected (the name each app gives) and their refresh tokens, stored as hashes. Access tokens are not stored.
 - **Activity:** which tool was called, when, by which username, and whether it worked. Not the content.
 - **Abuse limits:** when you sign in to the console or create a team, a hash of your IP address, to slow down guessing. It is deleted after 10 minutes.
@@ -501,13 +501,13 @@ On Cloudflare (Workers, a D1 database and Cloudflare's file storage), which proc
 ## Your choices
 
 - Revoke a handoff with your assistant (“revoke that handoff”) or wait for it to expire.
-- Delete your uploaded files in My account (${f.site}/account).
+- Delete your uploaded files in Assets (${f.site}/assets).
 - Disconnect an assistant: your team's admin can do it in the console.
 - To delete your account and everything in it, ask your team's admin${f.hosted ? `, or write to ${SUPPORT_EMAIL}` : ""}.
 
 ## Cookies
 
-Only a sign-in cookie for the console and My account. No tracking or advertising cookies, and no third-party scripts.
+Only a sign-in cookie for Assets and the console. No tracking or advertising cookies, and no third-party scripts.
 
 ## Changes
 
@@ -800,7 +800,7 @@ export function discoveryLinks(cfg: Config, path: string): string {
 }
 
 /** Paths an agent or search engine should not crawl. */
-const PRIVATE_PATHS = ["/console", "/account", "/authorize", "/oauth/", "/v1/", "/invite/"];
+const PRIVATE_PATHS = ["/console", "/assets", "/account", "/authorize", "/oauth/", "/v1/", "/invite/"];
 
 export function robotsTxt(cfg: Config): string {
   const lines = ["User-agent: *", "Content-Signal: search=yes, ai-input=yes, ai-train=yes", "Allow: /", ...PRIVATE_PATHS.map((p) => `Disallow: ${p}`)];

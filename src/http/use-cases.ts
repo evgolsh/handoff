@@ -205,7 +205,7 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean } = {}): stri
       <li><span class="how-n">01</span><h3>Create a team</h3><p>A team name and your username. Free, for up to ${cfg.tenantMembersCap} people.</p><a href="/join">Create a team →</a></li>
       <li><span class="how-n">02</span><h3>Add your partner</h3><p>Ask your assistant “invite anna to Handoff” and send her the link it gives you. Or add her in Manage team.</p><a href="/console">Manage team →</a></li>
       <li><span class="how-n">03</span><h3>Connect your assistants</h3><p>Each person adds Handoff to the assistant they already use: Claude, ChatGPT, Codex, Claude Code or Hermes.</p><a href="/connect">Assistant setup →</a></li>
-      <li><span class="how-n">04</span><h3>Hand off</h3><p>“Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.” A file on your phone? Upload it in My account.</p><a href="/account">My account →</a></li>
+      <li><span class="how-n">04</span><h3>Hand off</h3><p>“Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.” A file on your phone? Upload it in Assets.</p><a href="/assets">Assets →</a></li>
     </ol>
     <div class="ask"><div><h3>Or let your assistant walk you through it.</h3><p>Claude and ChatGPT can read Handoff’s guide for assistants and take you through each step.</p></div>
       <blockquote>Set up Handoff so I can send files and instructions to my wife’s assistant. Read ${esc(cfg.publicUrl.replace(/^https?:\/\//, ""))}/llms.txt</blockquote></div>
@@ -254,7 +254,7 @@ ${pageHeader("use-cases", { active, mode: cfg.mode })}
     </div>
   </section>
   <section class="principles" aria-label="What travels with your work">
-    <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. A file on your phone? Upload it in My account.</p></article>
+    <article><h2>Your notes and the files.</h2><p>The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. Open a handoff in Assets to read the brief and see the files.</p></article>
     <article><h2>Their own assistant.</h2><p>Your partner can use ChatGPT while you use Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.</p></article>
     <article><h2>Storage, not AI.</h2><p>Handoff keeps the brief and files and deletes them after ${days(open ? cfg.defaultExpiryHours : PRIVATE_DEFAULT_EXPIRY_HOURS)}. It makes no model calls and needs no API keys.</p></article>
   </section>
@@ -290,7 +290,7 @@ npm run setup -- --members=tim,tom</code></pre>
     <ol class="install-steps">
       <li><strong>Sign in to your Handoff console.</strong> After a browser deploy, <code>/console/setup</code> creates your admin account and shows your access code once. After a terminal install, sign in at the printed <code>/console</code> URL with the access code setup printed. Save access codes privately.</li>
       <li><strong>Add your teammates.</strong> In Members, or by asking your assistant “invite tom to Handoff”. Each teammate gets a link with their username and access code. Teammates need no Cloudflare or GitHub account.</li>
-      <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server. To upload a file from a phone or another folder, they sign in at <code>/account</code>.</li>
+      <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server. To upload a file from a phone or another folder, they sign in at <code>/assets</code>.</li>
       <li><strong>Try a handoff.</strong> Say “Hand this off” in one assistant, then “Continue my handoff” in another. To send to your teammate, say “Hand this off to tom”.</li>
     </ol>
     <p class="install-note">From a terminal, a new Cloudflare account may need its <code>workers.dev</code> address registered first; setup links to the page. If the account already has a Worker named <code>handoff</code>, check it first: setup redeploys it. <a href="${GITHUB_URL}#install" target="_blank" rel="noopener">Full setup guide ↗</a></p>

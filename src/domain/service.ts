@@ -54,14 +54,14 @@ export interface HostFile {
   file_name?: string;
 }
 
-/** A file of the caller's that no packet carries yet: uploaded on My account or by an assistant. */
+/** A file of the caller's that no packet carries yet: uploaded in Assets or by an assistant. */
 export interface UnsentFile {
   attachment_id: string;
   filename: string;
   mime_type: string | null;
   size: number | null;
   uploaded_at: string;
-  /** The note typed on My account, if any. */
+  /** The note typed in Assets, if any. */
   note: string | null;
 }
 
@@ -96,10 +96,10 @@ export function numberedName(name: string, n: number): string {
   return `${base.slice(0, 255 - suffix.length - ext.length)}${suffix}${ext}`;
 }
 
-/** A live handoff as My account lists it: who sent it to whom, when it expires, and its files. */
+/** A live handoff as Assets lists it: who sent it to whom, when it expires, and its files. */
 export type HandoffWithFiles = PacketSummary & { attachments: AttachmentDescriptor[] };
 
-/** Longest note My account stores with an upload. */
+/** Longest note Assets stores with an upload. */
 export const MAX_NOTE_CHARS = 200;
 
 export const describe = (a: AttachmentRow): AttachmentDescriptor => ({
@@ -250,8 +250,8 @@ export class HandoffService {
           "not_found",
           `attachment_names: none of your unsent files is named ${shown}. Nothing was sent. ` +
             (list.length
-              ? `Your unsent files: ${list.join("; ")}. Pass the right one in attachment_ids, or ask the user to upload the file at ${this.cfg.publicUrl}/account.`
-              : `You have no unsent files. Ask the user to upload it at ${this.cfg.publicUrl}/account, or upload it with handoff_upload_url.`),
+              ? `Your unsent files: ${list.join("; ")}. Pass the right one in attachment_ids, or ask the user to upload the file at ${this.cfg.publicUrl}/assets.`
+              : `You have no unsent files. Ask the user to upload it at ${this.cfg.publicUrl}/assets, or upload it with handoff_upload_url.`),
         );
       }
       throw new HandoffError(
@@ -547,7 +547,7 @@ export class HandoffService {
     return new Uint8Array(await new Response(blob.body).arrayBuffer());
   }
 
-  // ---- My account (/account) -----------------------------------------------
+  // ---- Assets (/assets) ----------------------------------------------------
 
   /** The caller's files that no packet carries yet, newest first. */
   async unsentFiles(principal: Principal, limit = 20): Promise<UnsentFile[]> {
@@ -555,7 +555,7 @@ export class HandoffService {
   }
 
   /**
-   * A file uploaded on My account. Stored like an assistant's upload (same table, store, checks and quota),
+   * A file uploaded in Assets. Stored like an assistant's upload (same table, store, checks and quota),
    * owned by the uploader and visible to nobody else until an assistant sends it in a handoff. If one of the
    * caller's unsent files already has the name (case ignored), it is stored as "name (2).ext", so an assistant
    * can always attach it by name; `renamed` says so.

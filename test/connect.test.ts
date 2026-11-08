@@ -133,12 +133,14 @@ describe("connect page", () => {
     expect(html).toContain("Claude Code, Codex, Gemini CLI, Hermes or any assistant");
     expect(html).toContain("Node.js 22+");
     expect(html).toContain("/console/setup</code> on your new server");
-    expect(html).toContain("A file on your phone? Upload it in My account.");
+    expect(html).toContain("A file on your phone? Upload it in Assets.");
     expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
     // The homepage is the brand link: no "Use cases" item in the menu or footer.
     expect(html).not.toContain(">Use cases</a>");
     expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
-    expect(html).toContain('<a class="nav-link nav-secondary" href="/console">Manage team</a>');
+    // Members and admins sign in at Assets; an admin's console is in its left menu.
+    expect(html).toContain('<a class="nav-link nav-secondary" href="/assets">Sign in</a>');
+    expect(html).not.toContain(">Manage team</a>");
     expect(html).toContain("Handoff · Your notes and files, from your assistant to theirs.");
     expect(html).toContain('href="/llms.txt"');
     expect(html).toContain('href="/privacy"');

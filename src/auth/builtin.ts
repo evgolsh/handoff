@@ -385,7 +385,7 @@ export function teamCreatedAuthorizePage(cfg: Config, params: AuthorizeParams, c
   const panel = `<div class="panel">
     <p class="ok">✓ Team ${esc(team)} is ready. You are its admin.</p>
     <dl class="who"><div><dt>Team</dt><dd>${esc(team)}</dd></div><div><dt>Username</dt><dd>${esc(handle)}</dd></div></dl>
-    <p class="meta">Your access code is shown only once. Save it in your password manager or notes: you need it to sign in from another assistant, and on My account.</p>
+    <p class="meta">Your access code is shown only once. Save it in your password manager or notes: you need it to sign in from another assistant, and to open Assets on the web.</p>
     <div class="secret" aria-label="access code">${esc(code)}</div>
     <form method="post" action="/authorize">
       ${hidden}

@@ -460,7 +460,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <li class="panel"><p class="eyebrow">2 · In another assistant</p><div class="prompt-row"><p class="say-quote">“Continue my handoff.”</p>${copyButton("Continue my handoff.", "Copy the receive prompt")}</div><p class="say-text">Connect with the same username, then pick up where you left off.</p></li>
     </ol>
     <p class="next-note">Working with someone else? Say “Hand this off to tom”, using your teammate's username. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>More examples ↗</a></p>
-    <p class="next-note">File on your phone, or not in your assistant's chat? Upload it in <a href="/account">My account</a>, then say “Hand this off with lease.pdf”. You can download the files of your handoffs there too.</p>
+    <p class="next-note">File on your phone, or not in your assistant's chat? Upload it in <a href="/assets">Assets</a>, then say “Hand this off with lease.pdf”. Your handoffs, with their briefs and files, are there too.</p>
   </section>
 
   <details class="privacy"><summary>Privacy, file limits and expiry</summary>

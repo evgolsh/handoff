@@ -144,7 +144,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
       return html(loginPage(control ? "That team, username and code do not match an admin of that team." : "That username and code do not match an admin of this console.", { control, team: form.team, next: form.next === "connect" ? "connect" : "overview" }), 401);
     }
     await recordEvent(db, { kind: "console", name: "login", subject: handle, outcome: "ok" });
-    // One sign-in: the admin also gets their My account session.
+    // One sign-in: the admin also gets their Assets session.
     const accountCookie = await startSession(db, handle, ACCOUNT_SESSIONS);
     return redirectSetting(form.next === "connect" ? "/console/connect" : "/console/overview", accountCookie ? [consoleCookie, accountCookie] : [consoleCookie]);
   });

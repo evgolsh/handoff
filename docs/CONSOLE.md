@@ -3,14 +3,15 @@
 `PUBLIC_URL/console` is the admin console: server-rendered pages, with small scripts for assistant setup and copying sign-in details. It replaced the first admin
 console at `/admin` (2026-10-26), which now redirects here. Code: `src/console/`.
 
-A private install has Overview, Connect an assistant, Members, Assistants and Ops. On the hosted service (`HANDOFF_MODE=control`,
-handoff.infraworks.net), a team admin has Your team, Connect an assistant, Members and Connections, all limited to that team. The
+The left menu is the same on the console and on Assets: Assets first, then Assistant setup, then the console pages
+for an admin. A private install has Overview, Members, Assistants and Ops. On the hosted service (`HANDOFF_MODE=control`,
+handoff.infraworks.net), a team admin has Your team, Members and Connections, all limited to that team. The
 operator has Overview and Ops for the whole deployment, Tenants for every team, and Members and Assistants
 for the accounts without a team.
 
 ## Who can open it
 
-Members whose username is in `admin_members`. Every member, admin or not, also has My account at `/account`
+Members whose username is in `admin_members`. Every member, admin or not, also has Assets at `/assets`
 (see the README). Its session has its own cookie and never opens the console. An admin who signs in on either
 page gets both sessions, the console still checks the admin grant on every request, and signing out of either
 ends both. The operator grants admin in a terminal:

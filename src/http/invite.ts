@@ -58,7 +58,7 @@ function credentials(v: InviteView, code: string, publicUrl: string, nonce: stri
     <li><strong>Sign in</strong> on the Handoff page that opens${v.team ? ` with the team <strong>${esc(v.team)}</strong>,` : " with"} username <strong>${esc(v.username)}</strong> and the access code. Then approve access.</li>
     <li><strong>Ask your assistant:</strong><p class="invite-say">“Continue the handoff from ${esc(v.invited_by)}.”</p></li>
   </ol>
-  <p class="flow-note">A file on your phone to send? Upload it in <a href="/account">My account</a>.</p></section>
+  <p class="flow-note">Your handoffs and their files are in <a href="/assets">Assets</a>. A file on your phone to send? Upload it there.</p></section>
 </div></div>`,
     { nonce, script: COPY_SCRIPT, style: INVITE_CSS },
     "Handoff",

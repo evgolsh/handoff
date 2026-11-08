@@ -4,7 +4,7 @@ Hand your work to someone else's AI assistant, with your notes and the original 
 
 Joe sorts out the car insurance renewal in Claude. Anna says "continue the handoff from joe" in ChatGPT and gets his notes and the two PDFs. You can hand off to your partner, a teammate, or yourself in another assistant or on another computer.
 
-- **Your notes and the files.** The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. A file on your phone? Upload it in My account.
+- **Your notes and the files.** The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. Open a handoff in Assets to read the brief and see the files.
 - **Their own assistant.** Anna can use ChatGPT while Joe uses Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.
 - **Storage, not AI.** Handoff keeps the brief and files and deletes them when they expire. It makes no model calls and needs no API keys.
 
@@ -64,20 +64,22 @@ Replace `tim,tom` with your usernames, yours first. Setup creates the storage, d
 
 1. **Sign in to your Handoff console.** After a browser deploy, `/console/setup` creates your admin account and shows your access code once. After a terminal install, sign in at the printed `/console` URL with the access code setup printed. Assistants sign in with access codes, never with the setup code. Keep access codes in a password manager, and out of issues, commits and briefs.
 2. **Add your teammates.** After a browser deploy, or when adding more people later, create their usernames in **Members** and share each person's access code privately. Teammates need no Cloudflare or GitHub account.
-3. **Connect your assistants.** Each person opens your server's `/connect` page and follows the steps for their assistant. Everyone uses the same server and its `/mcp` address, for example `https://handoff.acme.workers.dev/mcp`, and signs in with their own username. To upload a file from a phone or another folder, they sign in at `/account` (see [My account](#my-account)).
+3. **Connect your assistants.** Each person opens your server's `/connect` page and follows the steps for their assistant. Everyone uses the same server and its `/mcp` address, for example `https://handoff.acme.workers.dev/mcp`, and signs in with their own username. To upload a file from a phone or another folder, they sign in at `/assets` (see [Assets](#assets)).
 4. **Try a handoff.** Say "Hand this off" in one assistant, then "Continue my handoff" in another. To send to your teammate, say "Hand this off to tom". Your teammate says "Continue the handoff from tim".
 
 The [console guide](docs/CONSOLE.md) covers Members, assistant connections and the Ops page.
 
-## My account
+## Assets
 
-Each member can open `/account` on your server and sign in with their username and access code. My account shows their files and handoffs in one list: files they uploaded that are not sent yet, and the handoffs they sent or received, with their files to download. Each one shows when it expires.
+Each member can open `/assets` on your server and sign in with their username and access code. Assets shows their handoffs and files in one list: the handoffs they sent or received, and files they uploaded that are not sent yet. Each one shows when it expires.
+
+Opening a handoff shows its brief and its files in the page: PDFs in the browser's viewer, images, text and Markdown, each with Open and Download. An uploaded file opens the same way, for its uploader only.
 
 There they also upload a file for their assistant to send, such as a scan on their phone. An uploaded file is visible only to its uploader until an assistant sends it, and is deleted if it is not sent within 7 days. If they already have an unsent file with that name, the new one gets a number, such as `lease (2).pdf`.
 
 Then they say "Hand this off with lease.pdf". The assistant attaches the file by its name. If no file or more than one file has that name, nothing is sent and the assistant asks which one.
 
-An admin signs in once: My account links to the console, and signing out of either ends both.
+Every signed-in page has the same left menu: Assets, Assistant setup, and for an admin the team pages of the console. An admin signs in once, and signing out of either ends both.
 
 ## Updates
 
@@ -108,7 +110,7 @@ On Cloudflare's free plan a private server has room for 100,000 requests and 1,0
 - Identity comes from the signed access token (`sub`, ES256, issuer `PUBLIC_URL`, audience `PUBLIC_URL/mcp`). Clients register via RFC 7591 or an HTTPS client metadata document, with redirect validation and PKCE S256. OAuth authorization codes last 10 minutes, access tokens 8 hours, rotating refresh tokens 30 days.
 - A packet is readable by its sender, its named recipient, or every member for a team packet. Everyone else gets "not found". Only the sender revokes a team packet.
 - Attachments are readable only through a live packet. Download URLs last 10 minutes and packet access is rechecked on each fetch.
-- My account (`/account`) has its own session cookie (HttpOnly, SameSite=Strict, 12 hours), which never opens the console. An admin's sign-in also starts a separate console session, and the console checks the admin grant on every request. Its forms check the origin and a per-session CSRF value. A file matched by name is searched only among the caller's own unsent files.
+- Assets (`/assets`) has its own session cookie (HttpOnly, SameSite=Strict, 12 hours), which never opens the console. An admin's sign-in also starts a separate console session, and the console checks the admin grant on every request. Its forms check the origin and a per-session CSRF value. A file matched by name is searched only among the caller's own unsent files.
 - An invitation link works once and expires after 7 days. Opening it only shows who sent it; the access code is set and shown after a button press, so a messenger's link preview does not use it up.
 - Resetting a member's access code or removing them signs out their assistants. Disconnect in the console signs out one connection.
 - Server-side file imports are off until `IMPORT_HOST_ALLOWLIST` names allowed hosts. Imports require HTTPS and public DNS, refuse redirects and bound the size. Signed URLs are not stored or logged.
