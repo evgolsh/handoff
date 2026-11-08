@@ -5,6 +5,7 @@ Hand your work to someone else's AI assistant, with your notes and the original 
 Joe sorts out the car insurance renewal in Claude. Anna says "continue the handoff from joe" in ChatGPT and gets his notes and the two PDFs. You can hand off to your partner, a teammate, or yourself in another assistant or on another computer.
 
 - **Your notes and the files.** The brief says what you decided and what is left to do. PDFs and images go with it, byte for byte. Open a handoff in Assets to read the brief and see the files.
+- **You see that it arrived.** Assets shows when Anna picked it up and in which assistant, and your assistant can tell you the same.
 - **Their own assistant.** Anna can use ChatGPT while Joe uses Claude. Codex, Claude Code and Hermes work too. Each person signs in with their own username.
 - **Storage, not AI.** Handoff keeps the brief and files and deletes them when they expire. It makes no model calls and needs no API keys.
 
@@ -71,11 +72,17 @@ The [console guide](docs/CONSOLE.md) covers Members, assistant connections and t
 
 ## Assets
 
-Each member can open `/assets` on your server and sign in with their username and access code. Assets shows their handoffs and files in one list: the handoffs they sent or received, and files they uploaded that are not sent yet. Each one shows when it expires.
+Each member can open `/assets` on your server and sign in with their username and access code. Assets has three parts:
 
-Opening a handoff shows its brief and its files in the page: PDFs in the browser's viewer, images, text and Markdown, each with Open and Download. An uploaded file opens the same way, for its uploader only.
+- **Ready to send:** files they uploaded that no assistant has sent yet, each with the sentence to tell their assistant and a Copy button.
+- **New for you:** handoffs sent to them, or to the team, that they have not picked up in an assistant or opened here.
+- **Handoffs:** everything they sent or received, newest first, with All, Received and Sent filters. Each row shows who it went to or came from, its files, and its pickup status. The expiry shows only when it is less than 2 days away.
 
-There they also upload a file for their assistant to send, such as a scan on their phone. An uploaded file is visible only to its uploader until an assistant sends it, and is deleted if it is not sent within 7 days. If they already have an unsent file with that name, the new one gets a number, such as `lease (2).pdf`.
+A handoff is picked up when a recipient's assistant first reads it, and opened when the recipient first opens it in Assets. The sender sees both for each recipient, with the assistant's name and the time, such as "Picked up by anna in ChatGPT · 2 h ago". For a handoff to the team, the sender sees who has not picked it up yet. A recipient sees only their own. The sender's own reads change nothing. Their assistant gets the same status from `handoff_inbox`, so "Did anna get the tax letter?" has an answer.
+
+Opening a handoff shows its status, its brief and its files in the page: PDFs in the browser's viewer, images, text and Markdown, each with Open and Download. The sender can revoke it there: no one can open it again, in an assistant or in Assets. What a recipient's assistant already read stays in that chat. An uploaded file opens the same way, for its uploader only.
+
+There they upload a file for their assistant to send, such as a scan on their phone. An uploaded file is visible only to its uploader until an assistant sends it, and is deleted if it is not sent within 7 days. If they already have an unsent file with that name, the new one gets a number, such as `lease (2).pdf`.
 
 Then they say "Hand this off with lease.pdf". The assistant attaches the file by its name. If no file or more than one file has that name, nothing is sent and the assistant asks which one.
 
@@ -94,7 +101,7 @@ Handoff is storage with a sign-in. The assistant writes a brief: the purpose, de
 | Tool | Does |
 |---|---|
 | `handoff_send` | Publish a brief with optional `to` and attachments, by id or by the name of an unsent file. Idempotent per `idempotency_key`. |
-| `handoff_inbox` | List unexpired packets, newest first, and your unsent files. |
+| `handoff_inbox` | List unexpired packets, newest first, with who picked each one up, and your unsent files. |
 | `handoff_read` | Read a packet's brief and attachment list, or an attachment as text, image, or a 10-minute download URL. |
 | `handoff_revoke` | Hide a packet and stop its downloads. |
 | `handoff_upload_url` | Create a single-use 15-minute upload URL for a local file. |

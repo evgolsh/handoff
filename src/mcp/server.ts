@@ -6,7 +6,7 @@ import { HandoffError } from "../domain/errors";
 import { declaredUploadType } from "../domain/filetypes";
 import { base64 } from "../domain/ids";
 import { handleOf, shownRecipient } from "../domain/tenant";
-import type { AttachmentDescriptor, HandoffService, HostFile } from "../domain/service";
+import type { AttachmentDescriptor, HandoffService, HostFile, Pickup } from "../domain/service";
 import { uploadCommands } from "./commands";
 import { createInvitation } from "../domain/invites";
 
@@ -45,6 +45,17 @@ function describeAttachments(atts: AttachmentDescriptor[]): string {
 }
 
 /** `db` serves handoff_invite, which writes members and invitation links (src/domain/invites.ts). */
+/** "; picked up by anna in ChatGPT at …" for an inbox line, from the caller's side ("you" for their own). */
+function pickupNote(me: string, p: { from: string; pickups: Pickup[]; waiting: string[] }): string {
+  const who = (by: string) => (by === me ? "you" : by);
+  const parts = p.pickups.map((k) =>
+    k.via === "assistant" ? `picked up by ${who(k.by)}${k.client ? ` in ${k.client}` : ""} at ${k.at}` : `opened by ${who(k.by)} in the browser at ${k.at}`,
+  );
+  if (p.waiting.length) parts.push(`not picked up yet by ${p.waiting.join(", ")}`);
+  else if (!p.pickups.length && p.from === me) parts.push("not picked up yet");
+  return parts.length ? `; ${parts.join("; ")}` : "";
+}
+
 export function buildMcpServer(svc: HandoffService, principal: Principal, db: D1Database): McpServer {
   const server = new McpServer({ name: "handoff", version: "0.1.0" }, { instructions: SERVER_INSTRUCTIONS });
   const { cfg } = svc;
@@ -111,13 +122,28 @@ export function buildMcpServer(svc: HandoffService, principal: Principal, db: D1
       title: "List handoffs",
       description:
         "List the signed-in person's unexpired handoff packets (including teammate handoffs addressed to them or the team), newest first: packet_id, from, to, title, dates and attachment count. " +
+        "Each packet says who picked it up and where: read in an assistant (with its name) or opened in the browser, and when. For a packet the person sent, waiting lists the recipients who have not yet; use this to answer \"Did anna get it?\". " +
         "The first page also lists their unsent files (uploaded in Assets or by an assistant, not yet in a handoff), which handoff_send can attach. Metadata only; reading does not change anything.",
       inputSchema: {
         limit: z.number().int().min(1).max(50).optional().describe("Page size, default 20."),
         cursor: z.string().optional().describe("next_cursor from a previous page."),
       },
       outputSchema: {
-        packets: z.array(z.object({ packet_id: z.string(), from: z.string(), to: z.string(), title: z.string(), created_at: z.string(), expires_at: z.string(), attachment_count: z.number() })),
+        packets: z.array(
+          z.object({
+            packet_id: z.string(),
+            from: z.string(),
+            to: z.string(),
+            title: z.string(),
+            created_at: z.string(),
+            expires_at: z.string(),
+            attachment_count: z.number(),
+            pickups: z
+              .array(z.object({ by: z.string(), via: z.enum(["assistant", "browser"]), assistant: z.string().nullable(), at: z.string() }))
+              .describe("Who picked it up: read in an assistant (named when known) or opened in the browser, first time each. A recipient sees only their own."),
+            waiting: z.array(z.string()).describe("For a packet the caller sent: recipients with no pickup yet."),
+          }),
+        ),
         next_cursor: z.string().nullable(),
         unsent_files: z
           .array(z.object({ attachment_id: z.string(), filename: z.string(), mime_type: z.string().nullable(), size: z.number().nullable(), uploaded_at: z.string(), note: z.string().nullable() }))
@@ -128,11 +154,16 @@ export function buildMcpServer(svc: HandoffService, principal: Principal, db: D1
     },
     async (args) => {
       try {
-        const page = await svc.inbox(principal, { limit: args.limit, cursor: args.cursor });
+        const got = await svc.inbox(principal, { limit: args.limit, cursor: args.cursor });
+        const me = handleOf(principal.subject);
+        const page = {
+          ...got,
+          packets: got.packets.map(({ pickups, ...p }) => ({ ...p, pickups: pickups.map((k) => ({ by: k.by, via: k.via, assistant: k.client, at: k.at })) })),
+        };
         const lines = page.packets.length
-          ? page.packets.map((p) => {
+          ? got.packets.map((p) => {
               const who = p.from !== p.to ? `from ${p.from} -> ${p.to}, ` : "";
-              return `- ${p.packet_id}: "${p.title}" (${who}sent ${p.created_at}, ${p.attachment_count} attachment${p.attachment_count === 1 ? "" : "s"})`;
+              return `- ${p.packet_id}: "${p.title}" (${who}sent ${p.created_at}, ${p.attachment_count} attachment${p.attachment_count === 1 ? "" : "s"}${pickupNote(me, p)})`;
             })
           : ["No handoff packets."];
         if (page.next_cursor) lines.push(`More: pass cursor ${page.next_cursor}.`);
@@ -155,7 +186,8 @@ export function buildMcpServer(svc: HandoffService, principal: Principal, db: D1
       title: "Read a handoff",
       description:
         "Read one handoff packet: its exact brief and attachment list. With attachment_id, return that attachment instead: " +
-        "representation \"text\" for text files (bounded), \"image\" for PNG/JPEG as image content, \"original\" for a short-lived download URL plus sha256. Reading changes nothing.",
+        "representation \"text\" for text files (bounded), \"image\" for PNG/JPEG as image content, \"original\" for a short-lived download URL plus sha256. " +
+        "A recipient's first read of the packet is shown to its sender as picked up, with this assistant's name and the time; nothing else changes.",
       inputSchema: {
         packet_id: z.string().describe("Packet to read."),
         attachment_id: z.string().optional().describe("Attachment of this packet to read."),

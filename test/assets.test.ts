@@ -173,8 +173,10 @@ describe("Assets (/assets)", () => {
 
     const page = await pageOf(tom, `?uploaded=${id}`);
     expect(page).toContain("Uploaded <strong>vat-q3-summary.pdf</strong>. Tell your assistant: <q>Hand this off with vat-q3-summary.pdf.</q>");
-    expect(page).toContain("Ready for handoff · Only you");
-    expect(page).toContain("Expires in 7 days");
+    expect(page).toContain(">Ready to send</h2>");
+    expect(page).toContain("Only you see these until your assistant sends one.");
+    expect(page).toContain("Deleted in 7 days");
+    expect(page).toContain('<q>Hand this off with vat-q3-summary.pdf.</q><button type="button" class="btn sm" data-copy="Hand this off with vat-q3-summary.pdf."');
     expect(page).toContain("Signed copy");
     // The id is in links and the Remove form, never in the text people read.
     expect(page.replace(/<[^>]*>/g, "")).not.toContain(id);
@@ -284,13 +286,16 @@ describe("Assets (/assets)", () => {
     }
 
     const mine = await pageOf(tim);
-    expect(mine).toContain("Sent to tom · 1 file");
-    expect(mine).toContain("Sent to the team · Brief only");
+    expect(mine).toContain("To tom · 1 file");
+    expect(mine).toContain("To the team · Brief only");
     expect(mine).toContain("To yourself · Brief only");
     expect(mine).toMatch(/class="file-chip" href="\/assets\/handoff\/[^"#]+#f-[^"]+"[^>]*>.*vat-q3-summary\.pdf<\/a>/);
     expect(mine).toMatch(/<a class="asset-name" href="\/assets\/handoff\/[^"]+">Store opening checklist<\/a>/);
-    expect(mine).not.toContain("Ready for handoff");
-    expect(mine).toMatch(/Expires in \d+ (days|hours)/);
+    expect(mine).not.toContain("Ready to send");
+    // The list shows an expiry only when it is close.
+    expect(mine).not.toContain("Expires in");
+    await env.DB.prepare("UPDATE packets SET expires_at = ? WHERE title = ?").bind(new Date(Date.now() + 5 * 3_600_000 + 60_000).toISOString(), "Notes for my laptop").run();
+    expect(await pageOf(tim)).toContain(">Expires in 5 hours</span>");
     // One list, newest first: a file uploaded now comes before the handoffs.
     await uploaded(tim, "draft.md");
     const now = await pageOf(tim);
@@ -298,10 +303,21 @@ describe("Assets (/assets)", () => {
     expect(at.every((i) => i > 0)).toBe(true);
     expect([...at].sort((x, y) => x - y)).toEqual(at);
 
+    // tom has not opened either handoff from tim yet: both are new for him.
     const theirs = await pageOf(tom);
-    expect(theirs).toContain("Received from tim · 1 file");
-    expect(theirs).toContain("From tim, to the team · Brief only");
+    expect(theirs).toContain(">New for you</h2>");
+    expect(theirs).toContain("<strong>New</strong> · from tim · ");
+    expect(theirs).toContain("<strong>New</strong> · from tim, to the team · ");
+    expect(theirs).toContain("<q>Continue the handoff from tim.</q>");
     expect(theirs).not.toContain("Notes for my laptop");
+    // Filters: Sent has nothing of tom's; Received has tim's two.
+    expect(await pageOf(tom, "?show=sent")).toContain("You have not sent a handoff yet.");
+    expect(await pageOf(tom, "?show=sent")).not.toContain("New for you");
+    const received = await pageOf(tom, "?show=received");
+    expect(received).toContain('<a href="/assets?show=received" aria-current="page">Received</a>');
+    expect(received).toContain("Q3 VAT for the bakery");
+    expect(await pageOf(tim, "?show=received")).not.toContain("Store opening checklist");
+    expect(await pageOf(tim, "?show=sent")).toContain("Store opening checklist");
   });
 
   it("shows older handoffs a page at a time, so none are hidden", async () => {
@@ -407,7 +423,7 @@ describe("Assets (/assets)", () => {
     expect(res.headers.get("content-security-policy")).toContain("frame-src 'self'");
     const html = await res.text();
     expect(html).toContain("<h1>Q3 VAT for the bakery</h1>");
-    expect(html).toContain("Received from tim · 4 files");
+    expect(html).toContain("From tim · 4 files");
     // The brief's own headings sit under the page's.
     expect(html).toContain("<h4>Purpose</h4>");
     expect(html).toContain("Sign the <strong>lease</strong> by Friday.");
@@ -482,7 +498,7 @@ describe("Assets (/assets)", () => {
     expect(page).toContain("<h1>lease.pdf</h1>");
     expect(page).toContain("Signed copy");
     expect(page).toContain(`<iframe src="/assets/view/${id}" title="lease.pdf"`);
-    expect(page).toContain("To send it, tell your assistant: <q>Hand this off with lease.pdf.</q>");
+    expect(page).toContain('<span class="muted">To send it, tell your assistant</span><q>Hand this off with lease.pdf.</q>');
     expect(page).toContain('action="/assets/remove"');
     const v = await get(`/assets/view/${id}`, tom);
     expect(v.status).toBe(200);

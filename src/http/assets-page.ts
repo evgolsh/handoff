@@ -1,12 +1,14 @@
-import { bytes, document, esc, plural, sideNav, utc, when, type Html, type NavUser } from "../console/html";
-import type { HandoffWithFiles, PacketView, UnsentFile } from "../domain/service";
+import { ago, bytes, document, esc, plural, sideNav, utc, when, type Html, type NavUser } from "../console/html";
+import type { Delivery, HandoffWithFiles, PacketView, Pickup, UnsentFile } from "../domain/service";
 import { MAX_NOTE_CHARS } from "../domain/service";
+import { COPY_SCRIPT } from "./clipboard";
 import { FILE_ICON } from "./style";
 
 /**
- * Assets (/assets): the member's handoffs and the files they uploaded, in one list. A handoff opens to its brief
- * and its files, each shown in the page: PDFs in the browser's viewer, images, text and Markdown. An unsent
- * upload opens the same way. Every page has the left menu: Assets first, Assistant setup, and an admin's team.
+ * Assets (/assets): the member's files waiting to be sent, handoffs others sent them that they have not opened
+ * yet, and all their handoffs with who picked each one up. A handoff opens to its brief and its files, each shown
+ * in the page: PDFs in the browser's viewer, images, text and Markdown. An unsent upload opens the same way.
+ * Every page has the left menu: Assets first, Assistant setup, and an admin's team.
  */
 const SITE = "Handoff";
 
@@ -15,6 +17,8 @@ const svg = (paths: string): Html =>
 const HANDOFF_ICON = svg('<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>');
 const PLUS_ICON = svg('<path d="M5 12h14"/><path d="M12 5v14"/>');
 const BACK_ICON = svg('<path d="m15 18-6-6 6-6"/>');
+const CHECK_ICON = svg('<path d="M20 6 9 17l-5-5"/>');
+const EYE_ICON = svg('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
 
 const ASSETS_CSS = `
 main.assets{align-items:stretch}
@@ -30,7 +34,54 @@ main.assets{align-items:stretch}
 .assets-upload input[type=file]{background:var(--ground)}
 .assets-actions{display:flex;gap:8px;flex-wrap:wrap}
 .assets-list{background:var(--panel);border:1px solid var(--line);border-radius:8px}
-.asset{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line-soft)}
+.assets-sect{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.sect-head{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
+.sect-h{margin:0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.sect-note{font-size:13px;color:var(--muted);flex:1 1 300px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;padding:2px;background:var(--panel)}
+.seg a{font-size:13px;color:var(--muted);padding:5px 12px;border-radius:5px;text-decoration:none}
+.seg a:hover{color:var(--ink)}
+.seg a[aria-current]{background:var(--line-soft);color:var(--ink);font-weight:500}
+.asset{display:grid;grid-template-columns:32px minmax(0,1fr) minmax(150px,auto);gap:12px;padding:18px 20px;border-bottom:1px solid var(--line-soft)}
+.asset-status{display:flex;flex-direction:column;align-items:flex-end;text-align:right;gap:2px;font-size:13px}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:500;white-space:nowrap}
+.st svg{width:14px;height:14px;flex:none}
+.st.ok{color:var(--ok)}.st.new{color:var(--accent)}
+.st-meta{font-size:12px;color:var(--muted)}
+.st-soon{font-size:12px;color:var(--warn)}
+.hollow{width:10px;height:10px;border-radius:50%;border:2px solid var(--muted);flex:none}
+.dot.new{background:var(--accent)}
+.say-box{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:12px;padding:8px 8px 8px 12px;border:1px solid var(--line-soft);border-radius:6px;background:var(--ground);font-size:13px}
+.say-box q{font-weight:500;flex:1 1 200px;overflow-wrap:anywhere}
+.new-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;align-items:start;padding:16px 20px;background:var(--select);border:1px solid var(--accent);border-radius:8px}
+.new-line{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--muted)}
+.new-line strong{color:var(--accent);font-weight:500}
+.new-card .asset-name{display:inline-block;margin-top:4px;font-size:17px}
+.new-card .say-box{background:var(--panel)}
+.first-steps{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-soft)}
+.first-steps>li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;padding:18px 20px;border-bottom:1px solid var(--line-soft)}
+.first-steps>li:last-child{border-bottom:0}
+.num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;border:1.5px solid var(--line);color:var(--muted)}
+.num.done{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.num svg{width:14px;height:14px}
+.first-head{padding:20px 20px 12px}
+.first-head h2{margin:0;font-size:17px;font-weight:500}
+.first-head p,.step-sub{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.step-t{font-weight:500}
+.status-panel{padding:20px 24px}
+.status-panel>.t{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:500}
+.timeline{list-style:none;margin:0;padding:0}
+.tl{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:12px;align-items:start;position:relative;padding-bottom:16px}
+.tl:last-child{padding-bottom:0}
+.tl:not(:last-child)::before{content:"";position:absolute;left:8px;top:18px;bottom:0;width:2px;background:var(--line-soft)}
+.pt{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--panel);position:relative;border:2px solid var(--muted)}
+.pt.ok{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.pt.wait{border-style:dashed}
+.pt svg{width:11px;height:11px;stroke-width:3.2}
+.tl.ok>span:nth-child(2){font-weight:500;color:var(--ok)}
+.tl .when{font-size:13px;color:var(--muted);white-space:nowrap}
+.status-foot{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft);font-size:13px;color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .asset:last-child{border-bottom:0}
 .asset-icon{display:flex;align-items:center;justify-content:center;width:32px;height:36px;border:1px solid var(--line-soft);border-radius:6px;background:var(--ground);color:var(--muted)}
 .asset-icon svg{width:16px;height:16px}
@@ -83,7 +134,12 @@ a.asset-name:hover{text-decoration:underline;text-underline-offset:3px}
   .assets h1{font-size:24px}
   .asset{grid-template-columns:28px minmax(0,1fr);padding:16px 14px;gap:10px}
   .asset-icon{width:28px;height:32px}
-  .asset-meta{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 14px;text-align:left;white-space:normal}
+  .asset-meta,.asset-status{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 12px;text-align:left;white-space:normal}
+  .new-card{grid-template-columns:minmax(0,1fr);padding:16px}
+  .new-card>.btn{width:100%}
+  .seg{display:flex;width:100%}.seg a{flex:1;text-align:center;padding:8px 10px}
+  .tl{grid-template-columns:18px minmax(0,1fr)}.tl .when{grid-column:2}
+  .first-steps>li{padding:16px 14px}
   .btn.lg{min-height:44px}
   .assets-upload .field{font-size:16px}
   .brief{padding:16px}
@@ -108,7 +164,8 @@ const ASSETS_SCRIPT = `(function () {
     if (input) { input.focus(); input.click(); }
   });
   if (form && cancel) cancel.addEventListener("click", function (e) { e.preventDefault(); form.reset(); form.hidden = true; });
-})();`;
+})();
+${COPY_SCRIPT}`;
 
 export interface AssetsViewer {
   /** The handle people see. */
@@ -136,60 +193,161 @@ const nav = (v: AssetsViewer): NavUser => ({
 
 /** A signed-in page: the left menu and the page's content. */
 const appPage = (v: AssetsViewer, title: string, body: Html, nonce: string): Html =>
-  document(title, `<div class="shell">\n  ${sideNav(nav(v), "assets")}\n  <main class="assets" id="main"><div class="assets-wrap">${body}</div></main>\n</div>`, { nonce, script: ASSETS_SCRIPT, style: ASSETS_CSS }, SITE);
+  document(
+    title,
+    `<div class="shell">\n  ${sideNav(nav(v), "assets")}\n  <main class="assets" id="main"><div class="assets-wrap">${body}</div><p id="copy-status" class="sr-only" aria-live="polite"></p></main>\n</div>`,
+    { nonce, script: ASSETS_SCRIPT, style: ASSETS_CSS },
+    SITE,
+  );
 
 const typeLabel = (mime: string | null): string =>
   mime === "application/pdf" ? "PDF" : mime === "image/png" ? "PNG" : mime === "image/jpeg" ? "JPEG" : mime === "text/markdown" ? "Markdown" : mime === "text/plain" ? "Text" : "File";
 
-/** "Expires in 40 min", "in 19 hours", "in 7 days", with the exact time on hover. */
-function expires(iso: string, now: number): Html {
+/** "40 min", "19 hours", "7 days": how long until this time. */
+function until(iso: string, now: number): string {
   const s = Math.max(0, (Date.parse(iso) - now) / 1000);
-  const text = s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : s < 48 * 3600 ? plural(Math.round(s / 3600), "hour") : plural(Math.round(s / 86400), "day");
-  return `<span title="${esc(utc(iso))}">Expires in ${text}</span>`;
+  return s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : s < 48 * 3600 ? plural(Math.round(s / 3600), "hour") : plural(Math.round(s / 86400), "day");
 }
+
+/** "Expires in 7 days", with the exact time on hover. */
+const expires = (iso: string, now: number): Html => `<span title="${esc(utc(iso))}">Expires in ${until(iso, now)}</span>`;
+
+/** Lists show a handoff's expiry only when it is close: under two days. */
+const SOON_MS = 48 * 3_600_000;
+const expiresSoon = (iso: string, now: number): Html =>
+  Date.parse(iso) - now < SOON_MS ? `<span class="st-soon" title="${esc(utc(iso))}">Expires in ${until(iso, now)}</span>` : "";
 
 /** Who a handoff went from and to, from the viewer's side. The team recipient is "*". */
 function direction(me: string, h: { from: string; to: string }): string {
-  if (h.from === me) return h.to === me ? "To yourself" : h.to === "*" ? "Sent to the team" : `Sent to ${h.to}`;
-  return h.to === "*" ? `From ${h.from}, to the team` : `Received from ${h.from}`;
+  if (h.from === me) return h.to === me ? "To yourself" : h.to === "*" ? "To the team" : `To ${h.to}`;
+  return h.to === "*" ? `From ${h.from}, to the team` : `From ${h.from}`;
 }
 
 const handoffHref = (packetId: string): string => `/assets/handoff/${encodeURIComponent(packetId)}`;
 const fileHref = (attachmentId: string): string => `/assets/file/${encodeURIComponent(attachmentId)}`;
 
+/** A sentence to say to your assistant, with a button that copies it. */
+const sayBox = (sentence: string, lead = "Tell your assistant"): Html =>
+  `<div class="say-box"><span class="muted">${esc(lead)}</span><q>${esc(sentence)}</q><button type="button" class="btn sm" data-copy="${esc(sentence)}" aria-label="Copy: ${esc(sentence)}">Copy</button></div>`;
+
+/** "anna", "anna and ben", "anna, ben and 3 more". */
+const names = (list: string[]): string => (list.length <= 2 ? list.join(" and ") : `${list.slice(0, 2).join(", ")} and ${list.length - 2} more`);
+const unique = (ks: Pickup[]): string[] => [...new Set(ks.map((k) => k.by))];
+const where = (k: Pickup): string => (k.via === "browser" ? "in the browser" : k.client ? `in ${k.client}` : "in an assistant");
+
+/** A handoff's state from the viewer's side: picked up (in an assistant), opened (in the browser), waiting, or new. */
+export interface Status {
+  tone: "ok" | "seen" | "wait" | "new";
+  label: string;
+  meta: string[];
+}
+
+export function statusOf(me: string, h: PacketViewLike & Delivery, now: number): Status {
+  const picked = h.pickups.filter((k) => k.via === "assistant");
+  const opened = h.pickups.filter((k) => k.via === "browser" && !picked.some((p) => p.by === k.by));
+  const last = (ks: Pickup[]) => ks[ks.length - 1]!;
+  const sent = h.from === me;
+  if (!sent || h.to === me) {
+    // A handoff to the viewer (or to themselves): their own pickups.
+    if (picked.length) return { tone: "ok", label: sent ? "Picked up" : "You picked it up", meta: [`${where(last(picked))} · ${ago(last(picked).at, now)}`] };
+    if (opened.length) return { tone: "seen", label: sent ? "Opened" : "You opened it", meta: [`in the browser · ${ago(last(opened).at, now)}`] };
+    return sent ? { tone: "wait", label: "Not picked up yet", meta: [`Sent ${ago(h.created_at, now)}`] } : { tone: "new", label: "New", meta: [ago(h.created_at, now)] };
+  }
+  const meta: string[] = [];
+  const waiting = h.waiting.length ? [`${names(h.waiting)} not yet`] : [];
+  if (picked.length) {
+    const who = unique(picked);
+    if (who.length === 1) meta.push(`${where(last(picked))} · ${ago(last(picked).at, now)}`);
+    if (opened.length) meta.push(`Opened by ${names(unique(opened))}`);
+    return { tone: "ok", label: `Picked up by ${names(who)}`, meta: [...meta, ...waiting] };
+  }
+  if (opened.length) {
+    const who = unique(opened);
+    if (who.length === 1) meta.push(`in the browser · ${ago(last(opened).at, now)}`);
+    return { tone: "seen", label: `Opened by ${names(who)}`, meta: [...meta, ...waiting] };
+  }
+  return { tone: "wait", label: "Not picked up yet", meta: [`Sent ${ago(h.created_at, now)}`] };
+}
+
+type PacketViewLike = { from: string; to: string; created_at: string };
+
+const MARK: Record<Status["tone"], Html> = { ok: CHECK_ICON, seen: EYE_ICON, wait: '<span class="hollow"></span>', new: '<span class="dot new"></span>' };
+
+function statusBlock(st: Status, expiresAt: string, now: number): Html {
+  return `<div class="asset-status">
+      <span class="st ${st.tone}">${MARK[st.tone]}${esc(st.label)}</span>
+      ${st.meta.map((m) => `<span class="st-meta">${esc(m)}</span>`).join("")}
+      ${expiresSoon(expiresAt, now)}
+    </div>`;
+}
+
+const fileChips = (h: HandoffWithFiles): Html =>
+  h.attachments
+    .map((a) => `<a class="file-chip" href="${handoffHref(h.packet_id)}#f-${esc(a.attachment_id)}" title="Open ${esc(a.filename)} (${esc(typeLabel(a.mime_type))}, ${esc(bytes(a.size))})">${FILE_ICON}${esc(a.filename)}</a>`)
+    .join("");
+const fileCount = (n: number): string => (n ? plural(n, "file") : "Brief only");
+
 function fileRow(v: AssetsViewer, f: UnsentFile, now: number, unsentTtlMs: number): Html {
-  const until = new Date(Date.parse(f.uploaded_at) + unsentTtlMs).toISOString();
+  const gone = new Date(Date.parse(f.uploaded_at) + unsentTtlMs).toISOString();
   return `<article class="asset">
     <span class="asset-icon">${FILE_ICON}</span>
     <div>
       <a class="asset-name" href="${fileHref(f.attachment_id)}">${esc(f.filename)}</a>
-      <div class="asset-sub"><span class="ready">Ready for handoff · Only you</span> · ${esc(typeLabel(f.mime_type))}, ${esc(bytes(f.size))}</div>
+      <div class="asset-sub">${esc(typeLabel(f.mime_type))}, ${esc(bytes(f.size))} · uploaded ${when(f.uploaded_at, now)}</div>
       ${f.note ? `<div class="asset-note">${esc(f.note)}</div>` : ""}
+      ${sayBox(`Hand this off with ${f.filename}.`)}
     </div>
-    <div class="asset-meta">${when(f.uploaded_at, now)}${expires(until, now)}<form method="post" action="/assets/remove">${csrf(v)}<input type="hidden" name="id" value="${esc(f.attachment_id)}"><button type="submit" class="link-btn" aria-label="Remove ${esc(f.filename)}">Remove</button></form></div>
+    <div class="asset-meta"><span title="${esc(utc(gone))}">Deleted in ${until(gone, now)}</span><form method="post" action="/assets/remove">${csrf(v)}<input type="hidden" name="id" value="${esc(f.attachment_id)}"><button type="submit" class="link-btn" aria-label="Remove ${esc(f.filename)}">Remove</button></form></div>
   </article>`;
 }
 
 function handoffRow(v: AssetsViewer, h: HandoffWithFiles, now: number): Html {
-  const href = handoffHref(h.packet_id);
-  const files = h.attachments
-    .map((a) => `<a class="file-chip" href="${href}#f-${esc(a.attachment_id)}" title="Open ${esc(a.filename)} (${esc(typeLabel(a.mime_type))}, ${esc(bytes(a.size))})">${FILE_ICON}${esc(a.filename)}</a>`)
-    .join("");
+  const files = fileChips(h);
   return `<article class="asset">
     <span class="asset-icon">${HANDOFF_ICON}</span>
     <div>
-      <a class="asset-name" href="${href}">${esc(h.title)}</a>
-      <div class="asset-sub">${esc(direction(v.handle, h))} · ${h.attachments.length ? plural(h.attachments.length, "file") : "Brief only"}</div>
+      <a class="asset-name" href="${handoffHref(h.packet_id)}">${esc(h.title)}</a>
+      <div class="asset-sub">${esc(direction(v.handle, h))} · ${fileCount(h.attachments.length)} · ${when(h.created_at, now)}</div>
       ${files ? `<div class="asset-files">${files}</div>` : ""}
     </div>
-    <div class="asset-meta">${when(h.created_at, now)}${expires(h.expires_at, now)}</div>
+    ${statusBlock(statusOf(v.handle, h, now), h.expires_at, now)}
   </article>`;
+}
+
+/** A handoff someone sent the viewer that they have not opened or picked up yet. */
+function newCard(h: HandoffWithFiles, now: number): Html {
+  const files = fileChips(h);
+  return `<article class="new-card">
+    <div>
+      <p class="new-line"><span class="dot new"></span><span><strong>New</strong> · ${esc(direction("", h).replace(/^From/, "from"))} · ${when(h.created_at, now)}</span></p>
+      <a class="asset-name" href="${handoffHref(h.packet_id)}">${esc(h.title)}</a>
+      <div class="asset-sub">${fileCount(h.attachments.length)}${Date.parse(h.expires_at) - now < SOON_MS ? ` · ${expiresSoon(h.expires_at, now)}` : ""}</div>
+      ${files ? `<div class="asset-files">${files}</div>` : ""}
+      ${sayBox(`Continue the handoff from ${h.from}.`, "Or tell your assistant")}
+    </div>
+    <a class="btn primary lg" href="${handoffHref(h.packet_id)}">Open</a>
+  </article>`;
+}
+
+export type AssetsFilter = "all" | "sent" | "received";
+
+/** What a new member's empty Assets shows: their next steps. */
+export interface FirstDay {
+  /** Names of the assistants connected with this member's account. */
+  assistants: string[];
+  /** The sentence that invites someone, for an admin; otherwise null. */
+  invite: string | null;
+  /** The sentence that sends a first handoff. */
+  send: string;
 }
 
 export interface AssetsData {
   /** Empty on the pages of older handoffs. */
   unsent: UnsentFile[];
+  /** Handoffs others sent the member that they have not opened yet. Empty on older pages and under Sent. */
+  unseen: HandoffWithFiles[];
   handoffs: HandoffWithFiles[];
+  filter: AssetsFilter;
   /** For "Show older handoffs". */
   nextCursor: string | null;
   /** This page continues from a cursor: older handoffs only. */
@@ -199,26 +357,74 @@ export interface AssetsData {
   unsentTtlMs: number;
   flash: Flash;
   now: number;
+  /** Set when the member has nothing here yet. */
+  firstDay?: FirstDay;
 }
 
 const flashBox = (f: Flash): Html => (f ? `<div class="flash${f.ok ? " ok" : ""}" role="${f.ok ? "status" : "alert"}">${f.text}</div>` : "");
 
+const FILTERS: Array<[AssetsFilter, string]> = [["all", "All"], ["received", "Received"], ["sent", "Sent"]];
+const filterHref = (f: AssetsFilter): string => (f === "all" ? "/assets" : `/assets?show=${f}`);
+
+function firstDayPanel(fd: FirstDay, control: boolean): Html {
+  const done = `<span class="num done">${CHECK_ICON}</span>`;
+  const steps: Html[] = [
+    fd.assistants.length
+      ? `<li>${done}<div><div class="step-t">Handoff is in your assistant</div><p class="step-sub">${esc(names(fd.assistants))} connected. <a class="u" href="/connect">Add another assistant</a></p></div></li>`
+      : `<li><span class="num">1</span><div><div class="step-t">Add Handoff to your assistant</div><p class="step-sub">Claude, ChatGPT and others take a couple of minutes. <a class="u" href="/connect">Assistant setup</a></p></div></li>`,
+  ];
+  if (fd.invite) {
+    steps.push(
+      `<li><span class="num">${steps.length + 1}</span><div><div class="step-t">Invite your ${control ? "partner" : "teammate"}</div><p class="step-sub">Your assistant makes an invitation link to send them.</p>${sayBox(fd.invite)}</div></li>`,
+    );
+  }
+  steps.push(
+    `<li><span class="num">${steps.length + 1}</span><div><div class="step-t">Hand off</div><p class="step-sub">In any chat, when the next step is someone else's or another assistant's. A letter on paper? Scan it with your phone and upload it here first.</p>${sayBox(fd.send)}</div></li>`,
+  );
+  return `<section class="panel" aria-labelledby="first-h" style="padding:0;gap:0">
+    <div class="first-head"><h2 id="first-h">Your first handoff</h2><p>Nothing here yet. Handoffs you send or receive show up here, with who picked them up.</p></div>
+    <ol class="first-steps">${steps.join("")}</ol>
+  </section>`;
+}
+
 export function assetsPage(v: AssetsViewer, d: AssetsData, nonce: string): Html {
-  // One list, newest first: an unsent file by its upload time, a handoff by its send time.
-  const rows = [
-    ...d.unsent.map((f) => ({ at: f.uploaded_at, html: fileRow(v, f, d.now, d.unsentTtlMs) })),
-    ...d.handoffs.map((h) => ({ at: h.created_at, html: handoffRow(v, h, d.now) })),
-  ]
-    .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
-    .map((r) => r.html)
+  const shownNew = new Set(d.unseen.map((h) => h.packet_id));
+  const rows = d.handoffs
+    .filter((h) => !shownNew.has(h.packet_id))
+    .map((h) => handoffRow(v, h, d.now))
     .join("");
+  const ttlDays = plural(Math.max(1, Math.round(d.unsentTtlMs / 86_400_000)), "day");
+  const ready = d.unsent.length
+    ? `<section class="assets-sect" aria-labelledby="ready-h">
+    <div class="sect-head"><h2 class="sect-h" id="ready-h">Ready to send</h2><span class="sect-note">Only you see these until your assistant sends one. Files not sent within ${ttlDays} are deleted.</span></div>
+    <div class="assets-list">${d.unsent.map((f) => fileRow(v, f, d.now, d.unsentTtlMs)).join("")}</div>
+  </section>`
+    : "";
+  const fresh = d.unseen.length
+    ? `<section class="assets-sect" aria-labelledby="new-h">
+    <div class="sect-head"><h2 class="sect-h" id="new-h">New for you</h2></div>
+    ${d.unseen.map((h) => newCard(h, d.now)).join("")}
+  </section>`
+    : "";
   const empty = d.older
-    ? `<div class="assets-empty">No older handoffs.</div>`
-    : `<div class="assets-empty">Nothing here yet. Handoffs you send or receive, and files you upload, show up here until they expire.</div>`;
+    ? "No older handoffs."
+    : d.filter === "sent"
+      ? "You have not sent a handoff yet."
+      : d.filter === "received"
+        ? (shownNew.size ? "Nothing else received." : "Nothing received yet. Handoffs others send you show up here.")
+        : "No other handoffs.";
+  const seg = `<nav class="seg" aria-label="Show">${FILTERS.map(([f, label]) => `<a href="${filterHref(f)}"${f === d.filter ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>`;
   const more =
     d.older || d.nextCursor
-      ? `<div class="assets-more">${d.older ? `<a class="u" href="/assets">Back to the newest</a>` : "<span></span>"}${d.nextCursor ? `<a class="u" href="/assets?older=${encodeURIComponent(d.nextCursor)}">Show older handoffs</a>` : ""}</div>`
+      ? `<div class="assets-more">${d.older ? `<a class="u" href="${filterHref(d.filter)}">Back to the newest</a>` : "<span></span>"}${d.nextCursor ? `<a class="u" href="${filterHref(d.filter)}${d.filter === "all" ? "?" : "&"}older=${encodeURIComponent(d.nextCursor)}">Show older handoffs</a>` : ""}</div>`
       : "";
+  const list = d.firstDay
+    ? firstDayPanel(d.firstDay, v.control)
+    : `<section class="assets-sect" aria-labelledby="handoffs-h">
+    <div class="sect-head"><h2 class="sect-h" id="handoffs-h">${d.older ? "Older handoffs" : "Handoffs"}</h2>${seg}</div>
+    <div class="assets-list" aria-label="Handoffs">${rows || `<div class="assets-empty">${empty}</div>`}</div>
+    ${more}
+  </section>`;
   return appPage(
     v,
     "Assets",
@@ -232,11 +438,12 @@ export function assetsPage(v: AssetsViewer, d: AssetsData, nonce: string): Html 
     <div class="t">Upload a file</div>
     <div><label class="lbl" for="file">File</label><input id="file" name="file" type="file" class="field" required accept=".pdf,.png,.jpg,.jpeg,.txt,.md,application/pdf,image/png,image/jpeg,text/plain,text/markdown"></div>
     <div><label class="lbl" for="note">Note for your assistant (optional)</label><input id="note" name="note" class="field" maxlength="${MAX_NOTE_CHARS}" placeholder="Signed lease, final version"></div>
-    <p class="small muted">PDF, PNG, JPEG, text or Markdown, up to ${esc(bytes(d.maxBytes))}. Only you can see it until your assistant sends it in a handoff. A file not sent within 7 days is deleted.</p>
+    <p class="small muted">PDF, PNG, JPEG, text or Markdown, up to ${esc(bytes(d.maxBytes))}. Only you can see it until your assistant sends it in a handoff. A file not sent within ${ttlDays} is deleted.</p>
     <div class="assets-actions"><button type="submit" class="btn primary lg">Upload</button><a class="btn lg" href="/assets" data-cancel>Cancel</a></div>
   </form>
-  <section class="assets-list" aria-label="Assets">${rows || empty}</section>
-  ${more}`,
+  ${ready}
+  ${fresh}
+  ${list}`,
     nonce,
   );
 }
@@ -291,8 +498,39 @@ function nextStep(me: string, h: PacketView): Html {
   return `${who} picks it up by saying <q>Continue the handoff from ${esc(me)}.</q>`;
 }
 
-export function handoffPage(v: AssetsViewer, h: PacketView, brief: Html, files: FileCard[], now: number, nonce: string): Html {
+/** One line of a handoff's timeline, from the viewer's side. */
+function pickupLine(me: string, k: Pickup): string {
+  const you = k.by === me;
+  if (k.via === "browser") return you ? "You opened it in the browser" : `Opened by ${k.by} in the browser`;
+  const app = k.client ? ` in ${k.client}` : "";
+  return you ? `You picked it up${app}` : `Picked up by ${k.by}${app}`;
+}
+
+const DOT: Html = '<span class="pt"></span>';
+
+/** Sent, each pickup in time order, and (for the sender) the recipients still to pick it up. */
+function timeline(me: string, h: PacketView, d: Delivery & { sent_via: string | null }, now: number): Html {
+  const items = [
+    `<li class="tl">${DOT}<span>Sent by ${h.from === me ? "you" : esc(h.from)}${d.sent_via ? ` from ${esc(d.sent_via)}` : ""}</span><span class="when">${when(h.created_at, now)}</span></li>`,
+    ...d.pickups.map((k) =>
+      k.via === "assistant"
+        ? `<li class="tl ok"><span class="pt ok">${CHECK_ICON}</span><span>${esc(pickupLine(me, k))}</span><span class="when">${when(k.at, now)}</span></li>`
+        : `<li class="tl">${DOT}<span>${esc(pickupLine(me, k))}</span><span class="when">${when(k.at, now)}</span></li>`,
+    ),
+    ...d.waiting.map((w) => `<li class="tl"><span class="pt wait"></span><span class="muted">Waiting for ${esc(w)}</span><span></span></li>`),
+  ];
+  return `<ol class="timeline">${items.join("")}</ol>`;
+}
+
+const revokeHref = (packetId: string): string => `${handoffHref(packetId)}/revoke`;
+
+export function handoffPage(v: AssetsViewer, h: PacketView, d: Delivery & { sent_via: string | null }, brief: Html, files: FileCard[], now: number, nonce: string): Html {
   const count = files.length ? plural(files.length, "file") : "Brief only";
+  const sender = h.from === v.handle;
+  // The sender keeps the hint while a recipient has not picked it up in an assistant (opening it here is not that).
+  const inAssistant = new Set(d.pickups.filter((k) => k.via === "assistant").map((k) => k.by));
+  const notYet = d.waiting.length > 0 || d.pickups.some((k) => !inAssistant.has(k.by));
+  const waitingSay = !sender || h.to === v.handle || notYet;
   return appPage(
     v,
     h.title,
@@ -300,29 +538,51 @@ export function handoffPage(v: AssetsViewer, h: PacketView, brief: Html, files: 
   <header>
     <p class="eyebrow">${esc(direction(v.handle, h))} · ${count}</p>
     <h1>${esc(h.title)}</h1>
-    <p class="lead">Sent ${when(h.created_at, now)} · ${expires(h.expires_at, now)}</p>
+    <p class="lead">Sent ${when(h.created_at, now)}${d.sent_via ? ` from ${esc(d.sent_via)}` : ""}</p>
   </header>
+  <section class="panel status-panel" aria-label="Status">
+    <h2 class="t">Status</h2>
+    ${timeline(v.handle, h, d, now)}
+    <div class="status-foot"><span>${expires(h.expires_at, now)}.${sender ? " Revoking it means no one can open it again." : ""}</span>${sender ? `<a class="btn sm danger" href="${revokeHref(h.packet_id)}">Revoke</a>` : ""}</div>
+  </section>
   <section class="panel brief" aria-label="Brief"><h2 class="t">Brief</h2><div class="md">${brief}</div></section>
   ${files.length ? `<h2 class="files-h">Files</h2>${files.map(fileCard).join("")}` : ""}
-  <p class="say">${nextStep(v.handle, h)}</p>`,
+  ${waitingSay ? `<p class="say">${nextStep(v.handle, h)}</p>` : ""}`,
+    nonce,
+  );
+}
+
+/** Asks before revoking: a page of its own, as the console does for actions that cannot be undone. */
+export function revokePage(v: AssetsViewer, h: PacketView, d: Delivery, nonce: string): Html {
+  const got = unique(d.pickups.filter((k) => k.via === "assistant"));
+  return appPage(
+    v,
+    `Revoke ${h.title}`,
+    `<a class="back" href="${handoffHref(h.packet_id)}">${BACK_ICON}${esc(h.title)}</a>
+  <header>
+    <p class="eyebrow">${esc(direction(v.handle, h))}</p>
+    <h1>Revoke “${esc(h.title)}”?</h1>
+    <p class="lead">No one can open it again, in an assistant or here.${got.length ? ` ${esc(names(got))} already picked it up: what their assistant read stays in that chat.` : ""} This cannot be undone.</p>
+  </header>
+  <form method="post" action="${revokeHref(h.packet_id)}" class="assets-actions">${csrf(v)}<button type="submit" class="btn danger lg">Revoke</button><a class="btn lg" href="${handoffHref(h.packet_id)}">Cancel</a></form>`,
     nonce,
   );
 }
 
 export function filePage(v: AssetsViewer, f: UnsentFile, card: FileCard, now: number, unsentTtlMs: number, nonce: string): Html {
-  const until = new Date(Date.parse(f.uploaded_at) + unsentTtlMs).toISOString();
+  const gone = new Date(Date.parse(f.uploaded_at) + unsentTtlMs).toISOString();
   return appPage(
     v,
     f.filename,
     `<a class="back" href="/assets">${BACK_ICON}Assets</a>
   <header>
-    <p class="eyebrow">Ready for handoff · Only you</p>
+    <p class="eyebrow">Ready to send · Only you</p>
     <h1>${esc(f.filename)}</h1>
-    <p class="lead">Uploaded ${when(f.uploaded_at, now)} · ${expires(until, now)}</p>
+    <p class="lead">Uploaded ${when(f.uploaded_at, now)} · <span title="${esc(utc(gone))}">Deleted in ${until(gone, now)} if not sent</span></p>
   </header>
   ${f.note ? `<p class="asset-note">${esc(f.note)}</p>` : ""}
   ${fileCard(card)}
-  <p class="say">To send it, tell your assistant: <q>Hand this off with ${esc(f.filename)}.</q></p>
+  ${sayBox(`Hand this off with ${f.filename}.`, "To send it, tell your assistant")}
   <form method="post" action="/assets/remove">${csrf(v)}<input type="hidden" name="id" value="${esc(f.attachment_id)}"><button type="submit" class="btn">Remove this file</button></form>`,
     nonce,
   );

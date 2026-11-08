@@ -13,7 +13,25 @@ export interface PacketRow {
   revoked_at: string | null;
   idempotency_key: string;
   request_hash: string;
+  /** The name of the assistant it was sent from, when known. */
+  sent_via?: string | null;
 }
+
+export type PickupVia = "assistant" | "browser";
+
+/** A recipient's first read in an assistant, or first open in the browser. */
+export interface PickupRow {
+  packet_id: string;
+  /** The reader's identity. */
+  reader: string;
+  via: PickupVia;
+  /** The assistant's name, for via = 'assistant'. */
+  client: string | null;
+  at: string;
+}
+
+/** Which handoffs a list shows: all, the ones the subject sent, or the ones others sent them. */
+export type InboxFilter = "all" | "sent" | "received";
 
 export interface InboxRow {
   id: string;
@@ -80,7 +98,16 @@ export interface Repository {
   createPacket(packet: PacketRow, attachmentIds: string[]): Promise<void>;
   getPacket(id: string): Promise<PacketRow | null>;
   /** Live packets this subject sent, or that were sent to them or to "*" (the team). */
-  listInbox(owner: string, nowIso: string, limit: number, cursor: { created_at: string; id: string } | null): Promise<InboxRow[]>;
+  listInbox(owner: string, nowIso: string, limit: number, cursor: { created_at: string; id: string } | null, filter?: InboxFilter): Promise<InboxRow[]>;
+  /** Live packets others sent to this subject (or their team) that the subject has neither read nor opened, newest first. */
+  listUnseen(subject: string, nowIso: string, limit: number): Promise<InboxRow[]>;
+  /** Keeps the first pickup of each kind per reader; a later one changes nothing. */
+  recordPickup(row: PickupRow): Promise<void>;
+  getPickups(packetIds: string[]): Promise<PickupRow[]>;
+  /** The member identities of a tenant ("" for a private install), sorted. */
+  listTenantMembers(tenant: string): Promise<string[]>;
+  /** The registered name of an OAuth client, or null. */
+  clientName(clientId: string): Promise<string | null>;
   revokePacket(id: string, atIso: string): Promise<void>;
   getPacketAttachments(packetId: string): Promise<AttachmentRow[]>;
   getPacketAttachment(packetId: string, attachmentId: string): Promise<AttachmentRow | null>;

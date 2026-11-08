@@ -1,6 +1,6 @@
-import type { AttachmentRow, AttachmentState, InboxRow, PacketRow, Repository, TicketRow } from "./repository";
+import type { AttachmentRow, AttachmentState, InboxFilter, InboxRow, PacketRow, PickupRow, Repository, TicketRow } from "./repository";
 import { AttachmentUnavailable, UniqueViolation } from "./repository";
-import { teamOf, tenantOf } from "../domain/tenant";
+import { teamOf, tenantOf, tenantWhere } from "../domain/tenant";
 
 export class D1Repository implements Repository {
   constructor(private readonly db: D1Database) {}
@@ -18,10 +18,10 @@ export class D1Repository implements Repository {
     const stmts: D1PreparedStatement[] = [
       this.db
         .prepare(
-          `INSERT INTO packets (id, owner, recipient, title, brief, created_at, expires_at, revoked_at, idempotency_key, request_hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+          `INSERT INTO packets (id, owner, recipient, title, brief, created_at, expires_at, revoked_at, idempotency_key, request_hash, sent_via)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
         )
-        .bind(p.id, p.owner, p.recipient ?? p.owner, p.title, p.brief, p.created_at, p.expires_at, p.idempotency_key, p.request_hash),
+        .bind(p.id, p.owner, p.recipient ?? p.owner, p.title, p.brief, p.created_at, p.expires_at, p.idempotency_key, p.request_hash, p.sent_via ?? null),
     ];
     attachmentIds.forEach((aid, i) => {
       // The subquery is NULL unless the attachment is owned, ready and free at this moment. A NULL
@@ -54,19 +54,69 @@ export class D1Repository implements Repository {
     nowIso: string,
     limit: number,
     cursor: { created_at: string; id: string } | null,
+    filter: InboxFilter = "all",
   ): Promise<InboxRow[]> {
+    const team = teamOf(tenantOf(owner));
+    // Sent: what this subject sent, to themselves too. Received: what others sent them or their team.
+    const [who, whoBinds] =
+      filter === "sent"
+        ? ["p.owner = ?", [owner]]
+        : filter === "received"
+          ? ["(p.recipient = ? OR p.recipient = ?) AND p.owner != ?", [owner, team, owner]]
+          : ["(p.owner = ? OR p.recipient = ? OR p.recipient = ?)", [owner, owner, team]];
     const base = `SELECT p.id, p.owner, p.recipient, p.title, p.created_at, p.expires_at,
         (SELECT COUNT(*) FROM packet_attachments pa WHERE pa.packet_id = p.id) AS attachment_count
       FROM packets p
-      WHERE (p.owner = ? OR p.recipient = ? OR p.recipient = ?) AND p.expires_at > ? AND p.revoked_at IS NULL`;
-    const team = teamOf(tenantOf(owner));
+      WHERE ${who} AND p.expires_at > ? AND p.revoked_at IS NULL`;
     const stmt = cursor
       ? this.db
           .prepare(`${base} AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?)) ORDER BY p.created_at DESC, p.id DESC LIMIT ?`)
-          .bind(owner, owner, team, nowIso, cursor.created_at, cursor.created_at, cursor.id, limit)
-      : this.db.prepare(`${base} ORDER BY p.created_at DESC, p.id DESC LIMIT ?`).bind(owner, owner, team, nowIso, limit);
+          .bind(...whoBinds, nowIso, cursor.created_at, cursor.created_at, cursor.id, limit)
+      : this.db.prepare(`${base} ORDER BY p.created_at DESC, p.id DESC LIMIT ?`).bind(...whoBinds, nowIso, limit);
     const { results } = await stmt.all<InboxRow>();
     return results;
+  }
+
+  async listUnseen(subject: string, nowIso: string, limit: number): Promise<InboxRow[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT p.id, p.owner, p.recipient, p.title, p.created_at, p.expires_at,
+           (SELECT COUNT(*) FROM packet_attachments pa WHERE pa.packet_id = p.id) AS attachment_count
+         FROM packets p
+         WHERE (p.recipient = ? OR p.recipient = ?) AND p.owner != ? AND p.expires_at > ? AND p.revoked_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM packet_pickups k WHERE k.packet_id = p.id AND k.reader = ?)
+         ORDER BY p.created_at DESC, p.id DESC LIMIT ?`,
+      )
+      .bind(subject, teamOf(tenantOf(subject)), subject, nowIso, subject, limit)
+      .all<InboxRow>();
+    return results;
+  }
+
+  async recordPickup(r: PickupRow): Promise<void> {
+    await this.db
+      .prepare("INSERT OR IGNORE INTO packet_pickups (packet_id, reader, via, client, at) VALUES (?, ?, ?, ?, ?)")
+      .bind(r.packet_id, r.reader, r.via, r.client, r.at)
+      .run();
+  }
+
+  async getPickups(packetIds: string[]): Promise<PickupRow[]> {
+    if (!packetIds.length) return [];
+    const { results } = await this.db
+      .prepare(`SELECT packet_id, reader, via, client, at FROM packet_pickups WHERE packet_id IN (${packetIds.map(() => "?").join(", ")}) ORDER BY at`)
+      .bind(...packetIds)
+      .all<PickupRow>();
+    return results;
+  }
+
+  async listTenantMembers(tenant: string): Promise<string[]> {
+    const t = tenantWhere("handle", tenant);
+    const { results } = await this.db.prepare(`SELECT handle FROM members WHERE ${t.sql} ORDER BY handle`).bind(...t.binds).all<{ handle: string }>();
+    return results.map((r) => r.handle);
+  }
+
+  async clientName(clientId: string): Promise<string | null> {
+    const row = await this.db.prepare("SELECT client_name FROM oauth_clients WHERE client_id = ?").bind(clientId).first<{ client_name: string | null }>();
+    return row?.client_name ?? null;
   }
 
   async revokePacket(id: string, atIso: string): Promise<void> {
@@ -300,6 +350,7 @@ export class D1Repository implements Repository {
   async deletePacket(id: string): Promise<void> {
     await this.db.batch([
       this.db.prepare("DELETE FROM tickets WHERE packet_id = ?").bind(id),
+      this.db.prepare("DELETE FROM packet_pickups WHERE packet_id = ?").bind(id),
       this.db.prepare("DELETE FROM packet_attachments WHERE packet_id = ?").bind(id),
       this.db.prepare("DELETE FROM packets WHERE id = ?").bind(id),
     ]);

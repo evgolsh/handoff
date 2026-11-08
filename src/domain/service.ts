@@ -1,7 +1,7 @@
 import type { Config } from "../env";
 import type { Principal } from "../auth/verify";
 import type { BlobStore } from "../store/blobs";
-import type { AttachmentRow, InboxRow, PacketRow, Repository, TicketKind, TicketRow } from "../store/repository";
+import type { AttachmentRow, InboxFilter, InboxRow, PacketRow, PickupRow, PickupVia, Repository, TicketKind, TicketRow } from "../store/repository";
 import { AttachmentUnavailable, UniqueViolation } from "../store/repository";
 import { HandoffError } from "./errors";
 import { verifyType } from "./filetypes";
@@ -96,8 +96,33 @@ export function numberedName(name: string, n: number): string {
   return `${base.slice(0, 255 - suffix.length - ext.length)}${suffix}${ext}`;
 }
 
-/** A live handoff as Assets lists it: who sent it to whom, when it expires, and its files. */
-export type HandoffWithFiles = PacketSummary & { attachments: AttachmentDescriptor[] };
+/** A recipient's first read in an assistant (with the assistant's name), or first open in the browser. */
+export interface Pickup {
+  /** The reader's handle. */
+  by: string;
+  via: PickupVia;
+  /** The assistant's name, for via "assistant", when known. */
+  client: string | null;
+  at: string;
+}
+
+/**
+ * Who got a handoff, as the viewer may see it. Its sender sees every recipient's pickups and the recipients with
+ * none yet (`waiting`); a recipient sees only their own pickups.
+ */
+export interface Delivery {
+  pickups: Pickup[];
+  waiting: string[];
+}
+
+/** A live handoff as Assets lists it: who sent it to whom, when it expires, its files, and who picked it up. */
+export type HandoffWithFiles = PacketSummary & Delivery & { attachments: AttachmentDescriptor[] };
+
+/** An assistant's registered name, unless it is a generic one that says nothing. */
+export const assistantName = (name: string | null): string | null => {
+  const n = (name ?? "").trim().slice(0, 60);
+  return n && !/^(an )?mcp client$/i.test(n) ? n : null;
+};
 
 /** Longest note Assets stores with an upload. */
 export const MAX_NOTE_CHARS = 200;
@@ -310,6 +335,7 @@ export class HandoffService {
       revoked_at: null,
       idempotency_key: input.idempotency_key,
       request_hash: await this.requestHash(input),
+      sent_via: await this.clientLabel(principal.clientId),
     };
     try {
       await this.repo.createPacket(packet, ids);
@@ -366,12 +392,63 @@ export class HandoffService {
     return p.owner === subject || recipient === subject || recipient === teamOf(tenantOf(subject));
   }
 
-  async inbox(principal: Principal, opts: { limit?: number; cursor?: string }): Promise<{ packets: (PacketSummary & { attachment_count: number })[]; next_cursor: string | null }> {
+  /** Whether this subject is one the packet was sent to: the named member, the sender of a handoff to themselves, or a teammate for the team. */
+  private isRecipient(subject: string, p: { owner?: string; recipient?: string | null }): boolean {
+    const recipient = p.recipient ?? p.owner;
+    if (recipient === subject) return true;
+    return isTeam(recipient) && recipient === teamOf(tenantOf(subject)) && p.owner !== subject;
+  }
+
+  /** The name of the assistant behind an OAuth client, when it has a useful one. */
+  private async clientLabel(clientId: string): Promise<string | null> {
+    return clientId ? assistantName(await this.repo.clientName(clientId)) : null;
+  }
+
+  /** Who got each of these packets, from this subject's side (see Delivery). */
+  private async deliveries(subject: string, rows: Array<{ id: string; owner?: string; recipient?: string | null }>): Promise<Map<string, Delivery>> {
+    const all = await this.repo.getPickups(rows.map((r) => r.id));
+    let team: string[] | null = null;
+    const out = new Map<string, Delivery>();
+    for (const r of rows) {
+      const owner = r.owner ?? subject;
+      const recipient = r.recipient ?? owner;
+      const sent = owner === subject;
+      const seen = all.filter((k) => k.packet_id === r.id && (sent || k.reader === subject));
+      let waiting: string[] = [];
+      if (sent && recipient !== subject) {
+        const expected = isTeam(recipient) ? (team ??= await this.repo.listTenantMembers(tenantOf(subject))).filter((m) => m !== subject) : [recipient];
+        const readers = new Set(seen.map((k) => k.reader));
+        waiting = expected.filter((m) => !readers.has(m)).map(handleOf);
+      }
+      out.set(r.id, { pickups: seen.map((k) => ({ by: handleOf(k.reader), via: k.via, client: k.client, at: k.at })), waiting });
+    }
+    return out;
+  }
+
+  /**
+   * Notes that a recipient read the packet in an assistant or opened it in the browser, the first time each.
+   * The sender's own reads are not pickups. A failure here never stops the read.
+   */
+  private async notePickup(principal: Principal, p: PacketRow, via: PickupVia): Promise<void> {
+    if (!this.isRecipient(principal.subject, p)) return;
+    try {
+      const row: PickupRow = { packet_id: p.id, reader: principal.subject, via, client: via === "assistant" ? await this.clientLabel(principal.clientId) : null, at: nowIso() };
+      await this.repo.recordPickup(row);
+    } catch (e) {
+      console.error("pickup not recorded", e);
+    }
+  }
+
+  async inbox(
+    principal: Principal,
+    opts: { limit?: number; cursor?: string; filter?: InboxFilter },
+  ): Promise<{ packets: (PacketSummary & Delivery & { attachment_count: number })[]; next_cursor: string | null }> {
     const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
     const cursor = opts.cursor ? decodeCursor(opts.cursor) : null;
-    const rows = await this.repo.listInbox(principal.subject, nowIso(), limit + 1, cursor);
+    const rows = await this.repo.listInbox(principal.subject, nowIso(), limit + 1, cursor, opts.filter ?? "all");
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];
+    const got = await this.deliveries(principal.subject, page);
     return {
       packets: page.map((r) => ({
         packet_id: r.id,
@@ -381,6 +458,7 @@ export class HandoffService {
         created_at: r.created_at,
         expires_at: r.expires_at,
         attachment_count: r.attachment_count,
+        ...got.get(r.id)!,
       })),
       next_cursor: rows.length > limit && last ? encodeCursor(last) : null,
     };
@@ -395,10 +473,27 @@ export class HandoffService {
     return p;
   }
 
-  async read(principal: Principal, packetId: string): Promise<PacketView> {
+  /**
+   * Reads a packet. A recipient's read is a pickup: in an assistant, or (`via` "browser") in Assets. `via` null
+   * reads without one (a page that only shows the packet to its sender, such as Revoke).
+   */
+  async read(principal: Principal, packetId: string, via: PickupVia | null = "assistant"): Promise<PacketView> {
     const p = await this.livePacket(principal.subject, packetId);
     const atts = await this.repo.getPacketAttachments(p.id);
+    if (via) await this.notePickup(principal, p, via);
     return { ...summary(p), brief: p.brief, attachments: atts.map(describe) };
+  }
+
+  /** A live packet's sending assistant and who got it, for its page in Assets. */
+  async delivery(principal: Principal, packetId: string): Promise<Delivery & { sent_via: string | null }> {
+    const p = await this.livePacket(principal.subject, packetId);
+    const got = (await this.deliveries(principal.subject, [p])).get(p.id)!;
+    return { ...got, sent_via: p.sent_via ?? null };
+  }
+
+  /** The handles of the subject's teammates (their tenant's other members), sorted. */
+  async teammates(principal: Principal): Promise<string[]> {
+    return (await this.repo.listTenantMembers(tenantOf(principal.subject))).filter((m) => m !== principal.subject).map(handleOf);
   }
 
   /** The attachment must belong to this live packet; owning it through another packet is not enough. */
@@ -582,16 +677,35 @@ export class HandoffService {
   }
 
   /** One page of the caller's live handoffs (sent or received), newest first, each with its files. */
-  async handoffsPage(principal: Principal, opts: { limit?: number; cursor?: string } = {}): Promise<{ handoffs: HandoffWithFiles[]; next_cursor: string | null }> {
+  async handoffsPage(principal: Principal, opts: { limit?: number; cursor?: string; filter?: InboxFilter } = {}): Promise<{ handoffs: HandoffWithFiles[]; next_cursor: string | null }> {
     const page = await this.inbox(principal, opts);
-    const rows = await this.repo.getAttachmentsForPackets(page.packets.map((p) => p.packet_id));
-    return {
-      handoffs: page.packets.map(({ attachment_count: _n, ...p }) => ({
-        ...p,
-        attachments: rows.filter((r) => r.packet_id === p.packet_id && r.state === "ready").map(describe),
+    return { handoffs: await this.withFiles(page.packets), next_cursor: page.next_cursor };
+  }
+
+  /** Handoffs others sent this member that they have neither picked up nor opened, newest first. */
+  async unseen(principal: Principal, limit = 10): Promise<HandoffWithFiles[]> {
+    const rows = await this.repo.listUnseen(principal.subject, nowIso(), limit);
+    return this.withFiles(
+      rows.map((r) => ({
+        packet_id: r.id,
+        from: handleOf(r.owner ?? principal.subject),
+        to: shownRecipient(r.recipient ?? r.owner ?? principal.subject),
+        title: r.title,
+        created_at: r.created_at,
+        expires_at: r.expires_at,
+        attachment_count: r.attachment_count,
+        pickups: [],
+        waiting: [],
       })),
-      next_cursor: page.next_cursor,
-    };
+    );
+  }
+
+  private async withFiles(packets: (PacketSummary & Delivery & { attachment_count: number })[]): Promise<HandoffWithFiles[]> {
+    const rows = await this.repo.getAttachmentsForPackets(packets.map((p) => p.packet_id));
+    return packets.map(({ attachment_count: _n, ...p }) => ({
+      ...p,
+      attachments: rows.filter((r) => r.packet_id === p.packet_id && r.state === "ready").map(describe),
+    }));
   }
 
   // ---- server-side import of a host file reference (OpenAI `files`) --------

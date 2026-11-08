@@ -479,6 +479,7 @@ Handoff has no AI inside: it makes no model calls, and nothing you send is used 
 - **What you send:** each handoff's title, brief and files, exactly as your assistant sent them, and who sent it to whom.
 - **Files you upload** in Assets or through an assistant, until you send or delete them.
 - **Sign-ins:** the assistants you connected (the name each app gives) and their refresh tokens, stored as hashes. Access tokens are not stored.
+- **Pickups:** when each recipient first read a handoff in an assistant, with that assistant's name, and when they first opened it in Assets. Kept until the handoff is deleted.
 - **Activity:** which tool was called, when, by which username, and whether it worked. Not the content.
 - **Abuse limits:** when you sign in or create a team, a hash of your IP address, to slow down guessing. It is deleted after 10 minutes.
 
@@ -492,6 +493,7 @@ Handoff has no AI inside: it makes no model calls, and nothing you send is used 
 ## Who can see it
 
 - A handoff: the sender and the recipient (or everyone in the team, when sent to the team). People in other teams cannot address or read it.
+- Pickups: the sender sees when each recipient picked up or opened their handoff, and in which assistant. A recipient sees only their own.
 - ${f.hosted ? "The operator can technically read stored data. It is not read except to keep the service running or when the law requires it." : "The server's operator can technically read stored data."}
 - The assistants you connect read what you ask them to read. What they do with it is under your agreement with that assistant (Anthropic, OpenAI and others).
 
@@ -501,7 +503,7 @@ On Cloudflare (Workers, a D1 database and Cloudflare's file storage), which proc
 
 ## Your choices
 
-- Revoke a handoff with your assistant (“revoke that handoff”) or wait for it to expire.
+- Revoke a handoff you sent with your assistant (“revoke that handoff”) or in Assets, or wait for it to expire.
 - Delete your uploaded files in Assets (${f.site}/assets).
 - Disconnect an assistant: your team's admin can do it in the console.
 - To delete your account and everything in it, ask your team's admin${f.hosted ? `, or write to ${SUPPORT_EMAIL}` : ""}.

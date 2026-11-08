@@ -4,7 +4,8 @@ import type { Variables } from "../app";
 import type { Env } from "../env";
 import type { Principal } from "../auth/verify";
 import { HandoffError } from "../domain/errors";
-import { base64url } from "../domain/ids";
+import { base64url, nowIso } from "../domain/ids";
+import { assistantName } from "../domain/service";
 import { handleOf, tenantOf } from "../domain/tenant";
 import type { AttachmentRow } from "../store/repository";
 import { recordEvent } from "../store/events";
@@ -12,7 +13,7 @@ import { bytes, esc, interactiveHeaders, problemPage, type Html } from "../conso
 import { csrfOk, isAdmin, sameOrigin, sessionFrom, type Session } from "../console/session";
 import { attachmentResponse } from "./routes";
 import { renderBrief } from "./markdown";
-import { assetsPage, filePage, handoffPage, previewKind, type AssetsViewer, type FileCard, type Flash, type Preview } from "./assets-page";
+import { assetsPage, filePage, handoffPage, previewKind, revokePage, type AssetsFilter, type AssetsViewer, type FileCard, type FirstDay, type Flash, type Preview } from "./assets-page";
 
 type Body = Record<string, string | File | (string | File)[]>;
 type AssetsVariables = Variables & { session: Session; body: Body };
@@ -83,22 +84,54 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     others: s.others,
   });
 
-  const page = async (c: C, s: Session, opts: { flash?: Flash | ((unsentIds: Map<string, string>) => Flash); status?: number; uploadOpen?: boolean; cursor?: string }): Promise<Response> => {
+  /** The names of the assistants connected with this member's account (a live refresh token). */
+  const assistantsOf = async (c: C, subject: string): Promise<string[]> => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT DISTINCT c.client_name FROM oauth_refresh_tokens t JOIN oauth_clients c ON c.client_id = t.client_id
+       WHERE t.subject = ? AND t.revoked_at IS NULL AND t.expires_at > ?`,
+    )
+      .bind(subject, nowIso())
+      .all<{ client_name: string | null }>();
+    return [...new Set(results.map((r) => assistantName(r.client_name) ?? "An assistant"))];
+  };
+
+  /** A new member's next steps: connect an assistant, invite someone (an admin), hand off. */
+  const firstDay = async (c: C, s: Session, v: AssetsViewer): Promise<FirstDay> => {
+    const [assistants, mates] = await Promise.all([assistantsOf(c, s.handle), c.get("service").teammates(principalOf(s))]);
+    return {
+      assistants,
+      invite: v.admin && (v.tenant || !v.control) ? `Invite my ${v.control ? "partner" : "teammate"} to Handoff.` : null,
+      send: mates[0] ? `Hand this off to ${mates[0]}.` : "Hand this off.",
+    };
+  };
+
+  const page = async (
+    c: C,
+    s: Session,
+    opts: { flash?: Flash | ((unsentIds: Map<string, string>) => Flash); status?: number; uploadOpen?: boolean; cursor?: string; filter?: AssetsFilter },
+  ): Promise<Response> => {
     const svc = c.get("service");
     const p = principalOf(s);
-    const [unsent, handoffs, v] = await Promise.all([
-      opts.cursor ? Promise.resolve([]) : svc.unsentFiles(p, 100),
-      svc.handoffsPage(p, { limit: PAGE_SIZE, cursor: opts.cursor }),
+    const filter = opts.filter ?? "all";
+    const first = !opts.cursor;
+    const [unsent, unseen, handoffs, v] = await Promise.all([
+      first ? svc.unsentFiles(p, 100) : Promise.resolve([]),
+      first && filter !== "sent" ? svc.unseen(p) : Promise.resolve([]),
+      svc.handoffsPage(p, { limit: PAGE_SIZE, cursor: opts.cursor, filter }),
       viewer(c, s),
     ]);
     const flash = typeof opts.flash === "function" ? opts.flash(new Map(unsent.map((f) => [f.attachment_id, f.filename]))) : (opts.flash ?? null);
+    const empty = first && filter === "all" && !unsent.length && !unseen.length && !handoffs.handoffs.length;
+    const fd = empty ? await firstDay(c, s, v) : undefined;
     return respond(
       (nonce) =>
         assetsPage(
           v,
           {
             unsent,
+            unseen,
             handoffs: handoffs.handoffs,
+            filter,
             nextCursor: handoffs.next_cursor,
             older: !!opts.cursor,
             uploadOpen: !!opts.uploadOpen,
@@ -106,6 +139,7 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
             unsentTtlMs: svc.cfg.unattachedReadyTtlMs,
             flash,
             now: Date.now(),
+            firstDay: fd,
           },
           nonce,
         ),
@@ -145,9 +179,12 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     if (!s) return toLogin(c);
     const q = (k: string) => c.req.query(k);
     const older = q("older");
+    const show = q("show");
+    const filter: AssetsFilter = show === "sent" || show === "received" ? show : "all";
     try {
       return await page(c, s, {
         cursor: older || undefined,
+        filter,
         uploadOpen: q("upload") === "1",
         flash: (unsent) => {
           const name = unsent.get(q("uploaded") ?? "");
@@ -155,12 +192,13 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
             const what = q("renamed") === "1" ? `Uploaded as <strong>${esc(name)}</strong>, because you already had a file with that name.` : `Uploaded <strong>${esc(name)}</strong>.`;
             return { ok: true, text: `${what} Tell your assistant: <q>Hand this off with ${esc(name)}.</q>` };
           }
+          if (q("revoked") === "1") return { ok: true, text: "Handoff revoked. No one can open it now." };
           return q("removed") === "1" ? { ok: true, text: "File removed." } : null;
         },
       });
     } catch (e) {
       // A cursor that is not ours: start from the newest.
-      if (e instanceof HandoffError && older) return redirect("/assets");
+      if (e instanceof HandoffError && older) return redirect(filter === "all" ? "/assets" : `/assets?show=${filter}`);
       throw e;
     }
   });
@@ -220,7 +258,9 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
     const p = principalOf(s);
     const packetId = c.req.param("packet");
     try {
-      const h = await svc.read(p, packetId);
+      // Opening it here is a pickup in the browser, for a recipient.
+      const h = await svc.read(p, packetId, "browser");
+      const delivery = await svc.delivery(p, packetId);
       const ready = h.attachments.filter((a) => a.state === "ready");
       const cards: FileCard[] = [];
       for (const d of ready) {
@@ -230,11 +270,43 @@ export function assetsRoutes(): Hono<{ Bindings: Env; Variables: AssetsVariables
       }
       const v = await viewer(c, s);
       await recordEvent(c.env.DB, { kind: "assets", name: "open", subject: s.handle, outcome: "ok" });
-      return respond((nonce) => handoffPage(v, h, renderBrief(h.brief), cards, Date.now(), nonce));
+      return respond((nonce) => handoffPage(v, h, delivery, renderBrief(h.brief), cards, Date.now(), nonce));
     } catch (e) {
       if (!(e instanceof HandoffError)) throw e;
       return problem("Handoff not available", "This handoff is not available. It may have expired or been revoked.", e.status);
     }
+  });
+
+  // Its sender can revoke a handoff here: a page that asks first, then the form. Nobody else sees either.
+  const ownHandoff = async (c: C, s: Session, packetId: string) => {
+    const svc = c.get("service");
+    const p = principalOf(s);
+    try {
+      const pkt = await svc.livePacket(s.handle, packetId);
+      if (pkt.owner !== s.handle) return null;
+      return { view: await svc.read(p, packetId, null), delivery: await svc.delivery(p, packetId) };
+    } catch (e) {
+      if (!(e instanceof HandoffError)) throw e;
+      return null;
+    }
+  };
+  const notRevocable = () => problem("Handoff not available", "Only the sender of a live handoff can revoke it. It may have expired or been revoked already.", 404);
+
+  app.get("/assets/handoff/:packet/revoke", async (c) => {
+    const s = c.get("session");
+    const own = await ownHandoff(c, s, c.req.param("packet"));
+    if (!own) return notRevocable();
+    const v = await viewer(c, s);
+    return respond((nonce) => revokePage(v, own.view, own.delivery, nonce));
+  });
+
+  app.post("/assets/handoff/:packet/revoke", async (c) => {
+    const s = c.get("session");
+    const packetId = c.req.param("packet");
+    if (!(await ownHandoff(c, s, packetId))) return notRevocable();
+    await c.get("service").revoke(principalOf(s), packetId);
+    await recordEvent(c.env.DB, { kind: "assets", name: "revoke", subject: s.handle, outcome: "ok" });
+    return redirect("/assets?revoked=1");
   });
 
   // A file of a live handoff the member sent or received, shown in the page or downloaded.
