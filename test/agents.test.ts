@@ -124,6 +124,37 @@ describe("agent files on the hosted service", () => {
     expect(sitemap).toContain(`<loc>${ORIGIN}/privacy</loc>`);
   });
 
+  it("has a contact page, Markdown twins for /join and /contact, and auth.md starts with its heading", async () => {
+    const contact = await get(hosted, "/contact");
+    expect(contact.status).toBe(200);
+    expect((await contact.text()).replace(/<[^>]+>/g, "").length).toBeGreaterThan(1000);
+    for (const p of ["/contact.md", "/join.md"]) {
+      const res = await get(hosted, p);
+      expect(res.status, p).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/markdown");
+    }
+    expect((await get(hosted, "/join", { accept: "text/markdown" })).headers.get("content-type")).toContain("text/markdown");
+    expect(await (await get(hosted, "/auth.md")).text()).toMatch(/^# /);
+    expect((await get(env, "/contact")).headers.get("location")).toBe("https://handoff.infraworks.net/contact");
+  });
+
+  it("publishes an RFC 9727 API catalog for the MCP server and a section llms.txt for setup", async () => {
+    const res = await get(hosted, "/.well-known/api-catalog");
+    expect(res.headers.get("content-type")).toContain("application/linkset+json");
+    const cat = (await res.json()) as any;
+    expect(cat.linkset[0].anchor).toBe(`${ORIGIN}/mcp`);
+    expect(cat.linkset[0]["service-desc"][0].href).toBe(`${ORIGIN}/mcp/server-card`);
+    const setup = await (await get(hosted, "/connect/llms.txt")).text();
+    expect(setup.startsWith("#")).toBe(true);
+    expect(setup).toContain(`${ORIGIN}/mcp`);
+  });
+
+  it("the homepage graph describes the demo video", async () => {
+    const html = await (await get(hosted, "/")).text();
+    const graph = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/s.exec(html)![1]!)["@graph"] as any[];
+    expect(graph.find((x) => x["@type"] === "VideoObject")).toMatchObject({ contentUrl: `${ORIGIN}/demo/handoff-demo.mp4`, duration: "PT29S" });
+  });
+
   it("an unknown path asked for as Markdown gets a Markdown 404", async () => {
     const res = await get(hosted, "/no-such-page", { accept: "text/markdown" });
     expect(res.status).toBe(404);

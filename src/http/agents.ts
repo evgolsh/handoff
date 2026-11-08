@@ -106,7 +106,7 @@ Handoff is not the right tool for live chat between people, permanent file stora
 }
 
 function hostedSetup(f: Facts): string {
-  return `1. **Connect Handoff in your assistant.** Add the MCP server \`${f.mcp}\`. In Claude, [this link](${claudeInstallLink(f.mcp)}) opens the dialog with everything filled in. Steps for ChatGPT, Codex, Claude Code and Hermes: ${f.site}/connect.
+  return `1. **Connect Handoff in your assistant.** Add the MCP server \`${f.mcp}\`. In Claude, open \`${claudeInstallLink(f.mcp)}\`: it opens Claude's custom connector form with the name and address filled in. Steps for ChatGPT, Codex, Claude Code and Hermes: ${f.site}/connect.
 2. **Create a team when you sign in.** On Handoff's sign-in page choose **Create a team**: a team name (for example \`smiths\`) and your username (for example \`joe\`). Save the access code it shows once; you need it to sign in from another assistant. Or create one in a browser at ${f.site}/join.
 3. **Invite the other person.** Ask your assistant “invite anna to Handoff”. It calls \`handoff_invite\` and gives you a link to send her. The link shows her username and access code once, with buttons that add Handoff to Claude or ChatGPT.
 4. **Hand off.** “Hand this off to anna with the two PDFs.” She says “continue the handoff from joe” in her assistant.
@@ -116,7 +116,7 @@ An assistant cannot add a connector to its own app: the person does that once an
 
 function privateSetup(f: Facts): string {
   return `1. **Get a username and access code** from this server's admin. The admin adds members in the console (${f.site}/console) or by asking their assistant to call \`handoff_invite\`, which returns an invitation link.
-2. **Connect Handoff in your assistant.** Add the MCP server \`${f.mcp}\`. In Claude, [this link](${claudeInstallLink(f.mcp)}) opens the dialog with everything filled in. Steps for each assistant: ${f.site}/connect.
+2. **Connect Handoff in your assistant.** Add the MCP server \`${f.mcp}\`. In Claude, open \`${claudeInstallLink(f.mcp)}\`: it opens Claude's custom connector form with the name and address filled in. Steps for each assistant: ${f.site}/connect.
 3. **Sign in** with your username and access code, and approve access.
 4. **Hand off.** “Hand this off to tom with the two PDFs.” Tom says “continue the handoff from tim” in his assistant.`;
 }
@@ -189,7 +189,9 @@ ${PRIVATE_INSTALL}
 - [Skill](${f.site}/.well-known/agent-skills/handoff/SKILL.md)
 - [MCP server card](${f.site}/mcp/server-card)
 - [Homepage as Markdown](${f.site}/index.md)
-- [Privacy](${f.site}/privacy.md) · [About](${f.site}/about.md)
+- [Assistant setup index](${f.site}/connect/llms.txt): only the setup steps, per assistant
+- [Create a team](${f.site}/join.md)
+- [Privacy](${f.site}/privacy.md) · [About](${f.site}/about.md) · [Contact](${f.site}/contact.md)
 - [Source code](${GITHUB_URL}) · [Install guide for coding agents](${GITHUB_URL}/blob/main/llms-install.md)
 - [Everything in one file](${f.site}/llms-full.txt)
 `;
@@ -297,13 +299,8 @@ More: [sign-in for agents](${f.site}/auth.md) · [assistant setup](${f.site}/con
 export function authMd(cfg: Config): string {
   const f = facts(cfg);
   const who = f.hosted ? "team, username and access code" : "username and access code";
-  return `---
-title: Signing in to Handoff
-description: How an MCP client or agent gets an access token for the Handoff MCP server.
-canonical: ${f.site}/auth.md
----
-
-# Signing in to Handoff
+  // No front matter: auth.md readers (the WorkOS draft) expect the file to start with its heading.
+  return `# Signing in to Handoff
 
 Handoff's MCP server at \`${f.mcp}\` accepts OAuth 2.1 bearer tokens issued by this same server. A person always approves access: they sign in with their ${who} on Handoff's sign-in page. There are no API keys, and an agent cannot get a token without a person.
 
@@ -550,10 +547,74 @@ Handoff is made by Eugene Olshenbaum, a software engineer, and started as a way 
 
 ## Contact
 
+All the ways to reach us: ${f.site}/contact
+
 - Help and bug reports: ${ISSUES_URL}
 - Email: ${SUPPORT_EMAIL}
 - Security reports: see ${GITHUB_URL}/blob/main/SECURITY.md
 - Privacy: ${f.site}/privacy
+`;
+}
+
+export function contactMd(cfg: Config): string {
+  const f = facts(cfg);
+  return `---
+title: Contact Handoff
+description: How to get help with Handoff, report a bug or a security problem, or ask for your data to be deleted.
+canonical: ${f.site}/contact
+---
+
+# Contact
+
+Handoff is made by Eugene Olshenbaum.
+
+## Help and bug reports
+
+Open an issue on GitHub: ${ISSUES_URL}. Say which assistant you use (Claude, ChatGPT, Codex, Claude Code or Hermes), what you asked it, and what happened. Do not paste access codes, briefs or files into an issue: issues are public.
+
+## Email
+
+${SUPPORT_EMAIL}, for anything you do not want to post in public, such as a question about your team's data.
+
+## Lost access code or locked out
+
+Your team's admin resets your access code in Manage team (${f.site}/console), or sends you a new invitation from their assistant (“invite anna to Handoff”). The admin is the person who created the team. If the admin lost their own code, email ${SUPPORT_EMAIL} from the address you want the reply to, with the team name.
+
+## Deleting your data
+
+Handoffs and files are deleted when they expire, and the sender can revoke a handoff sooner. To delete a whole team or a person, email ${SUPPORT_EMAIL} with the team name. See ${f.site}/privacy.
+
+## Security problems
+
+Report a vulnerability privately as described in ${GITHUB_URL}/blob/main/SECURITY.md, not in a public issue.
+`;
+}
+
+export function joinMd(cfg: Config): string {
+  const f = facts(cfg);
+  return `---
+title: Create a Handoff team
+description: How to create a team on the hosted Handoff service, from the sign-in page or in a browser.
+canonical: ${f.site}/join
+---
+
+# Create a Handoff team
+
+A team is the people who can hand work to each other's assistants: a family, or a few colleagues. The person who creates it becomes its admin. Teams are free, up to ${f.cap} people.
+
+## From the sign-in page (the usual way)
+
+1. Add Handoff to your assistant with the server address \`${f.mcp}\`. Steps: ${f.site}/connect.md
+2. When your assistant opens Handoff's sign-in page, choose **Create a team**. Enter a team name (3 to 32 lowercase letters, digits or hyphens, for example \`smiths\`) and your username (for example \`joe\`).
+3. Save the access code it shows once, then continue. Your assistant is connected.
+
+## In a browser
+
+${f.site}/join has the same form. It shows your access code once and the steps to connect your assistant.
+
+## Then invite the others
+
+Ask your assistant “invite anna to Handoff” and send her the link it returns. The link works once and expires after 7 days. An admin can also add people in Manage team at ${f.site}/console.
 `;
 }
 
@@ -656,7 +717,19 @@ export function homeJsonLd(cfg: Config): string {
     "@type": "FAQPage",
     mainEntity: faq(cfg).map((x) => ({ "@type": "Question", name: x.q, acceptedAnswer: { "@type": "Answer", text: x.a.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") } })),
   };
-  const json = JSON.stringify({ "@context": "https://schema.org", "@graph": [org, app, site, howTo, questions] });
+  // The demo on the homepage.
+  const video = {
+    "@type": "VideoObject",
+    name: "Handoff demo: install, connect, send and continue",
+    description: "A brief and two files handed off from Claude Cowork on a Mac and continued in ChatGPT on Windows, in 29 seconds. The video has no sound.",
+    contentUrl: `${f.site}/demo/handoff-demo.mp4`,
+    embedUrl: `${f.site}/#walkthrough`,
+    thumbnailUrl: `${f.site}/img/og.png`,
+    uploadDate: "2026-11-05",
+    duration: "PT29S",
+    publisher: { "@id": `${f.site}/#organization` },
+  };
+  const json = JSON.stringify({ "@context": "https://schema.org", "@graph": [org, app, site, howTo, video, questions] });
   // A JSON string cannot end the script element: escape "<".
   return `<script type="application/ld+json">${json.replace(/</g, "\\u003c")}</script>`;
 }
@@ -672,6 +745,10 @@ function markdownFor(cfg: Config, mdPath: string): string | null {
       return privacyMd(cfg);
     case "/about.md":
       return hosted ? aboutMd(cfg) : null;
+    case "/contact.md":
+      return hosted ? contactMd(cfg) : null;
+    case "/join.md":
+      return hosted ? joinMd(cfg) : null;
     case "/agents.md":
       return agentsMd(cfg);
     case "/auth.md":
@@ -715,6 +792,7 @@ export function discoveryLinks(cfg: Config, path: string): string {
     `</.well-known/ard.json>; rel="ard"`,
     `</.well-known/ai-catalog.json>; rel="ai-catalog"`,
     `</mcp/server-card>; rel="mcp-server-card"; type="application/json"`,
+    `</.well-known/api-catalog>; rel="api-catalog"`,
   ];
   if (cfg.mode === "control") links.push(`</sitemap.xml>; rel="sitemap"`);
   if (twin) links.push(`<${twin}>; rel="alternate"; type="text/markdown"`);
@@ -731,7 +809,7 @@ export function robotsTxt(cfg: Config): string {
 }
 
 export function sitemapXml(cfg: Config, lastmod: string | null): string {
-  const paths = ["/", "/connect", "/join", "/privacy", "/about", "/llms.txt", "/agents.md", "/auth.md", "/index.md", "/connect.md"];
+  const paths = ["/", "/connect", "/join", "/privacy", "/about", "/contact", "/llms.txt", "/agents.md", "/auth.md", "/index.md", "/connect.md"];
   const mod = lastmod ? `<lastmod>${lastmod.slice(0, 10)}</lastmod>` : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -873,9 +951,31 @@ export function agentRoutes(): Hono<{ Bindings: Env; Variables: Vars }> {
     if (cfg.mode === "control") parts.push(aboutMd(cfg));
     return new Response(parts.join("\n\n---\n\n"), { headers: TEXT_HEADERS });
   });
-  for (const p of ["/index.md", "/connect.md", "/privacy.md", "/about.md", "/agents.md", "/auth.md", "/llms.md"]) {
+  for (const p of ["/index.md", "/connect.md", "/privacy.md", "/about.md", "/contact.md", "/join.md", "/agents.md", "/auth.md", "/llms.md"]) {
     app.get(p, (c) => md(markdownFor(c.get("cfg"), p)) ?? c.notFound());
   }
+  // A focused index for one section: an agent helping someone connect needs only this.
+  app.get("/connect/llms.txt", (c) => new Response(connectMd(c.get("cfg")).replace(/^---\n[\s\S]*?\n---\n\n?/, ""), { headers: TEXT_HEADERS }));
+  // RFC 9727 API catalog: the one API is the MCP server.
+  app.get("/.well-known/api-catalog", (c) => {
+    const cfg = c.get("cfg");
+    const body = {
+      linkset: [
+        {
+          anchor: cfg.mcpResource,
+          "service-desc": [{ href: `${cfg.publicUrl}/mcp/server-card`, type: "application/json" }],
+          "service-doc": [
+            { href: `${cfg.publicUrl}/llms.txt`, type: "text/plain" },
+            { href: `${cfg.publicUrl}/connect`, type: "text/html" },
+          ],
+          "service-meta": [{ href: `${cfg.publicUrl}/.well-known/oauth-protected-resource`, type: "application/json" }],
+        },
+      ],
+    };
+    return new Response(JSON.stringify(body, null, 2), {
+      headers: { ...JSON_HEADERS, "content-type": 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"' },
+    });
+  });
   app.get("/robots.txt", (c) => new Response(robotsTxt(c.get("cfg")), { headers: { ...TEXT_HEADERS, "access-control-allow-origin": "*" } }));
   app.get("/sitemap.xml", (c) => {
     const cfg = c.get("cfg");
@@ -914,6 +1014,11 @@ export function agentRoutes(): Hono<{ Bindings: Env; Variables: Vars }> {
   app.get("/privacy", (c) => {
     const cfg = c.get("cfg");
     return new Response(prosePage(cfg, "Privacy · Handoff", privacyMd(cfg), "/privacy", PRIVACY_UPDATED), { headers: PROSE_HEADERS });
+  });
+  app.get("/contact", (c) => {
+    const cfg = c.get("cfg");
+    if (cfg.mode !== "control") return c.redirect(`${CONTROL_CENTER_URL}/contact`, 302);
+    return new Response(prosePage(cfg, "Contact · Handoff", contactMd(cfg), "/contact"), { headers: PROSE_HEADERS });
   });
   app.get("/about", (c) => {
     const cfg = c.get("cfg");

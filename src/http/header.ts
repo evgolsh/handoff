@@ -103,7 +103,7 @@ export function pageFooter(opts: { active?: boolean; mode?: "private" | "control
     return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
   }
-  const links = `<a href="/">Home</a>${active ? '<a href="/join">Get started</a><a href="/connect">Assistant setup</a><a href="/account">My account</a>' : ""}<a href="/console">Manage team</a><a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/about">About</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
+  const links = `<a href="/">Home</a>${active ? '<a href="/join">Get started</a><a href="/connect">Assistant setup</a><a href="/account">My account</a>' : ""}<a href="/console">Manage team</a><a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
   return `<footer class="site-footer site-width"><p>Handoff · Your notes and files, from your assistant to theirs.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
 }

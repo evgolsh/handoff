@@ -19,6 +19,8 @@ export function markdownTwin(cfg: Config, path: string): string | null {
   if (path === "/connect") return "/connect.md";
   if (path === "/privacy") return "/privacy.md";
   if (path === "/about") return hosted ? "/about.md" : null;
+  if (path === "/contact") return hosted ? "/contact.md" : null;
+  if (path === "/join") return hosted ? "/join.md" : null;
   return null;
 }
 
