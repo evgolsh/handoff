@@ -12,9 +12,9 @@ const linkify = (s: string): string => esc(s).replace(/\[([^\]]+)\]\(((?:https:\
 
 const USE_CASES = [
   { id:"household-last-mile", label:"Family & household", title:"Your partner finishes the paperwork.",
-    description:"Sort out the details in Claude, then send your partner the notes and the PDFs. They finish in ChatGPT on their own phone or computer.",
-    send:"Hand this off to anna with the renewal offer. She’ll call the insurer tomorrow.",
-    receive:"Continue the handoff from joe.", files:["renewal-offer.pdf", "comparison.md"] },
+    description:"Scan the letter with your phone and upload it in Assets. Your assistant sends it with your notes, and your partner finishes in ChatGPT.",
+    send:"Hand this off to anna with tax-letter.pdf. She’ll call the tax office on Monday.",
+    receive:"Continue the handoff from joe.", files:["tax-letter.pdf", "questions.md"] },
   { id:"micro-team-relay", label:"Small teams", title:"A teammate starts with your decisions.",
     description:"Give a teammate the architecture, diagrams, and reasons behind the choices. Their coding assistant starts with the context you prepared.",
     send:"Hand this off to tom with auth-flow.png. Include the approaches we rejected and why.",
@@ -184,10 +184,10 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; signedIn?: b
   const heroActions = open && opts.signedIn
     ? `<a class="site-button primary" href="/assets">Open Assets <span aria-hidden="true">→</span></a><a class="site-button" href="/connect">Assistant setup <span aria-hidden="true">→</span></a><a class="text-link" href="#install">Run your own server <span aria-hidden="true">↓</span></a>`
     : open
-    ? `<a class="site-button primary" href="/join">Get started free <span aria-hidden="true">→</span></a><a class="site-button" href="/connect">Connect an assistant <span aria-hidden="true">↗</span></a><a class="text-link" href="#install">Run your own server <span aria-hidden="true">↓</span></a>`
+    ? `<a class="site-button primary" href="/connect">Get started <span aria-hidden="true">→</span></a><a class="site-button" href="#how">How it works <span aria-hidden="true">↓</span></a><a class="text-link" href="#install">Run your own server <span aria-hidden="true">↓</span></a>`
     : `<a class="site-button primary" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>View on GitHub</span> <span aria-hidden="true">↗</span></a><a class="text-link" href="#use-cases">Explore the use cases <span aria-hidden="true">↓</span></a>`;
   const heroNote = open
-    ? `<p class="hero-note"><span aria-hidden="true"></span>Free. No AI inside: Handoff makes no model calls and needs no API keys.${opts.signedIn ? "" : ` Already in a team? <a href="/connect">Connect your assistant ↗</a>`}</p>`
+    ? `<p class="hero-note"><span aria-hidden="true"></span>Free. No AI inside: Handoff makes no model calls and needs no API keys.</p>`
     : `<p class="hero-note"><span aria-hidden="true"></span>Runs on your own Cloudflare account, on the free plan. It makes no AI calls and needs no API keys. Deployed this server? <a href="/console/setup">Set it up ↗</a></p>`;
   const example = `<div class="chat"><div class="chat-app"><b class="app">${CLAUDE_ICON}Claude</b><span>joe</span></div>
         <p class="msg-user">Hand this off to anna. She’ll call the insurer tomorrow.</p>
@@ -203,11 +203,11 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; signedIn?: b
       </div>`;
   const how = open
     ? `<section id="how" class="section" aria-labelledby="how-title">
-    <div class="section-head"><div><p class="eyebrow">How it works</p><h2 id="how-title">A team, its people, and their files.</h2></div><p>Set up once in about five minutes. After that, you only ask your assistant.</p></div>
+    <div class="section-head"><div><p class="eyebrow">How it works</p><h2 id="how-title">Set up once, then ask your assistant.</h2></div><p>Setup takes about five minutes. Then you hand off by asking your assistant.</p></div>
     <ol class="how-grid">
-      <li><span class="how-n">01</span><h3>Create a team</h3><p>A team name and your username. Free, for up to ${cfg.tenantMembersCap} people.</p><a href="/join">Create a team →</a></li>
-      <li><span class="how-n">02</span><h3>Add your partner</h3><p>Ask your assistant “invite anna to Handoff” and send her the link it gives you. Or add her in Manage team.</p><a href="/console">Manage team →</a></li>
-      <li><span class="how-n">03</span><h3>Connect your assistants</h3><p>Each person adds Handoff to the assistant they already use: Claude, ChatGPT, Codex, Claude Code or Hermes.</p><a href="/connect">Assistant setup →</a></li>
+      <li><span class="how-n">01</span><h3>Add Handoff to your assistant</h3><p>Claude, ChatGPT, Codex, Claude Code or Hermes. Assistant setup has the steps for each.</p><a href="/connect">Assistant setup →</a></li>
+      <li><span class="how-n">02</span><h3>Create your team</h3><p>On the sign-in page that opens, choose Create a team, then pick a team name and your username. Up to ${cfg.tenantMembersCap} people.</p><a href="/join">Or create it in the browser →</a></li>
+      <li><span class="how-n">03</span><h3>Invite your partner</h3><p>Ask your assistant “invite anna to Handoff” and send her the link it gives you. She gets her access code and connects her own assistant.</p></li>
       <li><span class="how-n">04</span><h3>Hand off</h3><p>“Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.” A file on your phone? Upload it in Assets.</p><a href="/assets">Assets →</a></li>
     </ol>
     <div class="ask"><div><h3>Or let your assistant walk you through it.</h3><p>Claude and ChatGPT can read Handoff’s guide for assistants and take you through each step.</p></div>
@@ -229,7 +229,7 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; signedIn?: b
     <dl><div><dt>No AI inside</dt><dd>Handoff makes no model calls. No token bill, and no API key to create or paste.</dd></div><div><dt>Six MCP tools</dt><dd>Send, inbox, read, revoke, invite, and a link for uploading files. Each person signs in with a username and access code.</dd></div>${open ? `<div><dt>Hosted</dt><dd>Free. Files up to ${mib} MiB. Handoffs are deleted after ${days(cfg.defaultExpiryHours)} by default, ${days(cfg.maxExpiryHours)} at most, and you can revoke one sooner. <a href="/privacy">Privacy</a></dd></div>` : ""}<div><dt>Private server</dt><dd>One Worker, a D1 database and a KV file store on your Cloudflare account: 100,000 requests and 1,000 new files a day on the free plan. Handoffs are kept ${days(PRIVATE_DEFAULT_EXPIRY_HOURS)} by default.</dd></div><div><dt>Update check</dt><dd>A private server checks for updates once a day: a random id, the version and rough counts, nothing else. <code>HANDOFF_UPDATE_CHECK=off</code> turns it off.</dd></div></dl>
   </section>`;
   const closing = open
-    ? `<section class="closing" aria-label="Get started"><div><h2>Hand off your first file today.</h2><p>Free on the hosted service, or on your own Cloudflare account. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="/join">Get started free <span aria-hidden="true">→</span></a><a class="site-button ghost" href="#install"><span>Run your own server</span> <span aria-hidden="true">↓</span></a></div></section>`
+    ? `<section class="closing" aria-label="Get started"><div><h2>Hand off your first task today.</h2><p>Free on the hosted service, or on your own Cloudflare account. MIT licensed.</p></div><div class="closing-actions">${opts.signedIn ? `<a class="site-button" href="/assets">Open Assets <span aria-hidden="true">→</span></a>` : `<a class="site-button" href="/connect">Get started <span aria-hidden="true">→</span></a>`}<a class="site-button ghost" href="#install"><span>Run your own server</span> <span aria-hidden="true">↓</span></a></div></section>`
     : `<section class="closing" aria-label="Deploy Handoff"><div><h2>Run Handoff for your team.</h2><p>On your Cloudflare account, on the free plan, with no card. MIT licensed.</p></div><div class="closing-actions"><a class="site-button" href="#install"><span>Install Handoff</span> <span aria-hidden="true">↓</span></a><a class="site-button ghost" href="${GITHUB_URL}" target="_blank" rel="noopener">${GITHUB_ICON}<span>GitHub</span> <span aria-hidden="true">↗</span></a></div></section>`;
   const description = "Hand your work to someone else’s AI assistant, with your notes and the original files. Claude to ChatGPT and back. Free, with no AI inside.";
   return `<!doctype html><html lang="en"><head>
@@ -245,9 +245,9 @@ ${homeJsonLd(cfg)}
 ${pageHeader("use-cases", { active, mode: cfg.mode, signedIn: opts.signedIn })}
 <main id="main" class="site-width">
   <section class="hero" aria-labelledby="hero-title">
-    <div><p class="eyebrow">${open ? "Free · Claude, ChatGPT and more" : "Open-source MCP server"}</p>
+    <div><p class="eyebrow">${open ? "Claude, ChatGPT and more" : "Open-source MCP server"}</p>
       <h1 id="hero-title">Hand your work to <span>someone else’s assistant.</span></h1>
-      <p class="hero-lead">You sort out the details in Claude. Your partner says “continue the handoff from joe” in ChatGPT and gets your notes and the original files.</p>
+      <p class="hero-lead">You sort out the details in Claude. Your partner says “continue the handoff from joe” in ChatGPT and gets your notes and the original files. Your family or a few colleagues share one team, each in the assistant they already use.</p>
       <div class="hero-actions">${heroActions}</div>
       ${heroNote}
     </div>
@@ -266,12 +266,6 @@ ${pageHeader("use-cases", { active, mode: cfg.mode, signedIn: opts.signedIn })}
     <div class="section-head"><div><p class="eyebrow">Use cases</p><h2 id="cases-title">What people hand off.</h2></div><p>To a partner, a teammate, or to yourself on another computer.</p></div>
     <div class="cases">${USE_CASES.map(renderCase).join("\n")}</div>
     <p class="examples-note">${active ? `<a href="/connect">Setup for each assistant ↗</a>` : `<a href="#install">Install your own on Cloudflare ↓</a>`}</p>
-  </section>
-  <section class="watch" id="walkthrough" aria-labelledby="watch-title">
-    <div class="watch-copy"><p class="eyebrow">Demo, 29 seconds</p><h2 id="watch-title">From install to the first handoff.</h2><p>tim installs his team’s own server and tom connects ChatGPT. tim hands off a brief and two files from Cowork on a Mac, and tom continues in ChatGPT on Windows.</p></div>
-    <figure class="video-frame"><video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
-      Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
-      </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
   </section>
   ${questions}
   <section id="install" class="section" aria-labelledby="install-title">
@@ -292,11 +286,17 @@ npm run setup -- --members=tim,tom</code></pre>
     </div>
     <ol class="install-steps">
       <li><strong>Sign in to your Handoff console.</strong> After a browser deploy, <code>/console/setup</code> creates your admin account and shows your access code once. After a terminal install, sign in at the printed <code>/console</code> URL with the access code setup printed. Save access codes privately.</li>
-      <li><strong>Add your teammates.</strong> In Members, or by asking your assistant “invite tom to Handoff”. Each teammate gets a link with their username and access code. Teammates need no Cloudflare or GitHub account.</li>
-      <li><strong>Connect your assistants.</strong> Each person opens your server’s <code>/connect</code> page and follows the steps for their assistant. Everyone uses the same server. To upload a file from a phone or another folder, they sign in at <code>/assets</code>.</li>
+      <li><strong>Connect your assistant.</strong> Open your server’s <code>/connect</code> page and follow the steps for your assistant. To upload a file from a phone or another folder, sign in at <code>/assets</code>.</li>
+      <li><strong>Add your teammates.</strong> Ask your assistant “invite tom to Handoff”, or add them in Members. Each teammate gets a link with their username, access code and setup steps. Teammates need no Cloudflare or GitHub account.</li>
       <li><strong>Try a handoff.</strong> Say “Hand this off” in one assistant, then “Continue my handoff” in another. To send to your teammate, say “Hand this off to tom”.</li>
     </ol>
     <p class="install-note">From a terminal, a new Cloudflare account may need its <code>workers.dev</code> address registered first; setup links to the page. If the account already has a Worker named <code>handoff</code>, check it first: setup redeploys it. <a href="${GITHUB_URL}#install" target="_blank" rel="noopener">Full setup guide ↗</a></p>
+  </section>
+  <section class="watch" id="walkthrough" aria-labelledby="watch-title">
+    <div class="watch-copy"><p class="eyebrow">Private server demo, 29 seconds</p><h2 id="watch-title">From install to the first handoff.</h2><p>tim installs his team’s own server and tom connects ChatGPT. tim hands off a brief and two files from Cowork on a Mac, and tom continues in ChatGPT on Windows.</p></div>
+    <figure class="video-frame"><video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4" aria-label="Handoff walkthrough">
+      Your browser does not support embedded video. <a href="/demo/handoff-demo.mp4">Download the walkthrough</a>.
+      </video><figcaption><a href="/demo/handoff-demo.mp4">Open video ↗</a></figcaption></figure>
   </section>
   ${ownership}
   ${closing}

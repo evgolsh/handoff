@@ -82,7 +82,7 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: H
   const menu =
     opts.mode === "private"
       ? `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation"><a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>${active ? '<a href="/connect">Assistant setup</a>' : ""}${appLink(opts.signedIn)}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`
-      : `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${active ? '<a href="/#how">How it works</a><a href="/connect">Assistant setup</a>' : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
+      : `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${active ? `<a href="/#how">How it works</a>${opts.signedIn ? '<a href="/connect">Assistant setup</a>' : ""}` : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
   if (opts.mode === "private") {
     // A private install: its own Connect page and sign-in, and where to read about Handoff.
     return `<a href="#main" class="skip-link">Skip to content</a>
@@ -96,16 +96,16 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: H
     </nav></header>`;
   }
   // The hosted service: the homepage is the brand link. Signed in, the button opens Assets; otherwise "Get started"
-  // once sign-up is open, else "Install".
+  // leads to Assistant setup once sign-up is open (a team is created on the sign-in page), else "Install".
   const button = opts.signedIn
     ? `<a class="site-button primary" href="/assets">Open Assets</a>`
     : active
-      ? `<a class="site-button primary" href="/join"><span class="deploy-label-long">Get started free</span><span class="deploy-label-short">Get started</span></a>`
+      ? current === "connect" ? "" : `<a class="site-button primary" href="/connect">Get started</a>`
       : `<a class="site-button primary" href="/#install"><span class="deploy-label-long">Install Handoff</span><span class="deploy-label-short">Install</span></a>`;
   return `<a href="#main" class="skip-link">Skip to content</a>
   <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff home">${BRAND_ICON}<span>Handoff</span></a>
     <nav class="page-nav" aria-label="Handoff">
-      ${active ? `<a class="nav-link nav-secondary" href="/#how">How it works</a><a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}
+      ${active ? `<a class="nav-link nav-secondary" href="/#how">How it works</a>${opts.signedIn ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}` : ""}
       ${opts.signedIn ? "" : appLink(false, "nav-link nav-secondary")}
       <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
       ${menu}
@@ -121,7 +121,7 @@ export function pageFooter(opts: HeaderOpts = {}): string {
     return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
   }
-  const links = `<a href="/">Home</a>${active && !opts.signedIn ? '<a href="/join">Get started</a>' : ""}${active ? '<a href="/connect">Assistant setup</a>' : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
+  const links = `<a href="/">Home</a>${active ? (opts.signedIn ? '<a href="/connect">Assistant setup</a>' : '<a href="/connect">Get started</a>') : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
   return `<footer class="site-footer site-width"><p>Handoff · Your notes and files, from your assistant to theirs.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
 }

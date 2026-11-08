@@ -63,8 +63,8 @@ Replace `tim,tom` with your usernames, yours first. Setup creates the storage, d
 ## After you install a private server
 
 1. **Sign in to your Handoff console.** After a browser deploy, `/console/setup` creates your admin account and shows your access code once. After a terminal install, sign in at the printed `/console` URL with the access code setup printed. Assistants sign in with access codes, never with the setup code. Keep access codes in a password manager, and out of issues, commits and briefs.
-2. **Add your teammates.** After a browser deploy, or when adding more people later, create their usernames in **Members** and share each person's access code privately. Teammates need no Cloudflare or GitHub account.
-3. **Connect your assistants.** Each person opens your server's `/connect` page and follows the steps for their assistant. Everyone uses the same server and its `/mcp` address, for example `https://handoff.acme.workers.dev/mcp`, and signs in with their own username. To upload a file from a phone or another folder, they sign in at `/assets` (see [Assets](#assets)).
+2. **Connect your assistant.** Open your server's `/connect` page and follow the steps for your assistant. Everyone uses the same server and its `/mcp` address, for example `https://handoff.acme.workers.dev/mcp`, and signs in with their own username. To upload a file from a phone or another folder, sign in at `/assets` (see [Assets](#assets)).
+3. **Add your teammates.** Ask your assistant "invite tom to Handoff", or create their usernames in **Members**. Each teammate gets a link with their username, access code and setup steps. Teammates need no Cloudflare or GitHub account.
 4. **Try a handoff.** Say "Hand this off" in one assistant, then "Continue my handoff" in another. To send to your teammate, say "Hand this off to tom". Your teammate says "Continue the handoff from tim".
 
 The [console guide](docs/CONSOLE.md) covers Members, assistant connections and the Ops page.

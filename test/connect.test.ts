@@ -128,16 +128,32 @@ describe("connect page", () => {
     expect(html).toContain("ChatGPT</b><span>anna</span>");
     expect(html).toContain("<span>Send a handoff</span><b>Car insurance renewal</b>");
     expect(html).toContain('<p class="msg-user">Continue the handoff from joe.</p>');
-    // How it works: team, partner, connect, hand off.
+    // How it works starts from the assistant, as README and llms.txt do: connect, create the team on the sign-in
+    // page, invite, hand off.
     expect(html).toContain('id="how"');
+    const steps = [...html.matchAll(/<span class="how-n">\d+<\/span><h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
+    expect(steps).toEqual(["Add Handoff to your assistant", "Create your team", "Invite your partner", "Hand off"]);
     expect(html).toContain("invite anna to Handoff");
     expect(html).toContain('id="faq"');
+    // The hosted story ends with its questions; the private server follows, with the install demo inside it.
+    const at = (marker: string) => html.indexOf(marker);
+    for (const [a, b] of <[string, string][]>[['id="how"', 'id="use-cases"'], ['id="use-cases"', 'id="faq"'], ['id="faq"', 'id="install"'], ['id="install"', 'id="walkthrough"'], ['id="walkthrough"', "What runs where"]]) {
+      expect(at(a), `${a} before ${b}`).toBeLessThan(at(b));
+    }
+    // Use case 01 tells its own story, not the hero's car insurance renewal.
+    const cases = html.slice(at('id="use-cases"'), at('id="faq"'));
+    expect(cases).not.toMatch(/renewal|insurer/);
+    expect(cases).toContain("tax-letter.pdf");
+    expect(html).toContain("Hand off your first task today.");
     expect(html).toContain("What runs where");
     expect(html).not.toContain("noindex");
     expect(html).not.toContain("—");
     expect(html).not.toMatch(/playground/i);
-    // The hosted service is the first call to action; a private server is the second.
-    expect(html).toContain('class="site-button primary" href="/join">Get started free');
+    // The hosted service is the first call to action, and it starts at Assistant setup; a private server is the
+    // second. No second way into /connect competes with it.
+    expect(html).toContain('<a class="site-button primary" href="/connect">Get started <span aria-hidden="true">→</span></a><a class="site-button" href="#how">How it works');
+    expect(html).toContain('<a class="site-button primary" href="/connect">Get started</a>');
+    expect(html).not.toMatch(/[Gg]et started free/);
     // Three equal ways to install a private server: the Deploy button, a coding assistant, or the commands.
     // The browser route uses Cloudflare's own button graphic, served from this origin (the CSP allows no other).
     expect(html).toContain(`class="deploy-button" href="${DEPLOY_PATH}"`);
@@ -153,7 +169,8 @@ describe("connect page", () => {
     expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
     // The homepage is the brand link: no "Use cases" item in the menu or footer.
     expect(html).not.toContain(">Use cases</a>");
-    expect(html).toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
+    // Signed out, the header's way into setup is Get started; Assistant setup joins it once signed in.
+    expect(html).not.toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
     // Everyone signs in at /login; an admin's console is in the app's left menu.
     expect(html).toContain('<a class="nav-link nav-secondary" href="/login">Sign in</a>');
     expect(html).not.toContain(">Manage team</a>");

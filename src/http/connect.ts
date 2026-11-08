@@ -49,10 +49,13 @@ export interface Host {
 }
 
 /** Each assistant's setup steps. Also rendered as Markdown for agents (src/http/agents.ts). */
+const HOSTED_ORDER = ["claude", "chatgpt", "claude-code", "codex", "hermes"];
+
 export function hosts(url: string, control = false): Host[] {
-  const signIn = control ? "your team, username and access code" : "your username and access code";
+  // On the hosted service a new person creates their team on that same sign-in page.
+  const signIn = control ? "your team, username and access code, or choose **Create a team** if you're new," : "your username and access code";
   const host = new URL(url).host;
-  return [
+  const list: Host[] = [
     {
       id: "claude-code",
       name: "Claude Code",
@@ -91,7 +94,7 @@ export function hosts(url: string, control = false): Host[] {
         { text: `Open [Add Handoff to Claude](${claudeInstallLink(url)}): Claude's custom connector form opens with the name and server address filled in. Or open [Customize > Connectors](https://claude.ai/customize/connectors), select **+ Add**, then **Add custom connector**.` },
         { text: "Check that the name is Handoff and the server address is the one above, and select **Continue**." },
         { text: "Keep the recommended sign-in settings and select **Add**." },
-        { text: `Select **Connect**, sign in with ${signIn}, and approve access.` },
+        { text: `Select **Connect**, sign in with ${signIn} and approve access.` },
       ],
       warn: `To attach files, add \`${host}\` to the allowed domains in Claude's Settings > Capabilities. Without it, uploads fail with a 403 error.`,
       note: "On a Team or Enterprise plan, an owner first adds the connector in Organization settings > Connectors. Free plans allow one custom connector.",
@@ -129,6 +132,9 @@ export function hosts(url: string, control = false): Host[] {
       source: { label: "OpenAI: connect an MCP server", url: "https://developers.openai.com/plugins/quickstart" },
     },
   ];
+  // The hosted service is for families and small teams: the chat apps come first. A private server's admin is
+  // usually at a terminal, so its page starts with Claude Code.
+  return control ? HOSTED_ORDER.map((id) => list.find((h) => h.id === id)!) : list;
 }
 
 /** Renders `code`, **bold** and [label](https://url) in an escaped string. */
@@ -196,7 +202,8 @@ const PAGE_CSS = `
   .setup-address { display:flex; gap:16px; align-items:center; justify-content:space-between; padding:18px 0 24px; }
   .setup-address>div { min-width:0; }.setup-address code { display:block; font:12px/1.6 var(--mono);overflow-wrap:anywhere; }
   .addr-label { display:block; color:var(--muted); font-size:11px; margin-bottom:4px; }
-  .prompt-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .prompt-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .prompt-row > button { flex:none; margin-top:10px; }
   .next-note { color:var(--muted); font-size:12px; margin-top:16px; line-height:1.6; }.next-note a { text-decoration:underline;text-underline-offset:3px; }
   .guide-evidence summary,.privacy summary,.rail-note summary { cursor:pointer; color:var(--muted); font-size:12px; padding:8px 0; }
   .guide-evidence[open] summary { margin-bottom:8px; }.guide-evidence .status { padding:0;margin:0 0 10px; }
@@ -259,6 +266,7 @@ const PAGE_CSS = `
   .btn.done,.btn.done:hover { background:var(--ok); border-color:var(--ok); color:var(--panel); }
 
   .say { list-style:none; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .say.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .say li { padding:22px 24px; display:block; }
   .say-quote { margin:12px 0; font-size:21px; font-weight:500; letter-spacing:-.025em; }
   .say-text { max-width:58ch; font-size:14px; color:var(--muted); }
@@ -295,7 +303,7 @@ const PAGE_CSS = `
     .rail-note { order:2; padding:0 4px; border-top:0; }
     .legend .dot { margin-top:6px; }
     .section-head { flex-direction:column; align-items:flex-start; gap:10px; }
-    .say,.gate-cards { grid-template-columns:1fr; gap:16px; }
+    .say,.say.three,.gate-cards { grid-template-columns:1fr; gap:16px; }
   }
   @media(max-width:600px) {
     .section { padding-block:40px; }
@@ -390,6 +398,55 @@ const CONNECT_SCRIPT = `(function () {
 })();
 `;
 
+interface Say {
+  label: string;
+  quote: string;
+  /** Copied as is; only prompts that work word for word get a copy button. */
+  copy?: boolean;
+  text: string;
+}
+
+/**
+ * What to say once connected, for whoever reads the page: an admin invites the others first, a member who was
+ * invited picks up first, and a visitor who is not signed in sees all three. The hosted story is joe and anna;
+ * a private server's is tim and tom.
+ */
+function nextSteps(control: boolean, viewer?: Viewer): string {
+  const [sender, other, partner] = control ? ["joe", "anna", "partner"] : ["tim", "tom", "teammate"];
+  const invite: Say = {
+    label: `Invite your ${partner}`,
+    quote: `Invite my ${partner} to Handoff.`,
+    copy: true,
+    text: "Your assistant asks for their username and gives you a link to send them, with their access code and setup steps.",
+  };
+  const send: Say = {
+    label: "Send a handoff",
+    quote: `Hand this off to ${other}.`,
+    text: "Use their username. Your assistant writes the brief and attaches the files you chose.",
+  };
+  const pickUp: Say = {
+    label: "Pick up a handoff",
+    quote: "Continue my handoff.",
+    copy: true,
+    text: `Your assistant finds the handoff sent to you and reads its brief and files. If there are several, name the sender: “Continue the handoff from ${sender}.”`,
+  };
+  const says = viewer ? (viewer.admin ? [invite, send] : [pickUp, send]) : [invite, send, pickUp];
+  const items = says
+    .map(
+      (x, i) =>
+        `<li class="panel"><p class="eyebrow">${i + 1} · ${esc(x.label)}</p><div class="prompt-row"><p class="say-quote">“${esc(x.quote)}”</p>${x.copy ? copyButton(x.quote, `Copy: ${x.quote}`) : ""}</div><p class="say-text">${esc(x.text)}</p></li>`,
+    )
+    .join("\n      ");
+  return `<section class="section next" aria-labelledby="next-title">
+    <div class="section-head"><div><p class="eyebrow">Once you're connected</p><h2 id="next-title">Try your first handoff.</h2></div></div>
+    <ol class="say${says.length === 3 ? " three" : ""}">
+      ${items}
+    </ol>
+    <p class="next-note">Moving work between your own assistants or computers? Connect each one with the same username, then say “Hand this off” in one and “Continue my handoff” in the other. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>More examples ↗</a></p>
+    <p class="next-note">File on your phone, or not in your assistant's chat? Upload it in <a href="/assets">Assets</a>, then say “Hand this off with lease.pdf”. Your handoffs, with their briefs and files, are there too.</p>
+  </section>`;
+}
+
 export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boolean; viewer?: Viewer } = {}): string {
   const active = !opts.needsSetup;
   const url = cfg.mcpResource;
@@ -432,7 +489,9 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       <h1 id="connect-title">Connect an assistant.</h1>
       <p class="lead">Choose the app you use. Add Handoff, then sign in.</p>
     </section>
-    ${opts.viewer ? `<div class="setup-identity"><span>${opts.viewer.tenant ? `Team <strong>${esc(opts.viewer.tenant)}</strong> <span aria-hidden="true">/</span> ` : ""}Username <strong>${esc(opts.viewer.handle)}</strong></span><span>Use your saved access code when asked to sign in.</span></div>` : `<div class="access-notice"><div><strong>Have your ${control ? "team name, " : ""}username and access code ready.</strong><p>${control ? "Invited by someone? Use the details they shared with you." : "Ask the person who runs this server for your sign-in details."}</p></div>${control ? '<a class="btn" href="/join">Create a team →</a>' : '<a class="u" href="/login">Sign in →</a>'}</div>`}
+    ${opts.viewer ? `<div class="setup-identity"><span>${opts.viewer.tenant ? `Team <strong>${esc(opts.viewer.tenant)}</strong> <span aria-hidden="true">/</span> ` : ""}Username <strong>${esc(opts.viewer.handle)}</strong></span><span>Use your saved access code when asked to sign in.</span></div>` : (control
+      ? `<div class="access-notice"><div><strong>New to Handoff? You create your team when you sign in.</strong><p>Add Handoff to your assistant below. On the sign-in page that opens, choose Create a team. Invited? Use the username and access code from your invitation.</p></div><a class="u" href="/join">Create a team in the browser →</a></div>`
+      : `<div class="access-notice"><div><strong>Have your username and access code ready.</strong><p>Ask the person who runs this server for your sign-in details.</p></div><a class="u" href="/login">Sign in →</a></div>`)}
     <div class="setup-address"><div><span class="addr-label">Server address</span><code>${shownUrl}</code></div>${copyButton(url, "Copy the server address")}</div>
 
   <section class="section setup" id="assistants" aria-labelledby="assistant-title">
@@ -453,15 +512,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
     </div>
   </section>
 
-  <section class="section next" aria-labelledby="next-title">
-    <div class="section-head"><div><p class="eyebrow">Once you're connected</p><h2 id="next-title">Try your first handoff.</h2></div></div>
-    <ol class="say">
-      <li class="panel"><p class="eyebrow">1 · In your first assistant</p><div class="prompt-row"><p class="say-quote">“Hand this off.”</p>${copyButton("Hand this off.", "Copy the send prompt")}</div><p class="say-text">Ask it to package the brief and files from your chat.</p></li>
-      <li class="panel"><p class="eyebrow">2 · In another assistant</p><div class="prompt-row"><p class="say-quote">“Continue my handoff.”</p>${copyButton("Continue my handoff.", "Copy the receive prompt")}</div><p class="say-text">Connect with the same username, then pick up where you left off.</p></li>
-    </ol>
-    <p class="next-note">Working with someone else? Say “Hand this off to tom”, using your teammate's username. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>More examples ↗</a></p>
-    <p class="next-note">File on your phone, or not in your assistant's chat? Upload it in <a href="/assets">Assets</a>, then say “Hand this off with lease.pdf”. Your handoffs, with their briefs and files, are there too.</p>
-  </section>
+  ${nextSteps(control, opts.viewer)}
 
   <details class="privacy"><summary>Privacy, file limits and expiry</summary>
     <dl class="kv">

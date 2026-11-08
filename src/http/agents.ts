@@ -383,16 +383,16 @@ canonical: ${f.site}/
 
 ${ABSTRACT}
 
-You sort out the details in Claude. Your partner says “continue the handoff from joe” in ChatGPT and gets your notes and the original files. Free, no AI inside: Handoff makes no model calls and needs no API keys.
+You sort out the details in Claude. Your partner says “continue the handoff from joe” in ChatGPT and gets your notes and the original files. Your family or a few colleagues share one team, each in the assistant they already use. Free, no AI inside: Handoff makes no model calls and needs no API keys.
 
 ## How it works
 
-1. **Create a team.** A team name and your username. Free, up to ${f.cap} people.
-2. **Add your partner.** Ask your assistant “invite anna to Handoff” and send her the link it gives you, or add her in the console.
-3. **Connect your assistants.** Each person adds Handoff to the assistant they already use: Claude, ChatGPT, Codex, Claude Code or Hermes. [Steps](${f.site}/connect)
+1. **Add Handoff to your assistant.** Claude, ChatGPT, Codex, Claude Code or Hermes. [Steps](${f.site}/connect)
+2. **Create your team.** On the sign-in page that opens, choose **Create a team**, then pick a team name and your username. Up to ${f.cap} people. Or [create it in the browser](${f.site}/join).
+3. **Invite your partner.** Ask your assistant “invite anna to Handoff” and send her the link it gives you. She gets her access code and connects her own assistant.
 4. **Hand off.** “Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.”
 
-Get started: ${f.site}/join · or tell your assistant: “Set up Handoff so I can send files to my wife's assistant. Read ${f.site}/llms.txt.”
+Get started: ${f.site}/connect · or tell your assistant: “Set up Handoff so I can send files to my wife's assistant. Read ${f.site}/llms.txt.”
 
 ## What travels
 
@@ -708,9 +708,9 @@ export function homeJsonLd(cfg: Config): string {
     name: "Send files and instructions to someone else's AI assistant with Handoff",
     totalTime: "PT5M",
     step: [
-      { "@type": "HowToStep", name: "Create a team", text: "Create a team with a team name and your username.", url: `${f.site}/join` },
-      { "@type": "HowToStep", name: "Add your partner", text: "Ask your assistant to invite them, and send them the invitation link." },
-      { "@type": "HowToStep", name: "Connect your assistants", text: "Each person adds Handoff to Claude, ChatGPT or another assistant and signs in.", url: `${f.site}/connect` },
+      { "@type": "HowToStep", name: "Add Handoff to your assistant", text: "Add Handoff to Claude, ChatGPT or another assistant.", url: `${f.site}/connect` },
+      { "@type": "HowToStep", name: "Create your team", text: "On the sign-in page that opens, choose Create a team, then pick a team name and your username.", url: `${f.site}/join` },
+      { "@type": "HowToStep", name: "Invite your partner", text: "Ask your assistant to invite them, and send them the invitation link." },
       { "@type": "HowToStep", name: "Hand off", text: "Say “hand this off to anna with the PDFs”. She says “continue the handoff from joe”." },
     ],
   };
