@@ -99,6 +99,11 @@ access code is the one exception: it is shown once, on the page right after Add 
 - **Remove member**: deletes the member and their admin grant, signs out all their assistants, and revokes the
   live packets they sent or that were addressed to them, so a member added later with the same username cannot
   read them. Packets to the whole team stay. You cannot remove yourself.
+- **Delete team** (team admins on the control center, at the bottom of Your team): asks first, then removes every
+  member of the team with their sessions, invitations and admin grants, signs out all their assistants, revokes
+  every live packet the team sent or received, claims its unsent files for the next cleanup, and frees the team
+  name. Revoked packets and their files are deleted by the cleanup within 7 days. This is how a team is deleted:
+  the operator does not delete teams on request or recover lost access codes.
 - **Disconnect** (Assistants): signs out one assistant of one member at once. Signing in again works.
 - **Run cleanup now**: the hourly cleanup, run immediately.
 

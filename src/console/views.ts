@@ -87,7 +87,8 @@ export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): H
   <a href="/console/assistants"><div><strong>Manage connections</strong><p>See which assistants your team has connected.</p></div><span aria-hidden="true">↗</span></a>
 </section>
 <section class="team-metrics" aria-label="Your team"><span><strong>${num(d.members)}</strong> ${d.members === 1 ? "member" : "members"}</span><span><strong>${num(d.connected)}</strong> connected ${d.connected === 1 ? "assistant" : "assistants"}</span><span><strong>${num(d.packetsLive)}</strong> active ${d.packetsLive === 1 ? "handoff" : "handoffs"}</span></section>
-<div class="team-limits">Hosted · handoffs kept ${Math.round(cfg.defaultExpiryHours / 24)} days · ${Math.round(cfg.maxAttachmentBytes / 1048576)} MiB per file · <a class="u" href="/#install" target="_blank" rel="noopener">Run your own private server ↗</a></div>`);
+<div class="team-limits">Hosted · handoffs kept ${Math.round(cfg.defaultExpiryHours / 24)} days · ${Math.round(cfg.maxAttachmentBytes / 1048576)} MiB per file · <a class="u" href="/#install" target="_blank" rel="noopener">Run your own private server ↗</a></div>
+<section class="people-list" aria-label="Delete team"><article class="person-row"><div><strong>Delete team</strong><p>Removes every member and deletes every handoff and file of ${esc(v.tenant)}. It cannot be undone.</p></div><a class="btn sm danger" href="/console/team/delete">Delete team…</a></article></section>`);
 }
 
 export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {
@@ -317,7 +318,7 @@ export function codePage(v: Viewer, handle: string, code: string, kind: "added" 
 
 export function confirmPage(
   v: Viewer,
-  page: "members" | "assistants",
+  page: "overview" | "members" | "assistants",
   o: { title: string; text: Html; action: string; fields?: Record<string, string>; button: string; danger?: boolean; back: string },
 ): Html {
   const hidden = Object.entries(o.fields ?? {})

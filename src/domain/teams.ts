@@ -1,7 +1,7 @@
 import type { Config } from "../env";
 import { codeRecord, isValidHandle, newAccessCode, normalizeHandle } from "../auth/builtin";
 import { loginAllowed } from "../console/session";
-import { recordEvent } from "../store/events";
+import { recordEvent, revokeAccess } from "../store/events";
 import { nowIso } from "./ids";
 import { isValidTenant, qualify } from "./tenant";
 
@@ -62,4 +62,33 @@ async function insertTeam(db: D1Database, cfg: Config, team: string, handle: str
   if ((done[0]?.meta.changes ?? 0) !== 1) return null;
   await recordEvent(db, { kind: "console", name: "join", subject: identity, outcome: "ok" });
   return { ok: true, team, handle, identity, code };
+}
+
+/**
+ * Deletes a hosted team at its admin's request: every member, their sign-ins and invitations, and the team's
+ * name. Handoffs the team sent or received are revoked at once and removed by the cleanup within 7 days; files
+ * not in a handoff are claimed for deletion, so the next cleanup removes them. A team created later with the same
+ * name and usernames sees none of it.
+ */
+export async function deleteTeam(db: D1Database, tenant: string): Promise<void> {
+  if (!isValidTenant(tenant)) throw new Error(`not a team: ${tenant}`);
+  const prefix = `${tenant}/`;
+  const n = prefix.length;
+  const { results } = await db.prepare("SELECT handle FROM members WHERE substr(handle, 1, ?) = ?").bind(n, prefix).all<{ handle: string }>();
+  const at = nowIso();
+  await db.batch([
+    db.prepare("UPDATE packets SET revoked_at = ? WHERE (substr(owner, 1, ?) = ? OR substr(recipient, 1, ?) = ?) AND revoked_at IS NULL").bind(at, n, prefix, n, prefix),
+    db
+      .prepare(
+        `UPDATE attachments SET claim = 'delete' WHERE substr(owner, 1, ?) = ? AND claim IS NULL
+           AND NOT EXISTS (SELECT 1 FROM packet_attachments pa WHERE pa.attachment_id = attachments.id)`,
+      )
+      .bind(n, prefix),
+    db.prepare("DELETE FROM invites WHERE substr(handle, 1, ?) = ?").bind(n, prefix),
+    db.prepare("DELETE FROM member_sessions WHERE substr(handle, 1, ?) = ?").bind(n, prefix),
+    db.prepare("DELETE FROM admin_members WHERE substr(handle, 1, ?) = ?").bind(n, prefix),
+    db.prepare("DELETE FROM members WHERE substr(handle, 1, ?) = ?").bind(n, prefix),
+    db.prepare("DELETE FROM tenants WHERE slug = ?").bind(tenant),
+  ]);
+  for (const r of results) await revokeAccess(db, r.handle, "*");
 }

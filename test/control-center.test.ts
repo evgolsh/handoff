@@ -279,6 +279,52 @@ describe("the control center", () => {
     expect(await teamOverview(env.DB, other, now)).toEqual({ members: 2, connected: 1, packetsLive: 1 });
   });
 
+  it("a team's admin deletes the whole team: members, sign-ins, handoffs and unsent files; other teams stay", async () => {
+    const team = `del-${uid()}`;
+    const other = `${team}-x`;
+    const j = await join(team, "tim");
+    await join(other, "tim");
+    await upsertMember(env.DB, `${team}/tom`, "synthetic-member-code");
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const at = new Date().toISOString();
+    const packet = async (owner: string, recipient: string) => {
+      const id = uid();
+      await env.DB.prepare("INSERT INTO packets (id, owner, recipient, title, brief, created_at, expires_at, idempotency_key, request_hash) VALUES (?, ?, ?, 't', 'b', ?, ?, ?, 'hash')").bind(id, owner, recipient, at, future, id).run();
+      return id;
+    };
+    const mine = await packet(`${team}/tim`, `${team}/*`);
+    const theirs = await packet(`${other}/tim`, `${other}/tim`);
+    const fileId = `att_${uid()}`;
+    await env.DB.prepare("INSERT INTO attachments (id, owner, filename, state, blob_key, source, created_at, ready_at) VALUES (?, ?, 'lease.pdf', 'ready', ?, 'upload', ?, ?)").bind(fileId, `${team}/tim`, `blob/${fileId}`, at, at).run();
+    for (const subject of [`${team}/tom`, `${other}/tim`]) {
+      await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at, revoked_at) VALUES (?, 'c', ?, 'handoff', ?, NULL)").bind(uid(), subject, future).run();
+    }
+
+    const s = withCookie(ctl, j.cookie!.split(";")[0]!);
+    expect((await s.page("/console/overview")).text).toContain('href="/console/team/delete">Delete team…</a>');
+    expect((await s.page("/console/team/delete")).text).toContain(`Delete team ${team}?`);
+    const res = await s.submit("/console/team/delete");
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain(`Team ${team} and its members are gone.`);
+    expect(res.headers.get("set-cookie")).toMatch(/Max-Age=0/i);
+
+    const count = async (sql: string, ...binds: unknown[]) => (await env.DB.prepare(sql).bind(...binds).first<{ n: number }>())!.n;
+    expect(await count("SELECT COUNT(*) AS n FROM members WHERE handle LIKE ?", `${team}/%`)).toBe(0);
+    expect(await count("SELECT COUNT(*) AS n FROM tenants WHERE slug = ?", team)).toBe(0);
+    expect(await count("SELECT COUNT(*) AS n FROM packets WHERE id = ? AND revoked_at IS NOT NULL", mine)).toBe(1);
+    expect(await count("SELECT COUNT(*) AS n FROM attachments WHERE id = ? AND claim = 'delete'", fileId)).toBe(1);
+    expect(await count("SELECT COUNT(*) AS n FROM oauth_refresh_tokens WHERE subject = ? AND revoked_at IS NULL", `${team}/tom`)).toBe(0);
+    // The other team is untouched.
+    expect(await count("SELECT COUNT(*) AS n FROM members WHERE handle = ?", `${other}/tim`)).toBe(1);
+    expect(await count("SELECT COUNT(*) AS n FROM packets WHERE id = ? AND revoked_at IS NULL", theirs)).toBe(1);
+    expect(await count("SELECT COUNT(*) AS n FROM oauth_refresh_tokens WHERE subject = ? AND revoked_at IS NULL", `${other}/tim`)).toBe(1);
+    // The old session is over, and the name is free again, with nothing of the old team in it.
+    expect((await s.page("/console/overview")).location).toMatch(/^\/login/);
+    const again = await join(team, "tim");
+    expect(again.status).toBe(200);
+    expect((await withCookie(ctl, again.cookie!.split(";")[0]!).page("/assets")).text).not.toContain("lease.pdf");
+  });
+
   it("the access code decides the team, at the web sign-in and at the OAuth sign-in", async () => {
     const team = `delta-${uid()}`;
     const me = await join(team, "tim");

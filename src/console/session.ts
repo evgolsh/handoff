@@ -121,6 +121,12 @@ export async function switchSession(db: D1Database, header: string | undefined, 
   return sessionCookie([to, ...live.filter((l) => l !== to)].map((l) => l.raw).join("."), COOKIE_SECONDS);
 }
 
+/** The cookie after some of this browser's accounts ended: the accounts still signed in, or none. */
+export async function keptSessions(db: D1Database, header: string | undefined): Promise<{ cookie: string; signedIn: boolean }> {
+  const live = await liveSessions(db, header);
+  return live.length ? { cookie: sessionCookie(live.map((l) => l.raw).join("."), COOKIE_SECONDS), signedIn: true } : { cookie: sessionCookie("", 0), signedIn: false };
+}
+
 /** Signs this browser out of every account. Returns the Set-Cookie value that clears the cookie. */
 export async function endSession(db: D1Database, header: string | undefined): Promise<string> {
   const tokens = cookieTokens(header);

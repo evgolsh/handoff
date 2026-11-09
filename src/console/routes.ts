@@ -8,7 +8,8 @@ import { runCleanup } from "../cleanup";
 import { base64url, nowIso, sha256Hex } from "../domain/ids";
 import { recordEvent, revokeAccess } from "../store/events";
 import { CONSOLE_HEADERS, SETUP_CODE_MIN, esc, interactiveHeaders, problemPage, setupDonePage, setupPage, type Html, type Viewer } from "./html";
-import { csrfOk, isAdmin, loginAllowed, sameOrigin, sessionFrom, startSession, type Session } from "./session";
+import { csrfOk, isAdmin, keptSessions, loginAllowed, sameOrigin, sessionFrom, startSession, type Session } from "./session";
+import { deleteTeam } from "../domain/teams";
 import { assistants, controlCenter, members, ops, overview, teamOverview } from "./stats";
 import { assistantsPage, codePage, confirmPage, membersPage, opsPage, overviewPage, teamOverviewPage, tenantsPage } from "./views";
 
@@ -144,6 +145,34 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     return v.tenant
       ? html(teamOverviewPage(v, c.get("cfg"), await teamOverview(c.env.DB, v.tenant)))
       : html(overviewPage(v, c.get("cfg"), await overview(c.env, c.get("cfg"))));
+  });
+
+  // A hosted team's admin deletes the whole team. Nobody else can: the people who run Handoff do not.
+  app.get("/console/team/delete", (c) => {
+    const v = vw(c);
+    if (!v.tenant) return redirect("/console/overview");
+    return html(
+      confirmPage(v, "overview", {
+        title: `Delete team ${v.tenant}?`,
+        text: `Every member of <strong>${esc(v.tenant)}</strong>, you included, is removed and signed out at once, in the browser and in every assistant. Every handoff the team sent or received stops working, and its handoffs and files are deleted within 7 days. This cannot be undone.`,
+        action: "/console/team/delete",
+        button: "Delete team",
+        danger: true,
+        back: "/console/overview",
+      }),
+    );
+  });
+
+  app.post("/console/team/delete", async (c) => {
+    const db = c.env.DB;
+    const s = c.get("session");
+    const tenant = tenantOfSession(s);
+    if (!tenant) return redirect("/console/overview");
+    await audit(db, s, "team_delete");
+    await deleteTeam(db, tenant);
+    const kept = await keptSessions(db, c.req.header("cookie"));
+    const back = kept.signedIn ? { site: "Handoff", href: "/assets", label: "Back to Dashboard" } : { site: "Handoff", href: "/", label: "Back to Handoff" };
+    return html(problemPage("Team deleted", `Team ${tenant} and its members are gone. Its handoffs and files are deleted within 7 days.`, back), 200, { "set-cookie": kept.cookie });
   });
 
   // The control center's operator: every tenant, and the project's tracking.

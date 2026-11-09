@@ -5,9 +5,9 @@ a flaw in each of those private deployments. Please report security issues priva
 
 ## Reporting
 
-Use GitHub's private vulnerability reporting on this repository ("Security" tab, "Report a vulnerability")
-or email evgolsh@gmail.com with "Handoff security" in the subject. Include the version (the console's Ops page
-shows the deployed version id), the steps, and what a member could read or do that they should not.
+Use GitHub's private vulnerability reporting on this repository: the "Security" tab, then "Report a
+vulnerability" (https://github.com/evgolsh/handoff/security/advisories/new). Include the version (the console's
+Ops page shows the deployed version id), the steps, and what a member could read or do that they should not.
 
 You will get an acknowledgement within three days. Please give us a reasonable time to ship a fix before
 describing the issue in public.

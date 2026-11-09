@@ -22,7 +22,6 @@ export { claudeInstallLink };
 
 type Vars = AppVariables;
 
-export const SUPPORT_EMAIL = "evgolsh@gmail.com";
 const ISSUES_URL = `${GITHUB_URL}/issues`;
 
 /** What people ask their assistant when Handoff is the answer. Used in the catalogs and the agent guide. */
@@ -465,13 +464,13 @@ export function faq(cfg: Config): { q: string; a: string }[] {
 export function privacyMd(cfg: Config): string {
   const f = facts(cfg);
   const operator = f.hosted
-    ? `The hosted Handoff service at ${f.site} is run by Eugene Olshenbaum, the author of Handoff. Contact: ${SUPPORT_EMAIL}.`
+    ? `The hosted Handoff service at ${f.site} is run by Eugene Olshenbaum, the author of Handoff. Contact: ${f.site}/contact.`
     : `This Handoff server at ${f.host} is run by its own operator on their Cloudflare account, not by the Handoff project. Ask your team's admin about it. The rest of this page describes what the software stores.`;
   return `---
 title: Handoff privacy policy
 description: What Handoff stores, for how long, who can see it, and how to have it deleted.
 canonical: ${f.site}/privacy
-last-updated: 2026-11-07
+last-updated: 2026-11-10
 ---
 
 # Privacy
@@ -502,7 +501,7 @@ Handoff has no AI inside: it makes no model calls, and nothing you send is used 
 - A handoff: the sender and the recipient (or everyone in the team, when sent to the team). People in other teams cannot address or read it.
 - Pickups: the sender sees when each recipient picked up or opened their handoff, and in which assistant. A recipient sees only their own.
 - A file you uploaded and have not sent: only you, in Assets and in the assistants you connect.
-- ${f.hosted ? "The operator can technically read stored data. It is not read except to keep the service running or when the law requires it." : "The server's operator can technically read stored data."}
+- ${f.hosted ? "The operator does not read teams' handoffs, files or accounts, and does not recover access codes. Stored data is not end-to-end encrypted, so the operator could technically read it; it is opened only if the law requires it." : "The server's operator can technically read stored data."}
 - The assistants you connect read what you ask them to read. What they do with it is under your agreement with that assistant (Anthropic, OpenAI and others).
 
 ## Where
@@ -514,7 +513,7 @@ On Cloudflare (Workers, a D1 database and Cloudflare's file storage), which proc
 - Revoke a handoff you sent with your assistant (“revoke that handoff”) or in Assets, or wait for it to expire.
 - Delete your uploaded files in Assets (${f.site}/assets).
 - Disconnect an assistant: your team's admin can do it in the console.
-- To delete your account and everything in it, ask your team's admin${f.hosted ? `, or write to ${SUPPORT_EMAIL}` : ""}.
+- To delete your account, ask your team's admin to remove you in Members.${f.hosted ? " An admin deletes the whole team, with every member, handoff and file, on the Your team page (Delete team)." : ""}
 
 ## Cookies
 
@@ -522,7 +521,7 @@ A sign-in cookie keeps you signed in to Assets and the console, up to five accou
 
 ## Changes
 
-This page shows the date of its last change. Questions: ${f.hosted ? SUPPORT_EMAIL : "your team's admin"}.
+This page shows the date of its last change. Questions: ${f.hosted ? `${f.site}/contact` : "your team's admin"}.
 `;
 }
 
@@ -561,7 +560,6 @@ Handoff is made by Eugene Olshenbaum, a software engineer, and started as a way 
 All the ways to reach us: ${f.site}/contact
 
 - Help and bug reports: ${ISSUES_URL}
-- Email: ${SUPPORT_EMAIL}
 - Security reports: see ${GITHUB_URL}/blob/main/SECURITY.md
 - Privacy: ${f.site}/privacy
 `;
@@ -571,7 +569,7 @@ export function contactMd(cfg: Config): string {
   const f = facts(cfg);
   return `---
 title: Contact Handoff
-description: How to get help with Handoff, report a bug or a security problem, or ask for your data to be deleted.
+description: How to get help with Handoff, report a bug or a security problem, recover from a lost access code, or delete your data.
 canonical: ${f.site}/contact
 ---
 
@@ -583,17 +581,15 @@ Handoff is made by Eugene Olshenbaum.
 
 Open an issue on GitHub: ${ISSUES_URL}. Say which assistant you use (Claude, ChatGPT, Codex, Claude Code or Hermes), what you asked it, and what happened. Do not paste access codes, briefs or files into an issue: issues are public.
 
-## Email
+## Lost access code
 
-${SUPPORT_EMAIL}, for anything you do not want to post in public, such as a question about your team's data.
+Your team's admin resets your access code in Members (${f.site}/console/members), or sends you a new invitation from their assistant (“invite anna to Handoff”). The admin is the person who created the team.
 
-## Lost access code or locked out
-
-Your team's admin resets your access code in Manage team (${f.site}/console), or sends you a new invitation from their assistant (“invite anna to Handoff”). The admin is the person who created the team. If the admin lost their own code, email ${SUPPORT_EMAIL} from the address you want the reply to, with the team name.
+If you are the admin: while you are still signed in somewhere in a browser, open Members (${f.site}/console/members) and reset your own code. Nobody else can do it for you. Handoff keeps only a hash of each code, and the people who run Handoff do not open teams' accounts or recover them. Keep your code in a password manager. If you are signed out everywhere, create a new team at ${f.site}/join; the old team's handoffs expire on their own.
 
 ## Deleting your data
 
-Handoffs and files are deleted when they expire, and the sender can revoke a handoff sooner. To delete a whole team or a person, email ${SUPPORT_EMAIL} with the team name. See ${f.site}/privacy.
+Handoffs and files are deleted when they expire, and the sender can revoke a handoff sooner. Your team's admin removes a person in Members, and deletes the whole team on the Your team page (Delete team): every member, handoff and file of the team is gone within 7 days. See ${f.site}/privacy.
 
 ## Security problems
 
@@ -625,7 +621,7 @@ ${f.site}/join has the same form. It shows your access code once and the steps t
 
 ## Then invite the others
 
-Ask your assistant “invite anna to Handoff” and send her the link it returns. The link works once and expires after 7 days. An admin can also add people in Manage team at ${f.site}/console.
+Ask your assistant “invite anna to Handoff” and send her the link it returns. The link works once and expires after 7 days. An admin can also add people in Members at ${f.site}/console/members.
 `;
 }
 
@@ -690,7 +686,7 @@ export function homeJsonLd(cfg: Config): string {
     logo: `${f.site}/img/icon.png`,
     sameAs: [GITHUB_URL],
     founder: { "@type": "Person", name: "Eugene Olshenbaum" },
-    contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: SUPPORT_EMAIL, url: ISSUES_URL, availableLanguage: ["en"] },
+    contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: ISSUES_URL, availableLanguage: ["en"] },
   };
   const app = {
     "@type": "SoftwareApplication",
@@ -928,7 +924,7 @@ export function notFoundMarkdown(cfg: Config): Response {
   return new Response(NOT_FOUND_MD(cfg), { status: 404, headers: { ...MD_HEADERS, "cache-control": "no-store" } });
 }
 
-const PRIVACY_UPDATED = "9 November 2026";
+const PRIVACY_UPDATED = "10 November 2026";
 
 /**
  * Routes. Mounted before the pages: a Markdown request for a public page is answered here, and every public
