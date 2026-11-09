@@ -1,7 +1,7 @@
 import { SignJWT, exportJWK, generateKeyPair, importJWK, type JWK } from "jose";
 import { SCOPES, type Config } from "../env";
 import { base64url, newTicketToken, nowIso, plusMs, sha256Hex } from "../domain/ids";
-import { document, flowHeader } from "../console/html";
+import { NOT_A_SIGN_IN, document, flowHeader } from "../console/html";
 import { markClientUsed, recordEvent } from "../store/events";
 import { isAllowedRedirectUri, registeredClient, type KnownClient } from "./clients";
 import { handleOf, isValidTenant, tenantOf } from "../domain/tenant";
@@ -347,8 +347,8 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
       <form method="post" action="/authorize" class="flow-stack">
         ${hiddenParams(params)}
         <input type="hidden" name="action" value="create_team">
-        <div><label class="lbl" for="new-team-handle">Your username</label><input id="new-team-handle" name="handle" class="field" type="text" autocapitalize="none" spellcheck="false" required maxlength="63" placeholder="joe" value="${esc(create.handle ?? "")}"${create.error ? " autofocus" : ""}></div>
-        <div><label class="lbl" for="new-team-name">Team or family name <span class="muted">(optional)</span></label><input id="new-team-name" name="team" class="field" type="text" autocapitalize="none" spellcheck="false" maxlength="32" placeholder="smiths" value="${esc(create.team ?? "")}"><p class="field-help">Leave it empty to use your username.</p></div>
+        <div><label class="lbl" for="new-team-handle">Your name</label><input id="new-team-handle" name="handle" class="field" type="text" autocapitalize="none" spellcheck="false" required maxlength="63" placeholder="joe" value="${esc(create.handle ?? "")}"${create.error ? " autofocus" : ""} ${NOT_A_SIGN_IN}><p class="field-help">Your username: you sign in with it and your access code.</p></div>
+        <div><label class="lbl" for="new-team-name">Team or family name <span class="muted">(optional)</span></label><input id="new-team-name" name="team" class="field" type="text" autocapitalize="none" spellcheck="false" maxlength="32" placeholder="smiths" value="${esc(create.team ?? "")}" ${NOT_A_SIGN_IN}><p class="field-help">Leave it empty to use your username.</p></div>
         <button type="submit" class="btn">Create team and continue</button>
       </form>
       <p class="flow-note">Free. <a href="/privacy" target="_blank" rel="noopener">Privacy</a></p>

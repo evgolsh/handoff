@@ -1,6 +1,6 @@
 import type { Config } from "../env";
 import { createTeam } from "../domain/teams";
-import { CONSOLE_HEADERS, document, esc, flowHeader, flowProgress, interactiveHeaders, type Html } from "../console/html";
+import { CONSOLE_HEADERS, NOT_A_SIGN_IN, document, esc, flowHeader, flowProgress, interactiveHeaders, type Html } from "../console/html";
 import { startSession } from "../console/session";
 import { COPY_SCRIPT } from "./clipboard";
 
@@ -18,7 +18,7 @@ export function joinPage(cfg: Config, opts: { error?: string; team?: string; han
   <section class="flow-intro"><span class="kicker">Handoff, hosted</span><h1>Create a team.</h1><p>Pick a username and get an access code. That's all you need to sign in, on any computer and in any assistant. Invite your family or a few colleagues when you're ready.</p><div class="flow-facts"><span>Free</span><span>Up to ${cfg.tenantMembersCap} people</span></div><p class="flow-note">Handoffs are kept ${Math.round(cfg.defaultExpiryHours / 24)} days · ${Math.round(cfg.maxAttachmentBytes / 1048576)} MiB per file · <a href="/privacy">Privacy</a><br><a href="/#install" target="_blank" rel="noopener">Run your own private server ↗</a></p></section>
   <form method="post" action="/join" class="flow-panel" autocomplete="off">
     ${opts.error ? `<div class="flash" role="alert">${esc(opts.error)}</div>` : ""}
-    <div><label class="lbl" for="handle">Your username</label><input id="handle" name="handle" class="field" required autofocus maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="joe" value="${esc(opts.handle ?? "")}"><p class="field-help">You sign in with it, with your access code.</p></div>
+    <div><label class="lbl" for="handle">Your name</label><input id="handle" name="handle" class="field" required autofocus maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="joe" value="${esc(opts.handle ?? "")}" ${NOT_A_SIGN_IN}><p class="field-help">Your username: you sign in with it and your access code.</p></div>
     <div><label class="lbl" for="team">Team or family name <span class="muted">(optional)</span></label><input id="team" name="team" class="field" maxlength="32" pattern="[a-z0-9][a-z0-9\\-]{1,30}[a-z0-9]" autocapitalize="none" spellcheck="false" placeholder="smiths" value="${esc(opts.team ?? "")}" aria-describedby="team-help"><p class="field-help" id="team-help">Leave it empty to use your username. 3–32 lowercase letters, numbers or hyphens.</p></div>
     <button type="submit" class="btn primary">Create team →</button>
     <div class="flow-note">You'll be this team's admin. This browser switches to the new team.</div>

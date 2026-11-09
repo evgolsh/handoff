@@ -115,6 +115,9 @@ pre.code{margin:0;font-family:var(--mono);font-size:12px;line-height:1.5;white-s
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
 .row>.field{width:auto;flex:1 1 180px}
 form.inline{display:inline}
+/* A secret typed once that is not a sign-in (the setup code): shown as dots, but not a password field, so no
+   password manager offers to save it as this site's login. */
+.masked{-webkit-text-security:disc}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .flow-top,.flow-wrap,.login{width:calc(100% - var(--gutter)*2);max-width:1440px;margin-inline:auto}
 .flow-top{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line)}
@@ -403,8 +406,8 @@ export function setupPage(ready: boolean, error?: string, opts: { tooShort?: boo
     <div class="t">Set up this server</div>
     <div class="small muted">This server has no admin yet. Enter the setup code you chose when you deployed it (the <span class="mono">HANDOFF_SETUP_CODE</span> secret) and the username you want. You become a member and the console's admin, and get your access code on the next page. This page closes once an admin exists.</div>
     ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
-    <div><label class="lbl" for="setup_code">setup code</label><input id="setup_code" name="setup_code" type="password" class="field" required autofocus ${NOT_A_SIGN_IN}></div>
-    <div><label class="lbl" for="handle">your username</label><input id="handle" name="handle" class="field" required autocapitalize="none" spellcheck="false" placeholder="for example: tim" ${NOT_A_SIGN_IN}></div>
+    <div><label class="lbl" for="setup_code">setup code</label><input id="setup_code" name="setup_code" type="text" class="field masked" required autofocus autocapitalize="none" spellcheck="false" ${NOT_A_SIGN_IN}></div>
+    <div><label class="lbl" for="handle">your name</label><input id="handle" name="handle" class="field" required autocapitalize="none" spellcheck="false" placeholder="for example: tim" ${NOT_A_SIGN_IN}></div>
     <div><button type="submit" class="btn primary">Create my admin account</button></div>
   </form>`
     : `<div class="panel">
