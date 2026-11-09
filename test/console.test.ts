@@ -169,7 +169,7 @@ describe("sign-in", () => {
 describe("console members", () => {
   it("adds a member and shows the code once; the code signs in; a taken or reserved handle is refused", async () => {
     const b = await signIn(await admin());
-    // Their username is not this person's sign-in: password managers neither offer nor save a login there.
+    // A new member's name is not this person's sign-in: password managers neither offer nor save a login there.
     expect(await b.page("/console/members")).toMatch(/<input id="new-member" name="member"[^>]*autocomplete="off" data-1p-ignore data-lpignore="true"/);
     const handle = `new-${uid()}`;
     const res = await b.submit("/console/members", { member: handle.toUpperCase() });
