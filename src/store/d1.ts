@@ -214,6 +214,17 @@ export class D1Repository implements Repository {
     return results;
   }
 
+  async getUnsentAttachment(owner: string, id: string): Promise<AttachmentRow | null> {
+    return this.db
+      .prepare(
+        `SELECT a.* FROM attachments a
+         WHERE a.id = ? AND a.owner = ? AND a.state = 'ready' AND a.claim IS NULL
+           AND NOT EXISTS (SELECT 1 FROM packet_attachments pa WHERE pa.attachment_id = a.id)`,
+      )
+      .bind(id, owner)
+      .first<AttachmentRow>();
+  }
+
   async getAttachmentsForPackets(packetIds: string[]): Promise<Array<AttachmentRow & { packet_id: string }>> {
     if (packetIds.length === 0) return [];
     const marks = packetIds.map(() => "?").join(",");

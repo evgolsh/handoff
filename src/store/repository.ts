@@ -123,6 +123,8 @@ export interface Repository {
   countUnsentAttachments(owner: string): Promise<number>;
   /** This owner's ready, free attachments that no packet links, newest first. */
   listUnsentAttachments(owner: string, limit: number): Promise<AttachmentRow[]>;
+  /** One of this owner's unsent files (ready, free, linked by no packet), or null. */
+  getUnsentAttachment(owner: string, id: string): Promise<AttachmentRow | null>;
   /** The attachments of these packets, each with its packet id, in packet order. */
   getAttachmentsForPackets(packetIds: string[]): Promise<Array<AttachmentRow & { packet_id: string }>>;
   /** Atomically takes a free staging slot for one writer. False when it is not staging or another actor holds it. */

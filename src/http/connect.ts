@@ -438,7 +438,7 @@ function nextSteps(control: boolean, viewer?: Viewer): string {
       ${items}
     </ol>
     <p class="next-note">Moving work between your own assistants or computers? Connect each one with the same username, then say “Hand this off” in one and “Continue my handoff” in the other. <a ${control ? 'href="/#use-cases"' : `href="${CONTROL_CENTER_URL}/#use-cases" target="_blank" rel="noopener"`}>More examples ↗</a></p>
-    <p class="next-note">File on your phone, or not in your assistant's chat? Upload it in <a href="/assets">Assets</a>, then say “Hand this off with lease.pdf”. Your handoffs, with their briefs and files, are there too.</p>
+    <p class="next-note">File on your phone, or not in your assistant's chat? Upload it in <a href="/assets">Assets</a>, then say “Hand this off with lease.pdf”, or “Read lease.pdf from Handoff” to work on it in that chat. Your handoffs, with their briefs and files, are there too.</p>
   </section>`;
 }
 

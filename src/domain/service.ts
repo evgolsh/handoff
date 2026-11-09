@@ -618,15 +618,19 @@ export class HandoffService {
   }
 
   /**
-   * Owner download of the original. Files are readable only through a live packet: with packetId, that packet;
-   * without it, any live packet of the owner that contains the file. Unsent, revoked or expired: unavailable.
+   * Owner download of the original. The uploader reads their own file while it is unsent (in no packet), as in
+   * Assets; once sent, only through a live packet: with packetId, that packet; without it, any live packet of the
+   * owner that contains the file. Sent and then revoked or expired: unavailable, so revoking still closes it.
    */
   async ownerOriginal(principal: Principal, attachmentId: string, packetId?: string): Promise<AttachmentRow> {
     if (packetId) return (await this.readAttachment(principal, packetId, attachmentId)).attachment;
+    const unsentFile = await this.repo.getUnsentAttachment(principal.subject, attachmentId);
+    if (unsentFile) return unsentFile;
     const live = await this.repo.findLivePacketWithAttachment(principal.subject, attachmentId, nowIso());
     if (!live) {
-      await this.getOwnedAttachment(principal, attachmentId);
-      throw new HandoffError("unavailable", `attachment ${attachmentId} is not part of a live packet; files are readable only through a live packet`);
+      const a = await this.getOwnedAttachment(principal, attachmentId);
+      if (a.state !== "ready") throw new HandoffError("attachment_not_ready", `attachment ${attachmentId} is ${a.state}`);
+      throw new HandoffError("unavailable", `attachment ${attachmentId} was sent in a handoff that was revoked or has expired`);
     }
     return (await this.readAttachment(principal, live, attachmentId)).attachment;
   }
@@ -647,6 +651,13 @@ export class HandoffService {
   /** The caller's files that no packet carries yet, newest first. */
   async unsentFiles(principal: Principal, limit = 20): Promise<UnsentFile[]> {
     return (await this.repo.listUnsentAttachments(principal.subject, limit)).map(unsent);
+  }
+
+  /** One of the caller's unsent files, for an assistant to open: only its uploader can, and only while unsent. */
+  async readUnsent(principal: Principal, attachmentId: string): Promise<{ attachment: AttachmentRow; file: UnsentFile }> {
+    const a = await this.repo.getUnsentAttachment(principal.subject, attachmentId);
+    if (!a) throw new HandoffError("not_found", `${attachmentId} is not one of your unsent files; a file in a handoff is read with that handoff's packet_id`);
+    return { attachment: a, file: unsent(a) };
   }
 
   /**
@@ -815,11 +826,14 @@ export class HandoffService {
     return t;
   }
 
-  /** A download ticket stays valid for its window, but the packet must still be live at fetch time. */
+  /**
+   * A download ticket stays valid for its window, but at fetch time the packet must still be live, or (a ticket
+   * without a packet) the file must still be its holder's own: unsent, or in one of their live packets.
+   */
   async redeemDownloadTicket(token: string): Promise<AttachmentRow> {
     const t = await this.lookupTicket("download", token);
-    if (!t.packet_id) throw new HandoffError("ticket_invalid", "ticket has no packet");
     const owner = { subject: t.owner, scopes: [], clientId: "ticket", token: "" };
+    if (!t.packet_id) return this.ownerOriginal(owner, t.attachment_id);
     const { attachment } = await this.readAttachment(owner, t.packet_id, t.attachment_id);
     return attachment;
   }

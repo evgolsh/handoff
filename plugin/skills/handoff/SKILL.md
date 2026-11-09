@@ -49,6 +49,14 @@ Trigger: the user asks to continue, pick up, or resume work from another assista
    - PDF and large files return a short-lived `download_url` plus a sha256; fetch it with your file tools and verify the checksum.
 4. Do the next step the brief asks for. Do not stop at "I have read the handoff". If a fact is missing, say so and ask; do not fill it in.
 
+## "Read lease.pdf from Handoff"
+
+Trigger: the user wants to work with a file they uploaded to Handoff (in Assets, often from a phone) without sending it to anyone.
+
+1. Call `handoff_inbox` and find the file by name among the unsent files. If several match, ask which one.
+2. Call `handoff_read` with its `attachment_id` and no `packet_id`. It returns the file the same three ways as above. Only the uploader can open an unsent file.
+3. Do what the user asked with it.
+
 ## "Invite anna to Handoff"
 
 Trigger: the user wants to hand off to someone who is not in their Handoff team yet, or asks to add or invite a person.

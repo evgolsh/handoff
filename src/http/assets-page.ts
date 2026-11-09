@@ -563,6 +563,7 @@ export function filePage(v: AssetsViewer, f: UnsentFile, card: FileCard, now: nu
   ${f.note ? `<p class="asset-note">${esc(f.note)}</p>` : ""}
   ${fileCard(card)}
   ${sayBox(`Hand this off with ${f.filename}.`, "To send it, tell your assistant")}
+  ${sayBox(`Read ${f.filename} from Handoff.`, "To work on it in a chat, say")}
   <form method="post" action="/assets/remove">${csrf(v)}<input type="hidden" name="id" value="${esc(f.attachment_id)}"><button type="submit" class="btn">Remove this file</button></form>`,
     nonce,
   );

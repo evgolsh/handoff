@@ -266,6 +266,51 @@ describe("Assets (/assets)", () => {
     expectOk(await call(await token("tim"), "handoff_send", { title: "Invoices", brief: "The final one.", to: "tom", attachment_ids: [b], idempotency_key: crypto.randomUUID() }));
   });
 
+  it("the uploader's assistant opens an unsent file without sending it; nobody else can, and a sent file is read through its handoff", async () => {
+    const tim = await sessionOf("tim");
+    const notes = await uploadedAs(tim, "notes.md", enc("# Renewal\nCall the insurer on Monday."), "text/markdown");
+    const scan = await uploadedAs(tim, "scan.png", PNG, "image/png");
+    const letter = await uploaded(tim, "letter.pdf", "Renew by 1 December.");
+    const bearer = await token("tim");
+
+    // The inbox says how to open them.
+    const inbox = await call(bearer, "handoff_inbox", {});
+    expect(inbox.content.map((c) => c.text ?? "").join("\n")).toContain("open with handoff_read and the attachment_id alone");
+
+    // Text inline, an image as an image, anything else as a download link that serves the original bytes.
+    const text = await call(bearer, "handoff_read", { attachment_id: notes });
+    expect(expectOk(text)).toMatchObject({ representation: "text", text: "# Renewal\nCall the insurer on Monday.", unsent_file: { note: null } });
+    expect(text.content[0]!.text).toContain("your unsent file, uploaded");
+    const image = await call(bearer, "handoff_read", { attachment_id: scan });
+    expect(expectOk(image).representation).toBe("image");
+    expect(image.content.some((c) => (c as { type: string }).type === "image")).toBe(true);
+    const pdf = expectOk(await call(bearer, "handoff_read", { attachment_id: letter }));
+    expect(pdf).toMatchObject({ representation: "original", unsent_file: { note: "Renew by 1 December." } });
+    expect(pdf.packet_id).toBeUndefined();
+    const url = pdf.download_url as string;
+    const dl = await SELF.fetch(url);
+    expect(dl.status).toBe(200);
+    expect(new Uint8Array(await dl.arrayBuffer())).toEqual(PDF);
+    // Opening it records nothing as picked up and leaves it unsent.
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM packet_attachments WHERE attachment_id = ?").bind(letter).first<{ n: number }>())?.n).toBe(0);
+
+    // Nobody else opens it, not even with its id: a teammate's assistant gets not_found.
+    expect(errorText(await call(await token("tom"), "handoff_read", { attachment_id: letter }))).toContain("not_found");
+    expect(errorText(await call(bearer, "handoff_read", {}))).toContain("invalid_input");
+
+    // Once sent, it is a handoff's file: read through that handoff, and closed by revoking it.
+    const sent = expectOk(await call(bearer, "handoff_send", { title: "Renewal", brief: "Renew it.", to: "tom", attachment_ids: [letter], idempotency_key: crypto.randomUUID() }));
+    expect(errorText(await call(bearer, "handoff_read", { attachment_id: letter }))).toContain("is not one of your unsent files");
+    expect((await SELF.fetch(url)).status).toBe(200);
+    expectOk(await call(bearer, "handoff_revoke", { packet_id: sent.packet_id }));
+    expect((await SELF.fetch(url)).status).toBe(410);
+
+    // The file page offers both sentences.
+    const page = await pageOf(tim, `/file/${notes}`);
+    expect(page).toContain("Hand this off with notes.md.");
+    expect(page).toContain("Read notes.md from Handoff.");
+  });
+
   it("a retried send by name returns the packet it already sent, though the file is no longer unsent", async () => {
     const tim = await sessionOf("tim");
     const id = await uploaded(tim, "lease.pdf");

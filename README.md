@@ -82,7 +82,7 @@ A handoff is picked up when a recipient's assistant first reads it, and opened w
 
 Opening a handoff shows its status, its brief and its files in the page: PDFs in the browser's viewer, images, text and Markdown, each with Open and Download. The sender can revoke it there: no one can open it again, in an assistant or in Assets. What a recipient's assistant already read stays in that chat. An uploaded file opens the same way, for its uploader only.
 
-There they upload a file for their assistant to send, such as a scan on their phone. An uploaded file is visible only to its uploader until an assistant sends it, and is deleted if it is not sent within 7 days. If they already have an unsent file with that name, the new one gets a number, such as `lease (2).pdf`.
+There they upload a file for their assistant to send or read, such as a scan on their phone: "Hand this off to anna with lease.pdf", or "Read lease.pdf from Handoff" to work on it in that chat. An uploaded file is visible only to its uploader, in Assets and in their own assistants, until an assistant sends it, and is deleted if it is not sent within 7 days. If they already have an unsent file with that name, the new one gets a number, such as `lease (2).pdf`.
 
 Then they say "Hand this off with lease.pdf". The assistant attaches the file by its name. If no file or more than one file has that name, nothing is sent and the assistant asks which one.
 
@@ -102,7 +102,7 @@ Handoff is storage with a sign-in. The assistant writes a brief: the purpose, de
 |---|---|
 | `handoff_send` | Publish a brief with optional `to` and attachments, by id or by the name of an unsent file. Idempotent per `idempotency_key`. |
 | `handoff_inbox` | List unexpired packets, newest first, with who picked each one up, and your unsent files. |
-| `handoff_read` | Read a packet's brief and attachment list, or an attachment as text, image, or a 10-minute download URL. |
+| `handoff_read` | Read a packet's brief and attachment list, or an attachment as text, image, or a 10-minute download URL. Without a packet, open one of your own unsent files the same way. |
 | `handoff_revoke` | Hide a packet and stop its downloads. |
 | `handoff_upload_url` | Create a single-use 15-minute upload URL for a local file. |
 | `handoff_invite` | For a team admin: add a teammate and get a one-time invitation link, valid 7 days. |

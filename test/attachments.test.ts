@@ -50,11 +50,13 @@ describe("upload and verification", () => {
     expect(bad.status).toBe(400);
   });
 
-  it("the owner downloads the identical bytes through a live packet, and not before it is sent", async () => {
+  it("the owner downloads the identical bytes while the file is unsent, and then through a live packet", async () => {
     const a = await alice();
     const up = await uploadBytes(a, "codeword.pdf", PDF, "application/pdf");
     const original = `${ORIGIN}/v1/attachments/${up.attachment_id}/original`;
-    expect((await SELF.fetch(original, { headers: { authorization: `Bearer ${a}` } })).status).toBe(410);
+    const unsent = await SELF.fetch(original, { headers: { authorization: `Bearer ${a}` } });
+    expect(unsent.status).toBe(200);
+    expect(new Uint8Array(await unsent.arrayBuffer())).toEqual(PDF);
     const p = await send(a, { attachment_ids: [up.attachment_id] });
     const res = await SELF.fetch(`${original}?packet_id=${p.packet_id}`, { headers: { authorization: `Bearer ${a}` } });
     expect(res.status).toBe(200);
