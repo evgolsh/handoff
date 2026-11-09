@@ -123,7 +123,7 @@ describe("the control center", () => {
     }
     expect((await s.page("/console/assistants")).text).not.toContain("Registrations never used");
 
-    const added = await s.submit("/console/members", { handle: "bob" });
+    const added = await s.submit("/console/members", { member: "bob" });
     expect(added.status).toBe(200);
     const invitation = await added.text();
     expect(invitation).toContain(`<dt>Team</dt><dd class="mono">${team}</dd>`);

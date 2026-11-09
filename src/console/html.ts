@@ -272,6 +272,13 @@ export const pagesFor = (v: Viewer): Page[] =>
 export const csrfField = (v: Viewer): Html => `<input type="hidden" name="csrf" value="${esc(v.csrf)}">`;
 
 /** The header of the sign-up and sign-in pages. With newTab, every link opens elsewhere: the page shows a code only once. */
+/**
+ * For a field that is not this person's sign-in: someone else's username, or the one-time setup code. Password
+ * managers (the browser's own, iCloud Passwords, 1Password, LastPass, Bitwarden, Dashlane) then neither offer
+ * nor save a login there.
+ */
+export const NOT_A_SIGN_IN = 'autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"';
+
 export const flowHeader = (link = "/login", label = "Sign in", newTab = false): Html => {
   const t = newTab ? ' target="_blank" rel="noopener"' : "";
   return `<header class="flow-top"><a class="brand" href="/"${t}>${BRAND_ICON}<span>Handoff</span></a>${label ? `<a href="${esc(link)}"${t}>${esc(label)}${newTab ? " ↗" : ""}</a>` : ""}</header>`;
@@ -396,8 +403,8 @@ export function setupPage(ready: boolean, error?: string, opts: { tooShort?: boo
     <div class="t">Set up this server</div>
     <div class="small muted">This server has no admin yet. Enter the setup code you chose when you deployed it (the <span class="mono">HANDOFF_SETUP_CODE</span> secret) and the username you want. You become a member and the console's admin, and get your access code on the next page. This page closes once an admin exists.</div>
     ${error ? `<div class="flash" role="alert">${esc(error)}</div>` : ""}
-    <div><label class="lbl" for="setup_code">setup code</label><input id="setup_code" name="setup_code" type="password" class="field" required autofocus></div>
-    <div><label class="lbl" for="handle">your username</label><input id="handle" name="handle" class="field" required autocapitalize="none" spellcheck="false" placeholder="for example: tim"></div>
+    <div><label class="lbl" for="setup_code">setup code</label><input id="setup_code" name="setup_code" type="password" class="field" required autofocus ${NOT_A_SIGN_IN}></div>
+    <div><label class="lbl" for="handle">your username</label><input id="handle" name="handle" class="field" required autocapitalize="none" spellcheck="false" placeholder="for example: tim" ${NOT_A_SIGN_IN}></div>
     <div><button type="submit" class="btn primary">Create my admin account</button></div>
   </form>`
     : `<div class="panel">

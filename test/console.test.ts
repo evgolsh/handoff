@@ -151,9 +151,9 @@ describe("sign-in", () => {
   it("refuses a change without the session's CSRF value or from another origin, and signs out everywhere", async () => {
     const b = await signIn(await admin());
     const handle = `x-${uid()}`;
-    expect((await post("/console/members", { handle }, { cookie: b.cookie })).status).toBe(403);
-    expect((await post("/console/members", { handle, csrf: "0".repeat(64) }, { cookie: b.cookie })).status).toBe(403);
-    expect((await post("/console/members", { handle, csrf: await b.csrf() }, { cookie: b.cookie, origin: "https://evil.example" })).status).toBe(403);
+    expect((await post("/console/members", { member: handle }, { cookie: b.cookie })).status).toBe(403);
+    expect((await post("/console/members", { member: handle, csrf: "0".repeat(64) }, { cookie: b.cookie })).status).toBe(403);
+    expect((await post("/console/members", { member: handle, csrf: await b.csrf() }, { cookie: b.cookie, origin: "https://evil.example" })).status).toBe(403);
     expect(await env.DB.prepare("SELECT 1 FROM members WHERE handle = ?").bind(handle).first()).toBeNull();
 
     expect((await post("/logout", { csrf: "0".repeat(64) }, { cookie: b.cookie })).status).toBe(403);
@@ -169,8 +169,10 @@ describe("sign-in", () => {
 describe("console members", () => {
   it("adds a member and shows the code once; the code signs in; a taken or reserved handle is refused", async () => {
     const b = await signIn(await admin());
+    // Their username is not this person's sign-in: password managers neither offer nor save a login there.
+    expect(await b.page("/console/members")).toMatch(/<input id="new-member" name="member"[^>]*autocomplete="off" data-1p-ignore data-lpignore="true"/);
     const handle = `new-${uid()}`;
-    const res = await b.submit("/console/members", { handle: handle.toUpperCase() });
+    const res = await b.submit("/console/members", { member: handle.toUpperCase() });
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const code = codeOn(await res.text());
@@ -182,8 +184,8 @@ describe("console members", () => {
     expect(JSON.stringify(row)).not.toContain(code);
     expect(await b.page("/console/members")).not.toContain(code);
 
-    expect((await b.submit("/console/members", { handle })).status).toBe(409);
-    for (const reserved of ["team", "all", "Team"]) expect((await b.submit("/console/members", { handle: reserved })).status).toBe(400);
+    expect((await b.submit("/console/members", { member: handle })).status).toBe(409);
+    for (const reserved of ["team", "all", "Team"]) expect((await b.submit("/console/members", { member: reserved })).status).toBe(400);
   });
 
   it("reset gives a new code and signs out every assistant of that member", async () => {

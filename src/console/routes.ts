@@ -169,7 +169,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const db = c.env.DB;
     const s = c.get("session");
     const tenant = tenantOfSession(s);
-    const handle = normalizeHandle(c.get("form").handle ?? "");
+    const handle = normalizeHandle(c.get("form").member ?? "");
     const refuse = async (text: string, status: number) => html(membersPage(vw(c), await members(db, tenant), Date.now(), { text, ok: false }), status);
     if (!isValidHandle(handle)) {
       return refuse("Use 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. The usernames team and all are reserved.", 400);
