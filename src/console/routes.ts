@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Variables } from "../app";
 import type { Env } from "../env";
-import { constantTimeEqual, hashAccessCode, identityFrom, isValidHandle, isValidIdentity, newAccessCode, normalizeHandle, verifyMemberCode } from "../auth/builtin";
+import { codeRecord, constantTimeEqual, isValidHandle, isValidIdentity, newAccessCode, normalizeHandle } from "../auth/builtin";
 import { handleOf, qualify, tenantOf } from "../domain/tenant";
 import { runCleanup } from "../cleanup";
 import { base64url, nowIso, sha256Hex } from "../domain/ids";
@@ -85,17 +85,16 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
       return html(setupPage(true, "Use 1 to 63 letters, digits, dots, underscores or hyphens, starting with a letter or digit. The usernames team and all are reserved."), 400);
     }
     const code = newAccessCode();
-    const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
-    const hash = await hashAccessCode(code, salt);
+    const { salt, hash, lookup } = await codeRecord(code);
     // One transaction: the member and the admin grant are both written only if there is still no admin, so two
     // setup forms sent at once make one admin.
     const done = await db.batch([
       db
         .prepare(
-          `INSERT OR IGNORE INTO members (handle, code_salt, code_hash, created_at)
-           SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM admin_members)`,
+          `INSERT OR IGNORE INTO members (handle, code_salt, code_hash, code_lookup, created_at)
+           SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM admin_members)`,
         )
-        .bind(handle, salt, hash, nowIso()),
+        .bind(handle, salt, hash, lookup, nowIso()),
       db
         .prepare(
           `INSERT INTO admin_members (handle) SELECT ?
@@ -182,10 +181,10 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     }
     const identity = qualify(tenant, handle);
     const code = newAccessCode();
-    const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
+    const { salt, hash, lookup } = await codeRecord(code);
     const added = await db
-      .prepare("INSERT INTO members (handle, code_salt, code_hash, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(handle) DO NOTHING")
-      .bind(identity, salt, await hashAccessCode(code, salt), nowIso())
+      .prepare("INSERT INTO members (handle, code_salt, code_hash, code_lookup, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(handle) DO NOTHING")
+      .bind(identity, salt, hash, lookup, nowIso())
       .run();
     if (added.meta.changes !== 1) return refuse(`${handle} is already a member. Use Reset code to give them a new code.`, 409);
     await audit(db, s, "member_add", { member: handle });
@@ -217,8 +216,8 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const identity = qualify(tenantOfSession(s), handle);
     if (!(await memberExists(db, identity))) return notFound();
     const code = newAccessCode();
-    const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
-    await db.prepare("UPDATE members SET code_salt = ?, code_hash = ? WHERE handle = ?").bind(salt, await hashAccessCode(code, salt), identity).run();
+    const { salt, hash, lookup } = await codeRecord(code);
+    await db.prepare("UPDATE members SET code_salt = ?, code_hash = ?, code_lookup = ? WHERE handle = ?").bind(salt, hash, lookup, identity).run();
     await revokeAccess(db, identity, "*");
     await audit(db, s, "member_reset", { member: handle });
     const nonce = base64url(crypto.getRandomValues(new Uint8Array(16)));

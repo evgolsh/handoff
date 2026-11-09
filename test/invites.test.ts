@@ -143,13 +143,23 @@ describe("creating a team on the sign-in page", () => {
 
     // The Continue form carries the OAuth request and the new credentials.
     const fields = Object.fromEntries([...html.matchAll(/<input type="hidden" name="([a-z_]+)" value="([^"]*)">/g)].map((m) => [m[1]!, m[2]!]));
-    expect(fields).toMatchObject({ ...params, team, handle: "joe", access_code: code });
+    expect(fields).toMatchObject({ ...params, handle: "joe", access_code: code });
+    expect(fields.team).toBeUndefined();
     const signIn = await fetchAs(ctl, "/authorize", post(fields));
     expect(signIn.status).toBe(302);
     const loc = new URL(signIn.headers.get("location")!);
     expect(loc.origin + loc.pathname).toBe(redirectUri);
     expect(loc.searchParams.get("code")).toMatch(/^hc_/);
     expect(loc.searchParams.get("state")).toBe("s1");
+  });
+
+  it("without a team name, the team is named after the username", async () => {
+    const { params } = await oauthStart();
+    const handle = `lee-${uid()}`;
+    const res = await fetchAs(ctl, "/authorize", post({ ...params, action: "create_team", team: "", handle }));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain(`Team ${handle} is ready`);
+    expect(await env.DB.prepare("SELECT handle FROM admin_members WHERE handle = ?").bind(`${handle}/${handle}`).first()).toEqual({ handle: `${handle}/${handle}` });
   });
 
   it("a taken name keeps the form filled and says so", async () => {

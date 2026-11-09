@@ -10,7 +10,6 @@ import {
   builtinJwks,
   handleAuthorizeSubmission,
   handleTokenExchange,
-  identityFrom,
   parseAuthorizeParams,
   registerOAuthClient,
   registeredClient,
@@ -29,7 +28,7 @@ import { consoleRoutes, hasAdmin } from "./console/routes";
 import { assetsRoutes } from "./http/assets";
 import { loginRoutes } from "./http/login";
 import { handleOf, tenantOf } from "./domain/tenant";
-import { hasSessionCookie, isAdmin, rememberTeam, rememberedTeams, sameOrigin, sessionFrom, startSession } from "./console/session";
+import { hasSessionCookie, isAdmin, sameOrigin, sessionFrom, startSession } from "./console/session";
 import { agentRoutes, notFoundMarkdown } from "./http/agents";
 import { inviteRoutes } from "./http/invite";
 import { mcpCallsIn, recordMcpCalls } from "./store/telemetry";
@@ -171,21 +170,19 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   app.get("/authorize", async (c) => {
     const params = parseAuthorizeParams(new URL(c.req.url).searchParams);
     const client = await registeredClient(c.env.DB, params.client_id, params.redirect_uri);
-    const teams = c.get("cfg").mode === "control" ? rememberedTeams(c.req.header("cookie")) : [];
-    return new Response(builtinAuthorizePage(c.get("cfg"), params, client, undefined, {}, { teams }), { headers: authorizeHeaders() });
+    return new Response(builtinAuthorizePage(c.get("cfg"), params, client), { headers: authorizeHeaders() });
   });
   app.post("/authorize", async (c) => {
     const cfg = c.get("cfg");
     const form = await readFormOrJson(c.req.raw);
     const header = c.req.header("cookie");
-    const teams = cfg.mode === "control" ? rememberedTeams(header) : [];
     // The hosted service: "Create a team" on the sign-in page. The new access code is shown once, then the
     // person continues with the same OAuth request.
     if (form.action === "create_team" && cfg.mode === "control") {
       const params = parseAuthorizeParams(form);
       const client = await registeredClient(c.env.DB, params.client_id, params.redirect_uri);
       if (!client || params.response_type !== "code" || params.code_challenge_method !== "S256" || !params.code_challenge) {
-        return handleAuthorizeSubmission(c.env.DB, cfg, form, teams);
+        return (await handleAuthorizeSubmission(c.env.DB, cfg, form)).response;
       }
       const made = await createTeam(c.env.DB, cfg, form.team ?? "", form.handle ?? "", c.req.header("cf-connecting-ip"));
       const page = made.ok
@@ -193,16 +190,14 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
         : builtinAuthorizePage(cfg, params, client, undefined, { error: made.error, team: made.team, handle: made.handle });
       return new Response(page, { status: made.ok ? 200 : made.status, headers: authorizeHeaders() });
     }
-    const res = await handleAuthorizeSubmission(c.env.DB, cfg, form, teams);
+    const { response: res, identity } = await handleAuthorizeSubmission(c.env.DB, cfg, form);
     // Signed in for an assistant: this browser is signed in too, as on any service. Only for a form sent from this
     // site's own sign-in page, so another site cannot sign a browser in to its account.
-    if (res.status !== 302 || !sameOrigin(c.req.header("origin"), cfg.publicUrl)) return res;
-    const identity = identityFrom(cfg, form.team, form.handle);
-    const cookie = identity ? await startSession(c.env.DB, identity, header) : null;
-    if (!identity || !cookie) return res;
+    if (!identity || !sameOrigin(c.req.header("origin"), cfg.publicUrl)) return res;
+    const cookie = await startSession(c.env.DB, identity, header);
+    if (!cookie) return res;
     const headers = new Headers({ location: res.headers.get("location")!, "cache-control": "no-store" });
     headers.append("set-cookie", cookie);
-    if (tenantOf(identity)) headers.append("set-cookie", rememberTeam(header, tenantOf(identity)));
     return new Response(null, { status: 302, headers });
   });
   app.get("/.well-known/oauth-authorization-server", (c) => c.json(authorizationServerMetadata(c.get("cfg"))));

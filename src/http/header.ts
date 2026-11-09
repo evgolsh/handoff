@@ -69,13 +69,13 @@ export interface HeaderOpts {
   /** The server has an admin, so members can sign in and connect. */
   active?: boolean;
   mode?: "private" | "control";
-  /** This browser has a session: Assets takes the place of Sign in. */
+  /** This browser has a session: Dashboard takes the place of Sign in. */
   signedIn?: boolean;
 }
 
-/** Sign in, or Assets once signed in: the way into the app. */
+/** Sign in, or Dashboard once signed in: the way into the app. */
 const appLink = (signedIn: boolean | undefined, cls = ""): string =>
-  `<a${cls ? ` class="${cls}"` : ""} href="${signedIn ? "/assets" : "/login"}">${signedIn ? "Assets" : "Sign in"}</a>`;
+  `<a${cls ? ` class="${cls}"` : ""} href="${signedIn ? "/assets" : "/login"}">${signedIn ? "Dashboard" : "Sign in"}</a>`;
 
 export function pageHeader(current: "connect" | "use-cases" = "connect", opts: HeaderOpts = {}): string {
   const active = opts.active ?? true;
@@ -95,10 +95,10 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: H
       ${menu}
     </nav></header>`;
   }
-  // The hosted service: the homepage is the brand link. Signed in, the button opens Assets; otherwise "Get started"
+  // The hosted service: the homepage is the brand link. Signed in, the button opens the Dashboard; otherwise "Get started"
   // leads to Assistant setup once sign-up is open (a team is created on the sign-in page), else "Install".
   const button = opts.signedIn
-    ? `<a class="site-button primary" href="/assets">Open Assets</a>`
+    ? `<a class="site-button primary" href="/assets">Dashboard</a>`
     : active
       ? current === "connect" ? "" : `<a class="site-button primary" href="/connect">Get started</a>`
       : `<a class="site-button primary" href="/#install"><span class="deploy-label-long">Install Handoff</span><span class="deploy-label-short">Install</span></a>`;

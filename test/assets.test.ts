@@ -96,7 +96,7 @@ describe("Assets (/assets)", () => {
     expect(page.headers.get("location")).toBe("/login?next=%2Fassets");
     const html = await (await SELF.fetch(`${ORIGIN}/login?next=%2Fassets`)).text();
     expect(html).toContain('action="/login"');
-    expect(html).toContain("<h1>Sign in</h1>");
+    expect(html).toContain("<h1>Sign in to Handoff.</h1>");
     expect(html).not.toContain('name="team"');
 
     expect((await signIn("tom", "wrong-code")).status).toBe(401);
@@ -114,6 +114,11 @@ describe("Assets (/assets)", () => {
     expect(mine).toContain('enctype="multipart/form-data"');
     expect(mine).not.toContain('href="/console/');
     expect(mine).toContain("Nothing here yet.");
+    // The left menu fills the window and stays put while the page scrolls, so the account menu stays bottom-left;
+    // every signed-in page has the same content width and title block.
+    expect(mine).toMatch(/nav\.side\{[^}]*position:sticky;top:0;[^}]*height:100dvh/);
+    expect(mine).toContain(".shell>main>*{width:100%;max-width:1120px}");
+    expect(mine).toMatch(/<header class="app-head">\s*<div><h1>Assets<\/h1>/);
   });
 
   it("one sign-in opens every page: an admin moves between Assets, the console and Assistant setup with one session", async () => {
@@ -530,10 +535,11 @@ describe("Assets (/assets)", () => {
     expect(await (await SELF.fetch(`${ORIGIN}/connect`)).text()).toContain('Upload it in <a href="/assets">Assets</a>');
   });
 
-  it("on the control center the sign-in names the team", async () => {
+  it("on the control center the sign-in asks for no team either, and leads a new person to create one", async () => {
     const res = await worker.fetch(new Request(`${ORIGIN}/login`), { ...env, HANDOFF_MODE: "control" }, createExecutionContext());
     const html = await res.text();
-    expect(html).toContain('name="team"');
+    expect(html).not.toContain('name="team"');
+    expect(html).toContain('New to Handoff? <a href="/join">Create a team</a>.');
     expect(html).not.toContain("—");
   });
 });

@@ -53,7 +53,7 @@ const HOSTED_ORDER = ["claude", "chatgpt", "claude-code", "codex", "hermes"];
 
 export function hosts(url: string, control = false): Host[] {
   // On the hosted service a new person creates their team on that same sign-in page.
-  const signIn = control ? "your team, username and access code, or choose **Create a team** if you're new," : "your username and access code";
+  const signIn = control ? "your username and access code, or choose **Create a team** if you're new," : "your username and access code";
   const host = new URL(url).host;
   const list: Host[] = [
     {
@@ -190,15 +190,17 @@ function hostPanel(h: Host, first: boolean, url: string): string {
 
 const PAGE_CSS = `
   p,h1,h2,h3,ol { margin:0; }
-  max-width:1120px;min-width:0;margin-inline:auto;
+  min-width:0;
   .setup-intro { padding:20px 0 24px; }
-  h1 { font-size:clamp(30px,3.5vw,44px); font-weight:500; letter-spacing:-.045em; line-height:1.15; margin:10px 0; }
-  h1 span { color:var(--muted); }
+  .setup-intro h1,.inactive-gate h1 { font-size:clamp(30px,3.5vw,44px); font-weight:500; letter-spacing:-.045em; line-height:1.15; margin:10px 0; }
+  .inactive-gate h1 span { color:var(--muted); }
+  .steps p,.host-intro { max-width:80ch; }
   .lead { color:var(--muted); font-size:16px; line-height:1.6; }
   .setup-identity,.access-notice { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:16px 20px; border:1px solid var(--line); border-radius:10px; font-size:13px; background:var(--panel); }
   .setup-identity span+span,.access-notice p { color:var(--muted); font-size:12px; }
   .setup-identity strong { margin-left:5px; }.setup-identity [aria-hidden] { padding:0 12px;color:var(--faint); }
   .setup-identity,.access-notice { margin-bottom:28px; }
+  .app-head { margin-bottom:16px; }
   .access-notice p { margin-top:5px; }.access-notice strong { font-weight:500; }.access-notice p strong { color:var(--ink); }
   .setup-address { display:flex; gap:14px; align-items:center; }
   .setup-address>div { min-width:0; }.setup-address code { display:block; font:12px/1.6 var(--mono);overflow-wrap:anywhere; }
@@ -477,12 +479,14 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
       </article>
     </div>
   </section>`
-    : `<section class="setup-intro" aria-labelledby="connect-title">
+    : `${opts.viewer
+      ? `<header class="app-head"><div><h1 id="connect-title">Assistant setup</h1><p class="lead">Choose the app you use. Add Handoff, then sign in.</p></div></header>`
+      : `<section class="setup-intro" aria-labelledby="connect-title">
       <p class="eyebrow">Assistant setup</p>
       <h1 id="connect-title">Connect an assistant.</h1>
       <p class="lead">Choose the app you use. Add Handoff, then sign in.</p>
-    </section>
-    ${opts.viewer ? `<div class="setup-identity"><span>${opts.viewer.tenant ? `Team <strong>${esc(opts.viewer.tenant)}</strong> <span aria-hidden="true">/</span> ` : ""}Username <strong>${esc(opts.viewer.handle)}</strong></span><span>Use your saved access code when asked to sign in.</span></div>` : (control
+    </section>`}
+    ${opts.viewer ? `<div class="setup-identity"><span>Username <strong>${esc(opts.viewer.handle)}</strong></span><span>Sign in with this username and your access code.</span></div>` : (control
       ? `<div class="access-notice"><div><strong>New to Handoff? You create your team when you sign in.</strong><p>Add Handoff to your assistant below, then choose <strong>Create a team</strong> on the sign-in page that opens, or <a class="u" href="/join">create a team in the browser</a>. Invited? Use the username and access code from your invitation.</p></div></div>`
       : `<div class="access-notice"><div><strong>Have your username and access code ready.</strong><p>Ask the person who runs this server for your sign-in details.</p></div><a class="u" href="/login">Sign in →</a></div>`)}
 

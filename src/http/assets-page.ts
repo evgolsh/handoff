@@ -22,11 +22,7 @@ const EYE_ICON = svg('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
 
 const ASSETS_CSS = `
 main.assets{align-items:stretch}
-.assets-wrap{width:100%;max-width:920px;display:flex;flex-direction:column;gap:16px}
-.assets-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.eyebrow{margin:0;font-size:13px;color:var(--muted)}
-.assets h1{margin:2px 0 0;font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere}
-.lead{margin:4px 0 0;color:var(--muted);font-size:14px}
+.assets-wrap{display:flex;flex-direction:column;gap:16px}
 .btn.lg{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 14px;font-size:14px;text-decoration:none}
 .btn svg{width:16px;height:16px}
 .assets-upload{gap:14px;padding:18px 20px}
@@ -131,7 +127,6 @@ a.asset-name:hover{text-decoration:underline;text-underline-offset:3px}
 .preview-cut{padding:8px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line-soft);background:var(--panel)}
 .say{font-size:14px;color:var(--muted);margin:4px 0 0}
 @media(max-width:640px){
-  .assets h1{font-size:24px}
   .asset{grid-template-columns:28px minmax(0,1fr);padding:16px 14px;gap:10px}
   .asset-icon{width:28px;height:32px}
   .asset-meta,.asset-status{grid-column:2;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 12px;text-align:left;white-space:normal}
@@ -413,10 +408,10 @@ export function assetsPage(v: AssetsViewer, d: AssetsData, nonce: string): Html 
   return appPage(
     v,
     "Assets",
-    `<div class="assets-head">
+    `<header class="app-head">
     <div><h1>${d.older ? "Older handoffs" : "Assets"}</h1><p class="lead">Handoffs you sent or received, and files you uploaded.</p></div>
     <a class="btn primary lg" href="/assets?upload=1#upload" data-upload>${PLUS_ICON}Upload file</a>
-  </div>
+  </header>
   ${flashBox(d.flash)}
   <form method="post" action="/assets/upload" enctype="multipart/form-data" class="panel assets-upload" id="upload"${d.uploadOpen ? "" : " hidden"}>
     ${csrf(v)}
@@ -520,11 +515,11 @@ export function handoffPage(v: AssetsViewer, h: PacketView, d: Delivery & { sent
     v,
     h.title,
     `<a class="back" href="/assets">${BACK_ICON}Assets</a>
-  <header>
+  <header class="app-head"><div>
     <p class="eyebrow">${esc(direction(v.handle, h))} · ${count}</p>
     <h1>${esc(h.title)}</h1>
     <p class="lead">Sent ${when(h.created_at, now)} · ${expires(h.expires_at, now)}</p>
-  </header>
+  </div></header>
   <section class="panel status-panel" aria-label="Status">
     <h2 class="t">Status</h2>
     ${timeline(v.handle, h, d, now)}
@@ -544,11 +539,11 @@ export function revokePage(v: AssetsViewer, h: PacketView, d: Delivery, nonce: s
     v,
     `Revoke ${h.title}`,
     `<a class="back" href="${handoffHref(h.packet_id)}">${BACK_ICON}${esc(h.title)}</a>
-  <header>
+  <header class="app-head"><div>
     <p class="eyebrow">${esc(direction(v.handle, h))}</p>
     <h1>Revoke “${esc(h.title)}”?</h1>
     <p class="lead">No one can open it again, in an assistant or here.${got.length ? ` ${esc(names(got))} already picked it up: what their assistant read stays in that chat.` : ""} This cannot be undone.</p>
-  </header>
+  </div></header>
   <form method="post" action="${revokeHref(h.packet_id)}" class="assets-actions">${csrf(v)}<button type="submit" class="btn danger lg">Revoke</button><a class="btn lg" href="${handoffHref(h.packet_id)}">Cancel</a></form>`,
     nonce,
   );
@@ -560,11 +555,11 @@ export function filePage(v: AssetsViewer, f: UnsentFile, card: FileCard, now: nu
     v,
     f.filename,
     `<a class="back" href="/assets">${BACK_ICON}Assets</a>
-  <header>
+  <header class="app-head"><div>
     <p class="eyebrow">Ready to send · Only you</p>
     <h1>${esc(f.filename)}</h1>
     <p class="lead">Uploaded ${when(f.uploaded_at, now)} · <span title="${esc(utc(gone))}">Deleted in ${until(gone, now)} if not sent</span></p>
-  </header>
+  </div></header>
   ${f.note ? `<p class="asset-note">${esc(f.note)}</p>` : ""}
   ${fileCard(card)}
   ${sayBox(`Hand this off with ${f.filename}.`, "To send it, tell your assistant")}

@@ -5,9 +5,9 @@ import { base64url, sha256Hex } from "../src/domain/ids";
 import { ORIGIN } from "./helpers";
 
 /**
- * Sign-in that remembers you, on the hosted service: the browser remembers its teams and the sign-in pages fill
- * one in; a browser can be signed in to several teams and switch between them in the account menu; sessions last
- * 30 days and are renewed while used; signing in for an assistant signs in the browser too.
+ * Sign-in on the hosted service: a username and access code, no team (the code says which account it is); a
+ * browser can be signed in to several teams and switch between them in the account menu; sessions last 30 days
+ * and are renewed while used; signing in for an assistant signs in the browser too.
  */
 const ctl = { ...env, HANDOFF_MODE: "control" };
 const uid = () => crypto.randomUUID().slice(0, 6);
@@ -63,29 +63,67 @@ const activeIn = (html: string) => {
   return `${m[2]}/${m[1]}`;
 };
 
-describe("sign-in that remembers you", () => {
-  it("remembers the team, so the next sign-in asks only for the username and code", async () => {
+describe("sign-in with a username and access code", () => {
+  it("asks for no team: the code finds the account, in whichever team it is", async () => {
+    const [smiths, work] = [`smiths-${uid()}`, `work-${uid()}`];
+    const [c1, c2] = [await team(smiths), await team(work)];
+    const page = (await new Browser().get("/login")).text;
+    expect(page).not.toContain('name="team"');
+    expect(page).toMatch(/id="handle"[^>]* autofocus/);
+
+    // The same username in two teams: each code signs in to its own team.
+    const b = new Browser();
+    expect((await b.post("/login", { handle: "joe", access_code: c2 })).headers.get("location")).toBe("/assets");
+    expect(activeIn((await b.get("/assets")).text)).toBe(`${work}/joe`);
+    const b2 = new Browser();
+    await b2.post("/login", { handle: "Joe", access_code: c1 });
+    expect(activeIn((await b2.get("/assets")).text)).toBe(`${smiths}/joe`);
+    // No cookie other than the session.
+    expect([...b.jar.keys()]).toEqual(["__Host-handoff-session"]);
+
+    // The right code with another username, or a wrong code, is refused with one message.
+    for (const fields of [{ handle: "anna", access_code: c1 }, { handle: "joe", access_code: "hf-wrong-code-000" }]) {
+      const res = await fetchAs("/login", form(fields));
+      expect(res.status).toBe(401);
+      const html = await res.text();
+      expect(html).toContain("That username and access code do not match.");
+      expect(html).toContain(`value="${fields.handle}"`);
+    }
+  });
+
+  it("finds a code set before lookups existed by its username, and fills in its lookup", async () => {
     const smiths = `smiths-${uid()}`;
     const code = await team(smiths);
+    const lookup = async () => (await env.DB.prepare("SELECT code_lookup FROM members WHERE handle = ?").bind(`${smiths}/joe`).first<{ code_lookup: string | null }>())?.code_lookup;
+    expect(await lookup()).toBe((await sha256Hex(code)).slice(0, 4));
+    await env.DB.prepare("UPDATE members SET code_lookup = NULL WHERE handle = ?").bind(`${smiths}/joe`).run();
     const b = new Browser();
-    expect((await b.post("/login", { team: smiths, handle: "joe", access_code: code })).headers.get("location")).toBe("/assets");
-    expect(b.jar.get("__Host-handoff-teams")).toBe(smiths);
-    const set = (await fetchAs("/login", form({ team: smiths, handle: "joe", access_code: code }))).headers.getSetCookie();
-    expect(set.find((c) => c.startsWith("__Host-handoff-teams="))).toContain("SameSite=Lax");
+    expect((await b.post("/login", { handle: "joe", access_code: code })).headers.get("location")).toBe("/assets");
+    expect(await lookup()).toBe((await sha256Hex(code)).slice(0, 4));
+  });
 
-    await b.post("/logout", { csrf: await b.csrf() });
-    expect(b.tokens()).toEqual([]);
-    const page = (await b.get("/login")).text;
-    expect(page).toContain(`placeholder="smiths" value="${smiths}"`);
-    expect(page).toMatch(/id="handle"[^>]* autofocus/);
-    expect(page).toContain(`<datalist id="known-teams"><option value="${smiths}"></datalist>`);
+  it("sign-up needs only a username: the team is named after it, with a number when that name is taken", async () => {
+    const handle = `solo.${uid()}`;
+    const first = await fetchAs("/join", form({ handle }));
+    expect(first.status).toBe(200);
+    const html = await first.text();
+    const name = handle.replace(".", "-");
+    expect(html).toContain(`✓ Team ${name} is ready`);
+    expect(html).not.toContain("Team: ");
+    const again = await fetchAs("/join", form({ handle }));
+    expect(again.status).toBe(200);
+    expect(await again.text()).toMatch(new RegExp(`✓ Team ${name}-\\d{3} is ready`));
+    // A typed name is used as typed: taken is an error, not a number.
+    const typed = await fetchAs("/join", form({ team: name, handle: "anna" }));
+    expect(typed.status).toBe(409);
+    expect(await typed.text()).toContain(`The team name ${name} is taken.`);
   });
 
   it("signs in to a second team while staying in the first, and switches between them in the account menu", async () => {
     const [smiths, acme] = [`smiths-${uid()}`, `work-${uid()}`];
     const [c1, c2] = [await team(smiths), await team(acme)];
     const b = new Browser();
-    await b.post("/login", { team: smiths, handle: "joe", access_code: c1 });
+    await b.post("/login", { handle: "joe", access_code: c1 });
     const one = menuOf((await b.get("/assets")).text);
     expect(one).toContain('<a href="/login?add=1">Sign in to another team</a>');
     expect(one).toContain(">Sign out</button>");
@@ -94,13 +132,12 @@ describe("sign-in that remembers you", () => {
     // Signed in, the sign-in page goes straight on unless asked to add a team.
     expect((await b.get("/login")).location).toBe("/assets");
     const add = (await b.get("/login?add=1")).text;
-    expect(add).toContain("<h1>Sign in to another team</h1>");
+    expect(add).toContain("<h1>Sign in to another team.</h1>");
     expect(add).toContain('<input type="hidden" name="add" value="1">');
-    expect(add).toContain('placeholder="smiths" value=""');
-    expect(add).toContain('<a href="/assets">← Back to Assets</a>');
-    await b.post("/login", { team: acme, handle: "joe", access_code: c2, add: "1" });
+    expect(add).not.toContain('name="team"');
+    expect(add).toContain('<a href="/assets">Back to Dashboard</a>');
+    await b.post("/login", { handle: "joe", access_code: c2, add: "1" });
     expect(b.tokens()).toHaveLength(2);
-    expect(b.jar.get("__Host-handoff-teams")).toBe(`${acme}.${smiths}`);
 
     // acme is active; smiths waits in the menu.
     const assets = (await b.get("/assets")).text;
@@ -117,13 +154,12 @@ describe("sign-in that remembers you", () => {
     expect(sw.status).toBe(303);
     expect(sw.headers.get("location")).toBe("/assets");
     expect(activeIn((await b.get("/assets")).text)).toBe(`${smiths}/joe`);
-    expect(b.jar.get("__Host-handoff-teams")).toBe(`${smiths}.${acme}`);
     // An account this browser is not signed in to changes nothing.
     await b.post("/switch", { to: "someone/else", csrf: await b.csrf() });
     expect(activeIn((await b.get("/assets")).text)).toBe(`${smiths}/joe`);
 
     // Signing in again as the same person replaces that session instead of adding one.
-    await b.post("/login", { team: smiths, handle: "joe", access_code: c1, add: "1" });
+    await b.post("/login", { handle: "joe", access_code: c1, add: "1" });
     expect(b.tokens()).toHaveLength(2);
 
     // Sign out of all: both sessions end.
@@ -138,7 +174,7 @@ describe("sign-in that remembers you", () => {
     const b = new Browser();
     for (let i = 0; i < 6; i++) {
       const name = `fam${i}-${uid()}`;
-      await b.post("/login", { team: name, handle: "joe", access_code: await team(name), add: "1" });
+      await b.post("/login", { handle: "joe", access_code: await team(name), add: "1" });
     }
     expect(b.tokens()).toHaveLength(5);
   });
@@ -146,7 +182,7 @@ describe("sign-in that remembers you", () => {
   it("lasts 30 days, renewed while used; the sign-in page clears a cookie whose sessions ended", async () => {
     const smiths = `smiths-${uid()}`;
     const b = new Browser();
-    await b.post("/login", { team: smiths, handle: "joe", access_code: await team(smiths) });
+    await b.post("/login", { handle: "joe", access_code: await team(smiths) });
     const hash = await sha256Hex(b.tokens()[0]!);
     const expiry = async () => Date.parse((await env.DB.prepare("SELECT expires_at FROM member_sessions WHERE token_hash = ?").bind(hash).first<{ expires_at: string }>())!.expires_at);
     expect(await expiry()).toBeGreaterThan(Date.now() + 29.9 * 86_400_000);
@@ -161,10 +197,9 @@ describe("sign-in that remembers you", () => {
     expect((await b.get("/assets")).location).toBe("/login?next=%2Fassets");
     await b.get("/login?next=%2Fassets");
     expect(b.tokens()).toEqual([]);
-    expect(b.jar.get("__Host-handoff-teams")).toBe(smiths);
   });
 
-  it("the assistant sign-in fills in the remembered team and signs this browser in", async () => {
+  it("the assistant sign-in asks for the username and code only, and signs this browser in", async () => {
     const smiths = `smiths-${uid()}`;
     const code = await team(smiths);
     const redirectUri = "https://claude.ai/api/mcp/auth_callback";
@@ -174,13 +209,13 @@ describe("sign-in that remembers you", () => {
     const oauth = { client_id, redirect_uri: redirectUri, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "handoff" };
 
     const b = new Browser();
-    b.jar.set("__Host-handoff-teams", smiths);
     const page = (await b.get(`/authorize?${new URLSearchParams(oauth)}`)).text;
-    expect(page).toContain(`placeholder="your team name" value="${smiths}"`);
-    expect(page).toMatch(/id="handle"[^>]* autofocus/);
+    const signIn = /<form method="post" action="\/authorize" class="flow-panel">[\s\S]*?<\/form>/.exec(page)![0];
+    expect(signIn).not.toContain('name="team"');
+    expect(signIn).toMatch(/id="handle"[^>]* autofocus/);
 
     // From this site's own sign-in page: the assistant gets its code, and the browser opens Assets signed in.
-    const ok = await b.post("/authorize", { ...oauth, team: smiths, handle: "joe", access_code: code });
+    const ok = await b.post("/authorize", { ...oauth, handle: "joe", access_code: code });
     expect(ok.status).toBe(302);
     expect(new URL(ok.headers.get("location")!).searchParams.get("code")).toMatch(/^hc_/);
     expect(b.tokens()).toHaveLength(1);
@@ -188,7 +223,7 @@ describe("sign-in that remembers you", () => {
 
     // A sign-in form sent from anywhere else still answers the assistant, but signs no browser in.
     const other = new Browser();
-    const elsewhere = await other.post("/authorize", { ...oauth, team: smiths, handle: "joe", access_code: code }, { origin: "https://evil.example" });
+    const elsewhere = await other.post("/authorize", { ...oauth, handle: "joe", access_code: code }, { origin: "https://evil.example" });
     expect(elsewhere.status).toBe(302);
     expect(other.tokens()).toEqual([]);
   });

@@ -106,7 +106,7 @@ describe("authorize page", () => {
     const html = await (await SELF.fetch(`${ORIGIN}/authorize?client_id=${client_id}&redirect_uri=${encodeURIComponent("http://localhost:33418/callback")}&response_type=code&code_challenge=abc&code_challenge_method=S256`)).text();
     expect(html).toContain("<strong>Claude Code &lt;b&gt;</strong> asks to use Handoff as you");
     expect(html).toContain("<code>localhost:33418</code>");
-    expect(html).toContain('<form method="post" action="/authorize">');
+    expect(html).toContain('<form method="post" action="/authorize" class="flow-panel">');
   });
 
   it("signs in a desktop app that returns to its own scheme, as Cursor does", async () => {

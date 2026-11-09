@@ -35,8 +35,9 @@ import {
 
 const flash = (text: string | null, ok = true): Html => (text ? `<div class="flash${ok ? " ok" : ""}" role="status">${esc(text)}</div>` : "");
 
+/** Every signed-in page starts the same way: its title, one line under it, and anything that belongs at the right. */
 const head = (title: string, sub: string, right: Html = ""): Html =>
-  `<div class="head"><h1>${esc(title)}</h1><span class="muted small">${esc(sub)}</span>${right ? `<div class="grow"></div>${right}` : ""}</div>`;
+  `<header class="app-head"><div><h1>${esc(title)}</h1><p class="lead">${esc(sub.charAt(0).toUpperCase() + sub.slice(1))}</p></div>${right}</header>`;
 
 /** What an event was, in a few words: the tool name, or what happened at sign-in. */
 function what(e: EventRow): Html {
@@ -71,7 +72,7 @@ function clientCell(clients: Map<string, ClientInfo>, id: string | null): Html {
 export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): Html {
   const connected = d.connected > 0;
   return shell("overview", v, "Your team", `
-<header class="team-welcome"><div><span class="kicker">Your workspace</span><h1>${esc(v.tenant)}</h1><p>${connected ? "Members, connected assistants and live handoffs." : "Your team is ready. Connect your first assistant."}</p></div></header>
+<header class="app-head"><div><h1>Your team</h1><p class="lead">${connected ? `Team <strong>${esc(v.tenant)}</strong>: members, connected assistants and live handoffs.` : `Team <strong>${esc(v.tenant)}</strong> is ready. Connect your first assistant.`}</p></div></header>
 <section class="team-start" aria-label="Get started">
   <div><span class="kicker">${connected ? "Next" : "Start here"}</span><h2>${connected ? "Connect another assistant." : "Connect your first assistant."}</h2><p>Choose Claude, Codex, ChatGPT or Hermes. Follow the setup steps, then sign in as <strong>${esc(v.handle)}</strong>.</p><a class="btn primary" href="/connect">${connected ? "Connect an assistant" : "Choose your assistant"} →</a></div>
   <div class="team-steps">
@@ -226,7 +227,7 @@ ${cards}
 
 export function membersPage(v: Viewer, data: { rows: MemberRow[]; teamPackets: number }, now: number, note: { text: string; ok: boolean } | null): Html {
   if (v.tenant) return shell("members", v, "Members", `
-<header class="team-welcome"><div><span class="kicker">${plural(data.rows.length, "member")}</span><h1>Members.</h1><p>Add a teammate, or manage their access.</p></div></header>
+<header class="app-head"><div><h1>Members</h1><p class="lead">${plural(data.rows.length, "member")}. Add a teammate, or manage their access.</p></div></header>
 ${note ? flash(note.text, note.ok) : ""}
 <div class="team-management"><section class="people-list" aria-label="Team members">
 ${data.rows.map(m => `<article class="person-row"><div><strong>${esc(m.handle)}</strong> ${m.admin ? '<span class="chip">admin</span>' : ""} ${m.handle === v.handle ? '<span class="chip">you</span>' : ""}<p>${m.assistants ? `${plural(m.assistants, "assistant")} connected` : "No assistants connected yet"}</p></div><details class="person-actions"><summary>Manage</summary><div><a href="/console/members/${esc(m.handle)}/reset">Reset access code</a>${m.handle === v.handle ? "" : `<a class="danger" href="/console/members/${esc(m.handle)}/remove">Remove member</a>`}</div></details></article>`).join("")}
@@ -267,7 +268,7 @@ ${note ? flash(note.text, note.ok) : ""}
 <section class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
   <form method="post" action="/console/members" class="panel" autocomplete="off">
     <div class="t">Add a member</div>
-    <div class="small muted">The access code is shown once, on the next page. Share the sign-in details in private; they sign in to each assistant with ${v.tenant ? "the team name, " : ""}their username and that code.</div>
+    <div class="small muted">The access code is shown once, on the next page. Share the sign-in details in private; they sign in to each assistant with their username and that code.</div>
     ${csrfField(v)}
     <div class="row">
       <div style="flex:1 1 200px"><label class="lbl" for="handle">username</label><input id="handle" name="handle" class="field" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="tom"></div>
@@ -290,7 +291,7 @@ npm run admin -- &lt;handle&gt; --revoke</pre>`}
 /** The new access code, shown once. */
 export function codePage(v: Viewer, handle: string, code: string, kind: "added" | "reset", publicUrl: string, nonce: string): Html {
   const self = handle === v.handle;
-  const invitation = `Handoff\nServer: ${publicUrl}/mcp\n${v.tenant ? `Team: ${v.tenant}\n` : ""}Username: ${handle}\nAccess code: ${code}\nSetup: ${publicUrl}/connect`;
+  const invitation = `Handoff\nServer: ${publicUrl}/mcp\nUsername: ${handle}\nAccess code: ${code}\nSetup: ${publicUrl}/connect`;
   return shell(
     "members",
     v,
@@ -401,7 +402,7 @@ export function assistantsPage(v: Viewer, d: AssistantsData, now: number, note: 
     : `<div class="small muted">None.</div>`;
 
   if (v.tenant) return shell("assistants", v, "Connections", `
-<header class="team-welcome"><div><span class="kicker">Your team's assistants</span><h1>Connections.</h1><p>See who's connected, and sign out an assistant when you need to.</p></div></header>
+<header class="app-head"><div><h1>Connections</h1><p class="lead">Your team's assistants. See who's connected, and sign out an assistant when you need to.</p></div></header>
 ${flash(note)}
 ${d.rows.length ? `<section class="people-list" aria-label="Assistant connections">${d.rows.map(r => `<article class="person-row"><div><strong>${esc(r.client?.name ?? r.announced?.name ?? "Assistant")}</strong> <span class="chip ${r.connected ? "ok" : ""}">${r.connected ? "connected" : "signed out"}</span><p>${esc(r.subject)} · ${r.client?.host ? `${esc(r.client.host)} · ` : ""}Last used ${when(r.last_seen, now)}</p></div>${r.connected ? `<a class="btn sm" href="/console/assistants/disconnect?member=${encodeURIComponent(r.subject)}&amp;client=${encodeURIComponent(r.client_id)}">Disconnect…</a>` : ""}</article>`).join("")}</section><div><a class="btn primary" href="/connect">Connect another assistant →</a></div>` : `<section class="empty-connections"><h2>No assistants connected yet.</h2><p>Choose an assistant and follow its setup steps.</p><a class="btn primary" href="/connect">Connect an assistant →</a></section>`}
 <details class="troubleshooting"><summary>Sign-in troubleshooting</summary><div class="grid2"><div class="panel"><div class="t">Tokens refused · ${WINDOW_DAYS} days</div>${rejected}</div><div class="panel"><div class="t">Wrong sign-in codes · ${WINDOW_DAYS} days</div>${bad}</div></div></details>`);

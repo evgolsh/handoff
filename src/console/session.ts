@@ -132,24 +132,6 @@ export async function endSession(db: D1Database, header: string | undefined): Pr
 }
 
 /**
- * The teams this browser signed in to on the hosted service, most recent first, so the sign-in pages fill in the
- * team. Not a secret and not a session. SameSite=Lax, because an assistant opens the sign-in page from its own site.
- */
-export const TEAMS_COOKIE = "__Host-handoff-teams";
-
-export function rememberedTeams(header: string | undefined): string[] {
-  const v = cookieValue(header, TEAMS_COOKIE);
-  if (!v || v.length > 200) return [];
-  return [...new Set(v.split(".").filter((t) => /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/.test(t)))].slice(0, MAX_ACCOUNTS);
-}
-
-/** The Set-Cookie value that puts this team first among the remembered ones. */
-export function rememberTeam(header: string | undefined, team: string): string {
-  const teams = [team, ...rememberedTeams(header).filter((t) => t !== team)].slice(0, MAX_ACCOUNTS);
-  return `${TEAMS_COOKIE}=${teams.join(".")}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_SECONDS}`;
-}
-
-/**
  * Where to go after signing in: a path on this site. Never another site's address ("//host", or any backslash,
  * which browsers may read as a slash), never a control character, and never the sign-in itself. Otherwise null.
  */

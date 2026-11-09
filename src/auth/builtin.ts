@@ -1,10 +1,10 @@
 import { SignJWT, exportJWK, generateKeyPair, importJWK, type JWK } from "jose";
 import { SCOPES, type Config } from "../env";
 import { base64url, newTicketToken, nowIso, plusMs, sha256Hex } from "../domain/ids";
-import { BASE_CSS, BRAND_ICON, FAVICON_LINK, FONT_PRELOAD } from "../http/style";
+import { document, flowHeader } from "../console/html";
 import { markClientUsed, recordEvent } from "../store/events";
 import { isAllowedRedirectUri, registeredClient, type KnownClient } from "./clients";
-import { handleOf, isValidTenant, qualify, tenantOf } from "../domain/tenant";
+import { handleOf, isValidTenant, tenantOf } from "../domain/tenant";
 
 export { isAllowedRedirectUri, registeredClient };
 
@@ -13,7 +13,9 @@ export function authorizeHeaders(): Record<string, string> {
   return {
     "content-type": "text/html; charset=utf-8",
     "cache-control": "no-store",
-    "referrer-policy": "no-referrer",
+    // Not no-referrer: with that policy the browser sends "Origin: null" on the form POST, and signing this browser in
+    // too needs the page's own origin. same-origin sends nothing to the assistant's site.
+    "referrer-policy": "same-origin",
     "x-frame-options": "DENY",
     "x-content-type-options": "nosniff",
     // No form-action: Chrome applies it to the redirect after the form posts, which goes to the client.
@@ -62,16 +64,12 @@ export function isValidIdentity(identity: string): boolean {
 }
 
 /**
- * The identity a sign-in form names. On the control center a team gives `team/handle`; an empty team is the
- * bare handle, which only the deployment's operator has (sign-up always makes a team, so nobody else can get
- * one). On a private install the handle alone. Null when a given part is not valid.
+ * Whom a refused sign-in names in the activity log. On a private server the username is the account; on the hosted
+ * service a username alone does not say which team's member it is, so the refusal names nobody.
  */
-export function identityFrom(cfg: Config, team: string | undefined, handle: string | undefined): string | null {
-  const h = normalizeHandle(handle ?? "");
-  if (!isValidHandle(h)) return null;
-  const t = normalizeHandle(team ?? "");
-  if (cfg.mode !== "control" || !t) return h;
-  return isValidTenant(t) ? qualify(t, h) : null;
+export function refusedSubject(cfg: Config, rawUsername: string | undefined): string | null {
+  const h = normalizeHandle(rawUsername ?? "");
+  return cfg.mode !== "control" && isValidHandle(h) ? h : null;
 }
 
 /** A new access code: "hf-" and 96 random bits, short enough to type on a phone. */
@@ -79,21 +77,54 @@ export function newAccessCode(): string {
   return `hf-${base64url(crypto.getRandomValues(new Uint8Array(12)))}`;
 }
 
+/** The first 16 bits of the code's SHA-256: enough to narrow a sign-in to a few members, too little to name a code. */
+export const codeLookup = async (code: string): Promise<string> => (await sha256Hex(code)).slice(0, 4);
+
+/** What the members table keeps for an access code: a salt, the salted PBKDF2 hash, and the lookup that finds it. */
+export async function codeRecord(code: string): Promise<{ salt: string; hash: string; lookup: string }> {
+  const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
+  return { salt, hash: await hashAccessCode(code, salt), lookup: await codeLookup(code) };
+}
+
 export async function upsertMember(db: D1Database, rawHandle: string, accessCode: string): Promise<string> {
   const handle = normalizeHandle(rawHandle);
   if (!isValidIdentity(handle)) throw new Error("handle must be 1..63 lowercase alphanumeric, dot, underscore or hyphen characters (optionally tenant/handle)");
   if (!accessCode || accessCode.length < 6) throw new Error("access code must be at least 6 characters");
-  const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
-  const hash = await hashAccessCode(accessCode, salt);
+  const { salt, hash, lookup } = await codeRecord(accessCode);
   await db
     .prepare(
-      `INSERT INTO members (handle, code_salt, code_hash, created_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(handle) DO UPDATE SET code_salt = excluded.code_salt, code_hash = excluded.code_hash`,
+      `INSERT INTO members (handle, code_salt, code_hash, code_lookup, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(handle) DO UPDATE SET code_salt = excluded.code_salt, code_hash = excluded.code_hash, code_lookup = excluded.code_lookup`,
     )
-    .bind(handle, salt, hash, nowIso())
+    .bind(handle, salt, hash, lookup, nowIso())
     .run();
   return handle;
+}
+
+/**
+ * Sign-in with a username and access code, on any page and in any assistant: no team. The code's lookup and the
+ * username narrow the members to a few, and the salted hash decides which one it is. A code set before lookups
+ * existed is found by its username, and gets its lookup here. Returns the member's identity, or null.
+ */
+export async function signInMember(db: D1Database, rawUsername: string, code: string): Promise<string | null> {
+  const username = normalizeHandle(rawUsername);
+  if (!isValidHandle(username) || !code || code.length > 256) return null;
+  const lookup = await codeLookup(code);
+  const { results } = await db
+    .prepare(
+      `SELECT handle, code_salt, code_hash, code_lookup FROM members
+       WHERE (code_lookup = ? OR code_lookup IS NULL) AND substr(handle, instr(handle, '/') + 1) = ?
+       ORDER BY created_at LIMIT 20`,
+    )
+    .bind(lookup, username)
+    .all<{ handle: string; code_salt: string; code_hash: string; code_lookup: string | null }>();
+  for (const row of results) {
+    if (!constantTimeEqual(await hashAccessCode(code, row.code_salt), row.code_hash)) continue;
+    if (row.code_lookup === null) await db.prepare("UPDATE members SET code_lookup = ? WHERE handle = ? AND code_hash = ?").bind(lookup, row.handle, row.code_hash).run();
+    return row.handle;
+  }
+  return null;
 }
 
 export async function verifyMemberCode(db: D1Database, rawHandle: string, code: string): Promise<string | null> {
@@ -257,15 +288,30 @@ export interface CreateTeamForm {
   handle?: string;
 }
 
-/** The sign-in form's team: the one typed before an error, or the one this browser last signed in to; with suggestions. */
-export interface SignInTeam {
-  team?: string;
-  teams?: string[];
+const AUTHORIZE_KEYS = ["client_id", "redirect_uri", "response_type", "code_challenge", "code_challenge_method", "state", "scope"] as const;
+const hiddenParams = (params: AuthorizeParams): string => AUTHORIZE_KEYS.map((k) => `<input type="hidden" name="${k}" value="${esc(params[k])}">`).join("");
+
+/** The sign-in an assistant opens: the site's own header and two columns, as on /login and /join. */
+function authorizeDocument(intro: string, stack: string): string {
+  return document(
+    "Sign in",
+    `${flowHeader("/connect", "Assistant setup", true)}
+<main class="flow-wrap" id="main">
+  <div class="flow-grid">
+    <section class="flow-intro">${intro}</section>
+    <div class="flow-stack">${stack}</div>
+  </div>
+</main>`,
+    undefined,
+    "Handoff",
+  );
 }
 
-export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient | null, errorMsg?: string, create: CreateTeamForm = {}, known: SignInTeam = {}): string {
-  const team = known.team ?? known.teams?.[0] ?? "";
-  const teams = known.teams ?? [];
+/**
+ * Username and access code: no team, because the code says which account it is. On the hosted service a new
+ * person creates their account here (the team name is optional) and continues, without a separate sign-up page.
+ */
+export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient | null, errorMsg?: string, create: CreateTeamForm = {}, handle = ""): string {
   const hasOAuth = Boolean(params.client_id || params.redirect_uri);
   let returnsTo = "";
   try {
@@ -275,110 +321,40 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
   } catch {
     returnsTo = "";
   }
-  const hidden = (["client_id", "redirect_uri", "response_type", "code_challenge", "code_challenge_method", "state", "scope"] as const)
-    .map((k) => `<input type="hidden" name="${k}" value="${esc(params[k])}">`)
-    .join("\n      ");
-  const body = !hasOAuth
-    ? `<p class="meta">Start the connection from your assistant (Claude Code, Codex, Hermes, Claude or ChatGPT). The <a href="/connect">Connect page</a> has the steps.</p>`
-    : !client
-      ? `<p class="err" role="alert">This sign-in link did not come from an assistant registered with this server. Start the connection again from your assistant.</p>`
-      : `<p class="meta"><strong>${esc(client.name)}</strong>${client.publisher ? ` <span title="who publishes this assistant's sign-in details">(${esc(client.publisher)})</span>` : ""} asks to use Handoff as you. After you sign in it returns to <code>${esc(returnsTo)}</code>.</p>
-    <form method="post" action="/authorize">
-      ${hidden}
-      ${
-        cfg.mode === "control"
-          ? `<div class="field">
-        <label for="team">Team</label>
-        <input id="team" name="team" type="text"${teams.length ? ' list="known-teams"' : ""} autocomplete="organization" autocapitalize="none" spellcheck="false"${team ? "" : " autofocus"} placeholder="your team name" value="${esc(team)}">${teams.length ? `<datalist id="known-teams">${teams.map((t) => `<option value="${esc(t)}">`).join("")}</datalist>` : ""}
-      </div>`
-          : ""
-      }
-      <div class="field">
-        <label for="handle">Username</label>
-        <input id="handle" name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required${cfg.mode === "control" && !team ? "" : " autofocus"}>
-      </div>
-      <div class="field">
-        <label for="access_code">Access code</label>
-        <input id="access_code" name="access_code" type="password" autocomplete="current-password" required>
-      </div>
-      <button type="submit" class="btn">Sign in and allow</button>
-    </form>
-    <p class="meta foot">${cfg.mode === "control" ? `Your team, username and access code come from creating a team or from the invitation you got. New to Handoff? <a href="#new-team">Create a team</a>.` : "Your access code comes from the person who runs this Handoff server."} Use the same username in each of your assistants.</p>`;
-  // The hosted service: a new person creates a team here and continues, without a separate sign-up page.
-  const newTeam =
-    cfg.mode === "control" && hasOAuth && client
-      ? `<div class="panel" id="new-team">
-    <h2>New to Handoff?</h2>
-    <p class="meta">Create a team for your family or a few colleagues. You become its admin and can invite the others from your assistant.</p>
-    ${create.error ? `<p class="err" role="alert">${esc(create.error)}</p>` : ""}
-    <form method="post" action="/authorize">
-      ${hidden}
-      <input type="hidden" name="action" value="create_team">
-      <div class="field">
-        <label for="new-team-name">Team or family name</label>
-        <input id="new-team-name" name="team" type="text" autocapitalize="none" spellcheck="false" required maxlength="32" placeholder="smiths" value="${esc(create.team ?? "")}"${create.error ? " autofocus" : ""}>
-      </div>
-      <div class="field">
-        <label for="new-team-handle">Your username</label>
-        <input id="new-team-handle" name="handle" type="text" autocapitalize="none" spellcheck="false" required maxlength="63" placeholder="joe" value="${esc(create.handle ?? "")}">
-      </div>
-      <button type="submit" class="btn ghost">Create team and continue</button>
-    </form>
-    <p class="meta foot">Free. Lowercase letters, digits and hyphens. <a href="/privacy" target="_blank" rel="noopener">Privacy</a></p>
-  </div>`
-      : "";
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Sign in to Handoff</title>
-${FAVICON_LINK}
-${FONT_PRELOAD}
-<style>
-  ${BASE_CSS}
-  main { width: min(420px, calc(100vw - 32px)); margin: 10vh auto 48px; }
-  .brand { font-size: 18px; margin-bottom: 6px; }
-  .tagline { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
-  .field { margin-bottom: 16px; }
-  label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--ink); }
-  input[type=text], input[type=password] {
-    width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--line);
-    border-radius: 6px; background: var(--ground); color: var(--ink); font: 14px/1.4 var(--mono);
+  const control = cfg.mode === "control";
+  const kicker = `<span class="kicker">Assistant sign-in</span>`;
+  if (!hasOAuth || !client) {
+    return authorizeDocument(
+      `${kicker}<h1>Start from your assistant.</h1><p>${!hasOAuth ? "Your assistant opens this page when you add Handoff to it." : "This sign-in link did not come from an assistant registered with this server."}</p>`,
+      `<div class="flow-panel">${hasOAuth ? `<div class="flash" role="alert">Start the connection again from your assistant.</div>` : ""}<p>Choose your assistant on the setup page, add Handoff, then sign in here when it asks.</p><a class="btn primary" href="/connect">Assistant setup</a></div>`,
+    );
   }
-  input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
-  .btn { width: 100%; min-height: 40px; padding: 10px 16px; border: 1px solid var(--ink); border-radius: 6px;
-         background: var(--ink); color: var(--ground); font: 500 14px/1 var(--sans); cursor: pointer; }
-  .btn:hover { background: var(--accent); border-color: var(--accent); }
-  .meta { margin: 0 0 16px; font-size: 13px; color: var(--muted); line-height: 1.45; }
-  .meta strong { color: var(--ink); }
-  .foot { margin: 16px 0 0; }
-  .err { margin: 0 0 14px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--danger);
-         color: var(--danger); font-size: 13px; }
-  .panel + .panel { margin-top: 16px; }
-  h2 { font-size: 15px; font-weight: 500; margin: 0 0 6px; }
-  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
-  .btn.ghost:hover { color: var(--ground); }
-  .ok { margin: 0 0 12px; color: var(--ok); font-size: 14px; }
-  .secret { font: 500 19px var(--mono); letter-spacing: .02em; user-select: all; -webkit-user-select: all; background: var(--ground);
-            border: 1px dashed var(--ink); border-radius: 6px; padding: 12px 14px; margin: 6px 0 16px; overflow-wrap: anywhere; }
-  dl.who { display: flex; gap: 24px; margin: 0 0 12px; font-size: 13px; } dl.who dt { color: var(--muted); } dl.who dd { margin: 0; font-weight: 500; }
-</style>
-</head>
-<body>
-<main>
-  <div class="brand">${BRAND_ICON}<span>Handoff</span></div>
-  <p class="tagline">Hand your work to someone else’s assistant.</p>
-  <div class="panel">
-    ${errorMsg ? `<p class="err" role="alert">${esc(errorMsg)}</p>` : ""}
-    ${body}
-  </div>
-  ${newTeam}
-</main>
-</body>
-</html>`;
+  const name = esc(client.name);
+  const intro = `${kicker}<h1>Sign in to connect ${name}.</h1><p><strong>${name}</strong>${client.publisher ? ` <span title="who publishes this assistant's sign-in details">(${esc(client.publisher)})</span>` : ""} asks to use Handoff as you. After you sign in it returns to <code>${esc(returnsTo)}</code>.</p><p class="flow-note">Use the same username and access code in each of your assistants.</p>`;
+  const signIn = `<form method="post" action="/authorize" class="flow-panel">
+      ${hiddenParams(params)}
+      ${errorMsg ? `<div class="flash" role="alert">${esc(errorMsg)}</div>` : ""}
+      <div><label class="lbl" for="handle">Username</label><input id="handle" name="handle" class="field" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="63" value="${esc(handle)}"${create.error || handle ? "" : " autofocus"}></div>
+      <div><label class="lbl" for="access_code">Access code</label><input id="access_code" name="access_code" class="field" type="password" autocomplete="current-password" required${handle && !create.error ? " autofocus" : ""}></div>
+      <button type="submit" class="btn primary">Sign in and allow</button>
+      <p class="flow-note">${control ? `Your access code comes from creating a team or from the invitation you got. New to Handoff? <a href="#new-team">Create a team</a>.` : "Your access code comes from the person who runs this Handoff server."}</p>
+    </form>`;
+  // The hosted service: a new person creates their team here and continues with the same request.
+  const newTeam = control
+    ? `<section class="flow-panel" id="new-team" aria-labelledby="new-team-title">
+      <div><h2 id="new-team-title">New to Handoff?</h2><p class="flow-note">Pick a username and get an access code. You become your team's admin and can invite others later.</p></div>
+      ${create.error ? `<div class="flash" role="alert">${esc(create.error)}</div>` : ""}
+      <form method="post" action="/authorize" class="flow-stack">
+        ${hiddenParams(params)}
+        <input type="hidden" name="action" value="create_team">
+        <div><label class="lbl" for="new-team-handle">Your username</label><input id="new-team-handle" name="handle" class="field" type="text" autocapitalize="none" spellcheck="false" required maxlength="63" placeholder="joe" value="${esc(create.handle ?? "")}"${create.error ? " autofocus" : ""}></div>
+        <div><label class="lbl" for="new-team-name">Team or family name <span class="muted">(optional)</span></label><input id="new-team-name" name="team" class="field" type="text" autocapitalize="none" spellcheck="false" maxlength="32" placeholder="smiths" value="${esc(create.team ?? "")}"><p class="field-help">Leave it empty to use your username.</p></div>
+        <button type="submit" class="btn">Create team and continue</button>
+      </form>
+      <p class="flow-note">Free. <a href="/privacy" target="_blank" rel="noopener">Privacy</a></p>
+    </section>`
+    : "";
+  return authorizeDocument(intro, signIn + newTeam);
 }
 
 /**
@@ -386,45 +362,39 @@ ${FONT_PRELOAD}
  * and returns to the assistant (the same POST as the sign-in form).
  */
 export function teamCreatedAuthorizePage(cfg: Config, params: AuthorizeParams, client: KnownClient, team: string, handle: string, code: string): string {
-  const hidden = (["client_id", "redirect_uri", "response_type", "code_challenge", "code_challenge_method", "state", "scope"] as const)
-    .map((k) => `<input type="hidden" name="${k}" value="${esc(params[k])}">`)
-    .join("\n      ");
-  const page = builtinAuthorizePage(cfg, params, client);
-  const panel = `<div class="panel">
-    <p class="ok">✓ Team ${esc(team)} is ready. You are its admin.</p>
-    <dl class="who"><div><dt>Team</dt><dd>${esc(team)}</dd></div><div><dt>Username</dt><dd>${esc(handle)}</dd></div></dl>
-    <p class="meta">Your access code is shown only once. Save it in your password manager or notes: you need it to sign in from another assistant, and to open Assets on the web.</p>
-    <div class="secret" aria-label="access code">${esc(code)}</div>
-    <form method="post" action="/authorize">
-      ${hidden}
-      <input type="hidden" name="team" value="${esc(team)}">
-      <input type="hidden" name="handle" value="${esc(handle)}">
-      <input type="hidden" name="access_code" value="${esc(code)}">
-      <button type="submit" class="btn">I saved it. Continue to ${esc(client.name)}</button>
-    </form>
-    <p class="meta foot">Next, invite the others: ask your assistant “invite anna to Handoff”.</p>
-  </div>`;
-  // The same page shell, with this panel in place of the sign-in and create forms.
-  return page.replace(/<div class="panel">[\s\S]*<\/main>/, `${panel}\n</main>`);
+  return authorizeDocument(
+    `<div class="flow-complete">✓ Team ${esc(team)} is ready</div><h1>Save your<br>sign-in details.</h1><p>Your username and access code sign you in on any computer and in any assistant. The code is shown only once: save it in your password manager or notes.</p>`,
+    `<section class="flow-panel">
+      <dl class="credential-meta"><div><dt>Username</dt><dd>${esc(handle)}</dd></div><div><dt>Team</dt><dd>${esc(team)}</dd></div></dl>
+      <div><span class="lbl small muted">Your access code</span><div class="secret" aria-label="access code">${esc(code)}</div></div>
+      <form method="post" action="/authorize">
+        ${hiddenParams(params)}
+        <input type="hidden" name="handle" value="${esc(handle)}">
+        <input type="hidden" name="access_code" value="${esc(code)}">
+        <button type="submit" class="btn primary">I saved it. Continue to ${esc(client.name)}</button>
+      </form>
+      <p class="flow-note">Next, invite the others: ask your assistant “invite anna to Handoff”.</p>
+    </section>`,
+  );
 }
 
-export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, form: Record<string, string>, teams: string[] = []): Promise<Response> {
+/** The sign-in form's answer: a redirect to the assistant with a code, or the page again. The identity on success. */
+export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, form: Record<string, string>): Promise<{ response: Response; identity: string | null }> {
   const params = parseAuthorizeParams(form);
   const client = await registeredClient(db, params.client_id, params.redirect_uri);
-  const bad = (msg: string, status = 400) =>
-    new Response(builtinAuthorizePage(cfg, params, client, msg, {}, { team: form.team ?? "", teams }), { status, headers: authorizeHeaders() });
+  const page = (body: string, status: number) => ({ response: new Response(body, { status, headers: authorizeHeaders() }), identity: null });
+  const bad = (msg: string, status = 400) => page(builtinAuthorizePage(cfg, params, client, msg, {}, (form.handle ?? "").slice(0, 63)), status);
 
   if (params.response_type !== "code") return bad("Unsupported response_type (expected code).");
   if (params.code_challenge_method !== "S256" || !params.code_challenge) {
     return bad("PKCE S256 code_challenge is required.");
   }
-  if (!client) return new Response(builtinAuthorizePage(cfg, params, null), { status: 400, headers: authorizeHeaders() });
+  if (!client) return page(builtinAuthorizePage(cfg, params, null), 400);
 
-  const identity = identityFrom(cfg, form.team, form.handle);
-  const handle = identity ? await verifyMemberCode(db, identity, form.access_code ?? "") : null;
+  const handle = await signInMember(db, form.handle ?? "", form.access_code ?? "");
   if (!handle) {
-    await recordEvent(db, { kind: "sign_in", subject: identity, client_id: params.client_id, outcome: "bad_code" }, { unauthenticated: true });
-    return bad(cfg.mode === "control" ? "That team, username and access code do not match." : "That username and access code do not match.", 401);
+    await recordEvent(db, { kind: "sign_in", subject: refusedSubject(cfg, form.handle), client_id: params.client_id, outcome: "bad_code" }, { unauthenticated: true });
+    return bad("That username and access code do not match.", 401);
   }
   await recordEvent(db, { kind: "sign_in", subject: handle, client_id: params.client_id, outcome: "ok" });
 
@@ -443,7 +413,7 @@ export async function handleAuthorizeSubmission(db: D1Database, cfg: Config, for
   target.searchParams.set("code", rawCode);
   if (params.state) target.searchParams.set("state", params.state);
   target.searchParams.set("iss", cfg.issuer);
-  return Response.redirect(target.toString(), 302);
+  return { response: Response.redirect(target.toString(), 302), identity: handle };
 }
 
 async function isMember(db: D1Database, handle: string): Promise<boolean> {

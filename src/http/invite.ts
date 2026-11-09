@@ -43,7 +43,7 @@ function welcome(v: InviteView, token: string): Html {
 function credentials(v: InviteView, code: string, publicUrl: string, nonce: string): Html {
   const mcp = `${publicUrl}/mcp`;
   const host = new URL(publicUrl).host;
-  const details = `Handoff\nServer: ${mcp}${v.team ? `\nTeam: ${v.team}` : ""}\nUsername: ${v.username}\nAccess code: ${code}`;
+  const details = `Handoff\nServer: ${mcp}\nUsername: ${v.username}\nAccess code: ${code}`;
   return document(
     "Your access code",
     `${flowHeader("/", "About Handoff")}<div class="flow-wrap"><div class="flow-grid">
@@ -55,7 +55,7 @@ function credentials(v: InviteView, code: string, publicUrl: string, nonce: stri
     <li><strong>Add Handoff to your assistant.</strong>
       <div class="invite-actions"><a class="btn primary" href="${esc(claudeInstallLink(mcp))}" target="_blank" rel="noopener">Add to Claude ↗</a><a class="btn" href="/connect" target="_blank" rel="noopener">ChatGPT and others ↗</a></div>
       <p>In Claude: select <strong>Add</strong>, then <strong>Connect</strong>. To send or open files in Claude, add <code>${esc(host)}</code> to the allowed domains in Settings &gt; Capabilities.</p></li>
-    <li><strong>Sign in</strong> on the Handoff page that opens${v.team ? ` with the team <strong>${esc(v.team)}</strong>,` : " with"} username <strong>${esc(v.username)}</strong> and the access code. Then approve access.</li>
+    <li><strong>Sign in</strong> on the Handoff page that opens, with the username <strong>${esc(v.username)}</strong> and the access code. Then approve access.</li>
     <li><strong>Ask your assistant:</strong><p class="invite-say">“Continue the handoff from ${esc(v.invited_by)}.”</p></li>
   </ol>
   <p class="flow-note">Your handoffs and their files are in <a href="/assets">Assets</a>. A file on your phone to send? Upload it there.</p></section>

@@ -14,7 +14,7 @@ Free at [handoff.infraworks.net](https://handoff.infraworks.net), or open source
 ## Get started
 
 1. **Add Handoff to your assistant.** The server address is `https://handoff.infraworks.net/mcp`. In Claude, [this link](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Handoff&connectorUrl=https%3A%2F%2Fhandoff.infraworks.net%2Fmcp) opens the custom connector form with it filled in. For ChatGPT, Codex, Claude Code and Hermes, see [Assistant setup](https://handoff.infraworks.net/connect).
-2. **Create a team.** On the Handoff sign-in page that opens, choose **Create a team** and pick a team name and your username. You are its admin. Save the access code it shows once: you need it to sign in from another assistant.
+2. **Create a team.** On the Handoff sign-in page that opens, choose **Create a team** and pick your username, and a team name if you like (without one, the team is named after you). You are its admin. Save the access code it shows once: your username and access code sign you in on any computer and in any assistant.
 3. **Invite your partner.** Ask your assistant "invite anna to Handoff" and send her the link it gives you. She opens it, gets her own access code and connects her assistant.
 4. **Hand off.** "Hand this off to anna with the two PDFs." She says "Continue the handoff from joe."
 
@@ -86,7 +86,7 @@ There they upload a file for their assistant to send, such as a scan on their ph
 
 Then they say "Hand this off with lease.pdf". The assistant attaches the file by its name. If no file or more than one file has that name, nothing is sent and the assistant asks which one.
 
-Everyone signs in once, at `/login`, and every page knows them: the left menu has Assets, Assistant setup, and for an admin the team pages of the console. A session lasts 30 days and is renewed while used. The account menu at the bottom of the left menu switches between accounts signed in on this browser, signs in to another, and signs out.
+Everyone signs in once, at `/login`, with their username and access code (no team: the code says which account it is), and every page knows them: the left menu has Assets, Assistant setup, and for an admin the team pages of the console. On the public pages, Dashboard takes the place of Sign in. A session lasts 30 days and is renewed while used. The account menu at the bottom of the left menu switches between accounts signed in on this browser, signs in to another, and signs out.
 
 ## Updates
 

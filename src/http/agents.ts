@@ -108,7 +108,7 @@ Handoff is not the right tool for live chat between people, permanent file stora
 
 function hostedSetup(f: Facts): string {
   return `1. **Connect Handoff in your assistant.** Add the MCP server \`${f.mcp}\`. In Claude, open \`${claudeInstallLink(f.mcp)}\`: it opens Claude's custom connector form with the name and address filled in. Steps for ChatGPT, Codex, Claude Code and Hermes: ${f.site}/connect.
-2. **Create a team when you sign in.** On Handoff's sign-in page choose **Create a team**: a team name (for example \`smiths\`) and your username (for example \`joe\`). Save the access code it shows once; you need it to sign in from another assistant. Or create one in a browser at ${f.site}/join.
+2. **Create a team when you sign in.** On Handoff's sign-in page choose **Create a team**: your username (for example \`joe\`) and, if you like, a team name (for example \`smiths\`; without one the team is named after you). Save the access code it shows once. Your username and access code sign you in from any computer and any assistant. Or create one in a browser at ${f.site}/join.
 3. **Invite the other person.** Ask your assistant “invite anna to Handoff”. It calls \`handoff_invite\` and gives you a link to send her. The link shows her username and access code once, with buttons that add Handoff to Claude or ChatGPT.
 4. **Hand off.** “Hand this off to anna with the two PDFs.” She says “continue the handoff from joe” in her assistant.
 
@@ -225,7 +225,7 @@ canonical: ${f.site}/connect
 
 Server address: \`${f.mcp}\`
 
-Add the server once in each assistant you use, then sign in with ${f.hosted ? "your team, username and access code" : "your username and access code"}. ${f.hosted ? `No team yet? Choose **Create a team** on the sign-in page, or create one at ${f.site}/join.` : "Your admin gives you the username and access code."}
+Add the server once in each assistant you use, then sign in with your username and access code. ${f.hosted ? `No team yet? Choose **Create a team** on the sign-in page, or create one at ${f.site}/join.` : "Your admin gives you the username and access code."}
 
 ${connectSteps(cfg)}
 
@@ -299,7 +299,7 @@ More: [sign-in for agents](${f.site}/auth.md) · [assistant setup](${f.site}/con
 /** /auth.md: how a client gets a token, in the sections of the auth.md convention (github.com/workos/auth.md). */
 export function authMd(cfg: Config): string {
   const f = facts(cfg);
-  const who = f.hosted ? "team, username and access code" : "username and access code";
+  const who = "username and access code";
   // No front matter: auth.md readers (the WorkOS draft) expect the file to start with its heading.
   return `# Signing in to Handoff
 
@@ -388,7 +388,7 @@ You sort out the details in Claude. Your partner says “continue the handoff fr
 ## How it works
 
 1. **Add Handoff to your assistant.** Claude, ChatGPT, Codex, Claude Code or Hermes. [Steps](${f.site}/connect)
-2. **Create your team.** On the sign-in page that opens, choose **Create a team**, then pick a team name and your username. Up to ${f.cap} people. Or [create it in the browser](${f.site}/join).
+2. **Create your team.** On the sign-in page that opens, choose **Create a team**, then pick your username, and a team name if you like. Up to ${f.cap} people. Or [create it in the browser](${f.site}/join).
 3. **Invite your partner.** Ask your assistant “invite anna to Handoff” and send her the link it gives you. She gets her access code and connects her own assistant.
 4. **Hand off.** “Hand this off to anna with the two PDFs.” She says “Continue the handoff from joe.”
 
@@ -510,7 +510,7 @@ On Cloudflare (Workers, a D1 database and Cloudflare's file storage), which proc
 
 ## Cookies
 
-A sign-in cookie keeps you signed in to Assets and the console, up to five accounts per browser. A session ends after 30 days without use, or when you sign out.${f.hosted ? " A second cookie remembers the names of the teams you signed in to on this browser, so the sign-in page can fill one in." : ""} No tracking or advertising cookies, and no third-party scripts.
+A sign-in cookie keeps you signed in to Assets and the console, up to five accounts per browser. A session ends after 30 days without use, or when you sign out. No tracking or advertising cookies, and no third-party scripts.
 
 ## Changes
 
@@ -608,7 +608,7 @@ A team is the people who can hand work to each other's assistants: a family, or 
 ## From the sign-in page (the usual way)
 
 1. Add Handoff to your assistant with the server address \`${f.mcp}\`. Steps: ${f.site}/connect.md
-2. When your assistant opens Handoff's sign-in page, choose **Create a team**. Enter a team name (3 to 32 lowercase letters, digits or hyphens, for example \`smiths\`) and your username (for example \`joe\`).
+2. When your assistant opens Handoff's sign-in page, choose **Create a team**. Enter your username (for example \`joe\`) and, if you like, a team name (3 to 32 lowercase letters, digits or hyphens, for example \`smiths\`). Without a team name, the team is named after your username.
 3. Save the access code it shows once, then continue. Your assistant is connected.
 
 ## In a browser
@@ -711,7 +711,7 @@ export function homeJsonLd(cfg: Config): string {
     totalTime: "PT5M",
     step: [
       { "@type": "HowToStep", name: "Add Handoff to your assistant", text: "Add Handoff to Claude, ChatGPT or another assistant.", url: `${f.site}/connect` },
-      { "@type": "HowToStep", name: "Create your team", text: "On the sign-in page that opens, choose Create a team, then pick a team name and your username.", url: `${f.site}/join` },
+      { "@type": "HowToStep", name: "Create your team", text: "On the sign-in page that opens, choose Create a team, then pick your username, and a team name if you like.", url: `${f.site}/join` },
       { "@type": "HowToStep", name: "Invite your partner", text: "Ask your assistant to invite them, and send them the invitation link." },
       { "@type": "HowToStep", name: "Hand off", text: "Say “hand this off to anna with the PDFs”. She says “continue the handoff from joe”." },
     ],
@@ -920,7 +920,7 @@ export function notFoundMarkdown(cfg: Config): Response {
   return new Response(NOT_FOUND_MD(cfg), { status: 404, headers: { ...MD_HEADERS, "cache-control": "no-store" } });
 }
 
-const PRIVACY_UPDATED = "8 November 2026";
+const PRIVACY_UPDATED = "9 November 2026";
 
 /**
  * Routes. Mounted before the pages: a Markdown request for a public page is answered here, and every public

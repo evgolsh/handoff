@@ -29,24 +29,36 @@ On the hosted service add `--hosted` (it uses `wrangler.hosted.jsonc`). A lost o
 Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SETUP_CODE` secret and a username
 once, makes that member the admin, signs them in and shows the code (docs/DEPLOY.md). Later, sign in at `/login`.
 
-On the control center, `/join` creates a team and makes its creator that team's admin. The browser is signed
-in to the new team, which becomes its active account, and the access code is shown once. If the session cannot be
-started, the code is still shown and Continue to setup opens `/login` with the team filled in. The normal flow is Create team → Save sign-in → Connect. Members added in
-the console can connect assistants but cannot open the console.
+On the control center, `/join` creates a team and makes its creator that team's admin. It asks for a username;
+the team name is optional. Without one the team is named after the username (dots and underscores become hyphens,
+and a number is added when that name is taken), so someone on their own never has to think of a team. A typed
+name that is taken is an error. The browser is signed in to the new team, which becomes its active account, and
+the access code is shown once. If the session cannot be started, the code is still shown and Continue to setup
+opens `/login`. The normal flow is Create team → Save sign-in → Connect. Members added in the console can connect
+assistants but cannot open the console. The assistant sign-in page (`/authorize`) has the same Create a team form.
 
-Team admins sign in with team, username and access code; the operator leaves team empty. `/login?team=acme`
-goes straight on only if the browser's active session belongs to `acme`, otherwise it shows the sign-in form for `acme`.
+Everyone signs in with a username and access code, on `/login` and on the assistant sign-in page alike; there is
+no team field. The code says which account it is: `members.code_lookup` keeps the first 16 bits of the code's
+sha256, which with the username narrows the members to a few, and the salted PBKDF2 hash decides. So the same
+username can exist in several teams, and each code signs in to its own team. A code set before lookups existed
+(migration 0006) is found by its username and gets its lookup at its next sign-in. Someone in two teams has one
+code per team. The team shows after sign-in, in the account menu.
 
 A browser can be signed in to up to five accounts, one per team on the hosted service. The account menu at the
 bottom of the left menu lists them: one click (`POST /switch`) makes another the active one, "Sign in to another
 team" opens `/login?add=1`, and "Sign out of all" ends every session of the browser. Signing in again as the same
-member replaces that member's session. On the hosted service the browser remembers the teams it signed in to (the
-`__Host-handoff-teams` cookie, names only), and `/login` and the assistant sign-in page fill in the latest. Signing
-in for an assistant on this site's own page also signs the browser in; a sign-in form posted from another site
-answers the assistant but starts no browser session.
+member replaces that member's session. Signing in for an assistant on this site's own page also signs the browser
+in; a sign-in form posted from another site answers the assistant but starts no browser session. The assistant
+sign-in page uses `referrer-policy: same-origin` for this: with `no-referrer` the browser would send `Origin: null`.
 
-`/connect` is the public setup guide. Signed in, it is a page of the app, with the left menu and the current team
-and username. The public pages' header shows Assets instead of Sign in when the browser has a session.
+`/connect` is the public setup guide. Signed in, it is a page of the app, with the left menu and the username to
+sign in with. The public pages' header shows Dashboard (to `/assets`) instead of Sign in when the browser has a
+session.
+
+Layout: public and sign-in pages share one header and one width (`--gutter`, at most 1440px), so their content
+starts at the header's left edge. Signed-in pages share the left menu, which is sticky and as tall as the window so
+the account menu stays bottom-left, one content width (at most 1120px, left-aligned) and one title block
+(`.app-head`: a 28px title, a one-line lead, actions on the right).
 
 ## Pages
 
@@ -57,7 +69,7 @@ and username. The public pages' header shows Assets instead of Sign in when the 
 - **Connect an assistant**: an assistant picker with setup steps, copyable commands, and first-handoff prompts.
   Compatibility details, sources and privacy information are expandable; required setup warnings stay visible.
 - **Members / Connections** (team admins): compact member and connection lists. Create invitation provides a
-  copy button containing the server, team, username, one-time code and setup link. Reset/remove and disconnect
+  copy button containing the server, username, one-time code and setup link. Reset/remove and disconnect
   still open confirmation pages. Connection diagnostics are under Sign-in troubleshooting.
 - **Overview**: status of the Worker (deployed version), D1 and the file store, KV or R2 (answer time), sign-in (members, admins,
   assistants connected, signing key) and the last cleanup; handoffs sent per day over 14 days; latency by
@@ -100,8 +112,6 @@ Each action asks first on a page of its own, except Add and Run cleanup.
   reset ends the session. A session ends after 30 days without use (renewed at most once a day); the cookie lives
   400 days because D1 decides, and the sign-in page clears a cookie whose sessions all ended. The console checks
   the admin grant and the code hash on every request.
-- Remembered teams: `__Host-handoff-teams` (Secure, HttpOnly, SameSite=Lax so an assistant's sign-in link sees it)
-  holds up to five team names. It is not a credential.
 - Changes are form POSTs that must carry this origin's `Origin` header and the session's CSRF value
   (sha256 of the session token, in a hidden field). Pages use `referrer-policy: same-origin`: with
   `no-referrer` a browser sends `Origin: null` and the check would refuse the form.

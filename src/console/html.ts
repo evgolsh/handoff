@@ -37,8 +37,9 @@ label.lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
 .dot.never{background:transparent;border:2px solid var(--faint)}
 .dot.stale{background:transparent;border:2px solid var(--warn)}
 
+:root{--gutter:clamp(20px,4.5vw,80px)}
 .shell{min-height:100vh;display:flex;flex-wrap:wrap}
-nav.side{width:220px;flex:0 1 220px;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+nav.side{width:220px;flex:0 1 220px;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;align-self:flex-start;height:100vh;height:100dvh;overflow-y:auto}
 nav.side a.brand{display:flex;padding:4px 8px 18px 8px}nav.side a.brand:hover{color:var(--ink)}
 nav.side a{display:block;padding:9px 10px;border-radius:6px}
 nav.side a.on{background:var(--ink);color:var(--ground);font-weight:500}
@@ -58,12 +59,17 @@ nav.side .account-menu a:hover,nav.side .account-menu button:hover{background:va
 nav.side .account-menu form{display:block;margin:0}
 nav.side .account-menu .account-head{margin:4px 10px 2px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 nav.side .account-menu hr{border:0;border-top:1px solid var(--line-soft);margin:4px 0}
-main{flex:999 1 560px;min-width:0;padding:24px 28px;display:flex;flex-direction:column;gap:16px}
+.shell>main{flex:999 1 560px;min-width:0;padding:28px 32px 48px;display:flex;flex-direction:column;gap:16px}
+.shell>main>*{width:100%;max-width:1120px}
+.app-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 16px;flex-wrap:wrap}
+.app-head h1{margin:0;font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere}
+.app-head .lead{margin:4px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+.app-head .eyebrow{margin:0 0 2px;font-size:13px;color:var(--muted)}
 nav.side .nav-separator{height:1px;background:var(--line);margin:12px 8px}
 @media (max-width:760px){
   /* A phone: the menu is a short bar above the page. The brand and who is signed in, then the links. */
   .shell{align-content:flex-start}
-  nav.side{flex:1 1 100%;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 4px;border-right:0;border-bottom:1px solid var(--line);padding:10px 12px}
+  nav.side{flex:1 1 100%;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 4px;border-right:0;border-bottom:1px solid var(--line);padding:10px 12px;position:static;height:auto;overflow:visible}
   nav.side > a{order:3;padding:8px 10px}
   nav.side > a.brand{order:0;flex:1 1 auto;padding:4px 6px}
   nav.side .who{order:1;border-top:0;padding:0}
@@ -71,7 +77,8 @@ nav.side .nav-separator{height:1px;background:var(--line);margin:12px 8px}
   nav.side .account-menu{left:auto;right:0;bottom:auto;top:calc(100% + 4px);min-width:220px}
   nav.side .nav-separator{order:2;flex-basis:100%;height:0;margin:2px 0;background:none}
   nav.side .sect,nav.side .grow{display:none}
-  main{padding:16px}
+  .shell>main{padding:16px 16px 40px}
+  .app-head h1{font-size:24px}
 }
 .head{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
 .grow{flex-grow:1}
@@ -100,7 +107,7 @@ nav.side .nav-separator{height:1px;background:var(--line);margin:12px 8px}
 .legend span{display:flex;align-items:center;gap:6px}
 .flash{background:var(--warn-bg);border:1px solid var(--warn);border-radius:8px;padding:10px 14px}
 .flash.ok{background:var(--panel);border-color:var(--ok)}
-.login{max-width:420px;margin:12vh auto;padding:0 16px;display:flex;flex-direction:column;gap:14px}
+.login{margin-block:clamp(28px,4vh,48px) 64px;display:flex;flex-direction:column;gap:14px}.login>*{max-width:560px}
 dl.kv{margin:0;display:grid;grid-template-columns:120px minmax(0,1fr);gap:4px 10px;font-size:12px}
 dl.kv dt{color:var(--muted)}dl.kv dd{margin:0;overflow-wrap:anywhere}
 pre.code{margin:0;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--ground);border:1px dashed var(--line);border-radius:6px;padding:10px}
@@ -109,28 +116,30 @@ pre.code{margin:0;font-family:var(--mono);font-size:12px;line-height:1.5;white-s
 .row>.field{width:auto;flex:1 1 180px}
 form.inline{display:inline}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.flow-top{max-width:1120px;margin:auto;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-.flow-top .brand{font-size:19px}.flow-top .brand svg{width:26px;height:26px}
-.flow-wrap{max-width:1000px;margin:5vh auto 64px;padding:0 28px}
+.flow-top,.flow-wrap,.login{width:calc(100% - var(--gutter)*2);max-width:1440px;margin-inline:auto}
+.flow-top{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line)}
+.flow-top .brand{font-size:20px;letter-spacing:-.04em;text-decoration:none}.flow-top .brand svg{width:28px;height:28px}
+.flow-top>a:not(.brand){font-size:14px;color:var(--muted);text-decoration:none}.flow-top>a:not(.brand):hover{color:var(--ink)}
+.flow-wrap{margin-block:clamp(28px,4vh,48px) 64px}
 .flow-progress{display:flex;gap:24px;list-style:none;padding:0 0 28px;margin:0;color:var(--muted);font-size:12px}
 .flow-progress li{display:flex;gap:8px;align-items:center}.flow-progress span{width:24px;height:24px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;font:11px var(--mono)}
 .flow-progress [aria-current=step]{color:var(--ink);font-weight:600}.flow-progress [aria-current=step] span{background:var(--ink);color:var(--ground);border-color:var(--ink)}
-.flow-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}
+.flow-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,480px);gap:clamp(32px,6vw,96px);align-items:start}
+.flow-stack{display:flex;flex-direction:column;gap:16px;min-width:0}
 .flow-intro h1{font-size:clamp(32px,4vw,46px);letter-spacing:-.045em;line-height:1.12;font-weight:500;margin:12px 0 20px}
 .flow-intro>p{color:var(--muted);max-width:35ch;font-size:16px;line-height:1.6}
 .flow-intro>p.flow-note{font-size:12px}
 .kicker{font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .flow-panel{padding:28px;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:0 12px 32px #00000005;display:flex;flex-direction:column;gap:22px}
 .flow-panel .field{min-height:46px;border-radius:8px}.flow-panel label.lbl{color:var(--ink);font-weight:500;font-size:13px;margin-bottom:8px}
-.field-help{font-size:12px;color:var(--muted);margin:7px 0 0}.flow-panel .btn{min-height:46px;border-radius:8px;width:100%;text-align:center;font-weight:500}
+.field-help{font-size:12px;color:var(--muted);margin:7px 0 0}.flow-panel .btn{min-height:46px;border-radius:8px;width:100%;text-align:center;font-weight:500;white-space:normal}
+.flow-panel h2{margin:0 0 4px;font-size:17px;font-weight:500;letter-spacing:-.01em}.flow-panel>form.flow-stack{gap:22px}.flow-intro code{font-size:.92em;overflow-wrap:anywhere}
 .flow-panel .secret{font-size:19px;border-style:solid;border-color:var(--line);padding:16px;margin:8px 0}
 .flow-note{font-size:12px;color:var(--muted);line-height:1.6}.flow-note a{text-decoration:underline;text-underline-offset:3px}
 .flow-switch{border-top:1px solid var(--line);padding-top:18px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px}
 .flow-facts{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}.flow-facts span{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--muted)}
 .credential-meta{display:grid;grid-template-columns:1fr 1fr;gap:20px}.credential-meta div{min-width:0}.credential-meta dt{color:var(--muted);font-size:12px;margin-bottom:6px}.credential-meta dd{margin:0;font-weight:500;overflow-wrap:anywhere}
 .flow-complete{display:flex;align-items:center;gap:8px;color:var(--ok);font-size:13px}
-.team-welcome{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:30px 0 12px}
-.team-welcome h1{font-size:34px;letter-spacing:-.04em;font-weight:500}.team-welcome p{margin:8px 0;color:var(--muted)}
 .team-start{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
 .team-start>div{padding:32px}.team-start h2{font-size:25px;letter-spacing:-.025em;font-weight:500;margin:12px 0}.team-start p{color:var(--muted);max-width:48ch;line-height:1.6;margin-bottom:24px}.team-start .btn{padding:12px 18px;border-radius:8px}
 .team-steps{border-left:1px solid var(--line);background:var(--ground);display:grid;gap:20px}.team-step{display:flex;gap:12px;align-items:start}.team-step>span{border:1px solid var(--line);border-radius:50%;width:26px;height:26px;display:grid;place-items:center;flex:none;font:11px var(--mono)}.team-step strong{font-size:13px;font-weight:500}.team-step p{font-size:12px;margin:4px 0 0}
@@ -143,8 +152,8 @@ form.inline{display:inline}
 .person-actions{position:relative;flex:none}.person-actions summary{cursor:pointer;font-size:12px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;list-style:none}.person-actions summary::-webkit-details-marker{display:none}.person-actions>div{position:absolute;right:0;top:calc(100% + 6px);min-width:150px;display:grid;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:8px;z-index:5;box-shadow:0 8px 24px #00000012}.person-actions a{padding:10px;font-size:12px;white-space:nowrap}
 .empty-connections{padding:48px 28px;text-align:center;border:1px dashed var(--line);border-radius:14px}.empty-connections h2{font-size:25px;font-weight:500;letter-spacing:-.025em;margin:0 0 12px}.empty-connections p{color:var(--muted);margin:0 0 24px}.empty-connections .btn{padding:12px 18px}
 .troubleshooting{margin-top:12px}.troubleshooting>summary{cursor:pointer;padding:12px 0;color:var(--muted);font-size:12px}.troubleshooting .grid2{margin-top:12px}
-@media(max-width:760px){.flow-wrap{margin-top:24px}.flow-grid{grid-template-columns:1fr;gap:24px}.flow-intro h1{margin-top:8px}.flow-intro>p{max-width:none}.flow-progress{gap:12px;flex-wrap:wrap}.flow-facts{margin:16px 0}.team-start{grid-template-columns:1fr}.team-steps{border-left:0;border-top:1px solid var(--line)}.team-shortcuts{grid-template-columns:1fr}.team-welcome{padding-top:8px}.team-welcome h1{font-size:28px}}
-@media(max-width:420px){.flow-top{padding:20px}.flow-wrap{padding:0 20px}.flow-panel{padding:22px}.flow-progress{gap:10px;font-size:11px}.flow-progress span{width:20px;height:20px}.flow-grid{gap:20px}.team-start>div{padding:24px}.credential-meta{gap:12px}}
+@media(max-width:760px){.flow-wrap{margin-top:24px}.flow-grid{grid-template-columns:1fr;gap:24px}.flow-intro h1{margin-top:8px}.flow-intro>p{max-width:none}.flow-progress{gap:12px;flex-wrap:wrap}.flow-facts{margin:16px 0}.team-start{grid-template-columns:1fr}.team-steps{border-left:0;border-top:1px solid var(--line)}.team-shortcuts{grid-template-columns:1fr}}
+@media(max-width:420px){.flow-panel{padding:22px}.flow-progress{gap:10px;font-size:11px}.flow-progress span{width:20px;height:20px}.flow-grid{gap:20px}.team-start>div{padding:24px}.credential-meta{gap:12px}}
 @media(max-width:1000px){.team-management{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:no-preference){.btn,.field,.team-shortcuts a{transition:border-color .15s,background .15s,box-shadow .15s}}
 `;
@@ -265,7 +274,7 @@ export const csrfField = (v: Viewer): Html => `<input type="hidden" name="csrf" 
 /** The header of the sign-up and sign-in pages. With newTab, every link opens elsewhere: the page shows a code only once. */
 export const flowHeader = (link = "/login", label = "Sign in", newTab = false): Html => {
   const t = newTab ? ' target="_blank" rel="noopener"' : "";
-  return `<header class="flow-top"><a class="brand" href="/"${t}>${BRAND_ICON}<span>Handoff</span></a><a class="small u" href="${esc(link)}"${t}>${esc(label)} ↗</a></header>`;
+  return `<header class="flow-top"><a class="brand" href="/"${t}>${BRAND_ICON}<span>Handoff</span></a>${label ? `<a href="${esc(link)}"${t}>${esc(label)}${newTab ? " ↗" : ""}</a>` : ""}</header>`;
 };
 export const flowProgress = (step: number): Html => `<ol class="flow-progress" aria-label="Team setup">${["Create team", "Save access code", "Connect"].map((label, i) => `<li${step === i + 1 ? ' aria-current="step"' : ""}><span>${step > i + 1 ? "✓" : i + 1}</span>${label}</li>`).join("")}</ol>`;
 
@@ -365,7 +374,7 @@ export function shell(page: Page, v: Viewer, title: string, body: Html, enhancem
     `<div class="shell">
   ${sideNav({ handle: v.handle, tenant: v.tenant, control: v.control, admin: v.admin, csrf: v.csrf, others: v.others }, page)}
   <main>
-${v.control && v.admin ? `    <div class="small muted" style="margin-bottom:12px">${v.tenant ? `Team administration · <strong>${esc(v.tenant)}</strong>` : "Hosted service operator"}</div>\n` : ""}${body}
+${body}
   </main>
 </div>`, enhancement,
   );
@@ -399,8 +408,7 @@ export function setupPage(ready: boolean, error?: string, opts: { tooShort?: boo
   </div>`;
   return document(
     "Set up",
-    `<div class="login">
-  <div class="brand" style="font-size:18px">${BRAND_ICON}<span>Handoff console</span></div>
+    `${flowHeader("/connect", "Assistant setup")}<div class="login">
   ${body}
   <div class="small muted"><a class="u" href="/connect">Connect page</a></div>
 </div>`,
@@ -411,8 +419,7 @@ export function setupPage(ready: boolean, error?: string, opts: { tooShort?: boo
 export function setupDonePage(handle: string, code: string): Html {
   return document(
     "Set up",
-    `<div class="login">
-  <div class="brand" style="font-size:18px">${BRAND_ICON}<span>Handoff console</span></div>
+    `${flowHeader("/connect", "Assistant setup")}<div class="login">
   <div class="panel">
     <div class="t">You are this server's admin</div>
     <div class="small muted">access code for <strong>${esc(handle)}</strong></div>
@@ -429,7 +436,7 @@ export function setupDonePage(handle: string, code: string): Html {
 export function problemPage(title: string, text: string, back: { site: string; href: string; label: string } = { site: "Handoff console", href: "/console", label: "Back to the console" }): Html {
   return document(
     title,
-    `<div class="login"><div class="brand" style="font-size:18px">${BRAND_ICON}<span>${esc(back.site)}</span></div>
+    `${flowHeader("/", "Home")}<div class="login">
   <div class="panel"><div class="t">${esc(title)}</div><div class="small">${esc(text)}</div><div><a class="btn sm" href="${esc(back.href)}">${esc(back.label)}</a></div></div></div>`,
     undefined,
     back.site,

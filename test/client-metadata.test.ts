@@ -96,7 +96,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
     expect(html).toContain("<strong>Claude Code</strong>");
     expect(html).toContain(`(${new URL(clientId).host})`);
     expect(html).toContain("<code>localhost:49930</code>");
-    expect(html).toContain('<form method="post" action="/authorize">');
+    expect(html).toContain('<form method="post" action="/authorize" class="flow-panel">');
 
     const signIn = await SELF.fetch(`${ORIGIN}/authorize`, {
       method: "POST",
@@ -148,7 +148,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
     const html = await authorizePage(clientId, redirectUri);
     expect(html).toContain("<strong>ChatGPT</strong>");
     expect(html).toContain("<code>chatgpt.com</code>");
-    expect(html).toContain('<form method="post" action="/authorize">');
+    expect(html).toContain('<form method="post" action="/authorize" class="flow-panel">');
 
     const signIn = await SELF.fetch(`${ORIGIN}/authorize`, {
       method: "POST",
@@ -199,7 +199,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
       const clientId = newClientId();
       serve(clientId, { ...claudeCodeDoc(clientId), ...extra });
       const html = await authorizePage(clientId, "http://localhost:49930/callback");
-      expect(html, JSON.stringify(extra)).toContain('<form method="post" action="/authorize">');
+      expect(html, JSON.stringify(extra)).toContain('<form method="post" action="/authorize" class="flow-panel">');
     }
   });
 

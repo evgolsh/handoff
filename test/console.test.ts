@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SELF, env } from "cloudflare:test";
-import { upsertMember, verifyMemberCode } from "../src/auth/builtin";
+import { signInMember, upsertMember, verifyMemberCode } from "../src/auth/builtin";
 import { sha256Hex } from "../src/domain/ids";
 import { ORIGIN, call, expectOk, rpc, send, token } from "./helpers";
 
@@ -176,6 +176,7 @@ describe("console members", () => {
     const code = codeOn(await res.text());
     expect(code).toMatch(/^hf-[A-Za-z0-9_-]{16}$/);
     expect(await verifyMemberCode(env.DB, handle, code!)).toBe(handle);
+    expect(await signInMember(env.DB, handle, code!)).toBe(handle);
     // D1 keeps a hash, and no console page shows the code again.
     const row = await env.DB.prepare("SELECT * FROM members WHERE handle = ?").bind(handle).first();
     expect(JSON.stringify(row)).not.toContain(code);
@@ -201,6 +202,9 @@ describe("console members", () => {
     const code = codeOn(await res.text())!;
     expect(await verifyMemberCode(env.DB, handle, code)).toBe(handle);
     expect(await verifyMemberCode(env.DB, handle, "old-code-for-reset")).toBeNull();
+    // The new code's lookup is stored with it, so the username and new code sign in; the old code does not.
+    expect(await signInMember(env.DB, handle, code)).toBe(handle);
+    expect(await signInMember(env.DB, handle, "old-code-for-reset")).toBeNull();
 
     const refused = await rpc(before, "tools/call", { name: "handoff_inbox", arguments: {} });
     expect(refused.status).toBe(401);

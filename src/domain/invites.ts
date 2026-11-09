@@ -1,5 +1,5 @@
 import type { Config } from "../env";
-import { hashAccessCode, isValidHandle, newAccessCode, normalizeHandle } from "../auth/builtin";
+import { codeRecord, isValidHandle, newAccessCode, normalizeHandle } from "../auth/builtin";
 import { recordEvent } from "../store/events";
 import { HandoffError } from "./errors";
 import { newTicketToken, nowIso, plusMs, sha256Hex } from "./ids";
@@ -24,10 +24,9 @@ export interface Invitation {
   new_member: boolean;
 }
 
-async function randomCodeHash(): Promise<{ salt: string; hash: string; code: string }> {
+async function randomCodeHash(): Promise<{ salt: string; hash: string; lookup: string; code: string }> {
   const code = newAccessCode();
-  const salt = await sha256Hex(crypto.getRandomValues(new Uint8Array(16)));
-  return { salt, hash: await hashAccessCode(code, salt), code };
+  return { ...(await codeRecord(code)), code };
 }
 
 export async function createInvitation(db: D1Database, cfg: Config, inviter: string, rawHandle: string): Promise<Invitation> {
@@ -48,8 +47,8 @@ export async function createInvitation(db: D1Database, cfg: Config, inviter: str
       const n = await db.prepare("SELECT COUNT(*) AS n FROM members WHERE handle >= ? AND handle < ?").bind(`${tenant}/`, `${tenant}0`).first<{ n: number }>();
       if ((n?.n ?? 0) >= cap) throw new HandoffError("quota_exceeded", `this team has ${cap} people, the most the hosted service allows. A private Handoff server has no limit.`);
     }
-    const { salt, hash } = await randomCodeHash();
-    await db.prepare("INSERT INTO members (handle, code_salt, code_hash, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(handle) DO NOTHING").bind(identity, salt, hash, nowIso()).run();
+    const { salt, hash, lookup } = await randomCodeHash();
+    await db.prepare("INSERT INTO members (handle, code_salt, code_hash, code_lookup, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(handle) DO NOTHING").bind(identity, salt, hash, lookup, nowIso()).run();
   }
 
   const token = newTicketToken();
@@ -89,8 +88,8 @@ export async function redeemInvitation(db: D1Database, token: string): Promise<{
   const claimed = await db.prepare("UPDATE invites SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?").bind(nowIso(), hashed, nowIso()).run();
   if (claimed.meta.changes !== 1) return null;
   const identity = qualify(view.team, view.username);
-  const { salt, hash, code } = await randomCodeHash();
-  await db.prepare("UPDATE members SET code_salt = ?, code_hash = ? WHERE handle = ?").bind(salt, hash, identity).run();
+  const { salt, hash, lookup, code } = await randomCodeHash();
+  await db.prepare("UPDATE members SET code_salt = ?, code_hash = ?, code_lookup = ? WHERE handle = ?").bind(salt, hash, lookup, identity).run();
   await recordEvent(db, { kind: "console", name: "invite_open", subject: identity, outcome: "ok" });
   return { view: { ...view, state: "used" }, code };
 }

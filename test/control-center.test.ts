@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SELF, createExecutionContext, env } from "cloudflare:test";
 import worker from "../src/index";
 import { upsertMember } from "../src/auth/builtin";
-import { base64url } from "../src/domain/ids";
+import { base64url, sha256Hex } from "../src/domain/ids";
 import { teamOverview } from "../src/console/stats";
 import { ORIGIN } from "./helpers";
 
@@ -102,12 +102,12 @@ describe("the control center", () => {
     expect(noOrigin.status).toBe(403);
   });
 
-  it("a team's admin signs in with team, handle and code and sees only their team; Ops and Tenants are not theirs", async () => {
+  it("a team's admin signs in with username and code and sees only their team; Ops and Tenants are not theirs", async () => {
     const team = `beta-${uid()}`;
     const other = `gamma-${uid()}`;
     const me = await join(team, "ann");
     const otherCode = (await join(other, "ann")).code;
-    const s = await consoleSession(ctl, { team, handle: "ann", access_code: me.code! });
+    const s = await consoleSession(ctl, { handle: "ann", access_code: me.code! });
 
     const members = await s.page("/console/members");
     expect(members.status).toBe(200);
@@ -116,7 +116,7 @@ describe("the control center", () => {
     expect(members.text).toContain(`${team} ·`);
     expect(members.text).not.toContain("npm run admin");
     const overview = (await s.page("/console/overview")).text;
-    expect(overview).toContain(`Team administration · <strong>${team}</strong>`);
+    expect(overview).toContain(`Team <strong>${team}</strong>`);
     expect(overview).not.toContain(other);
     for (const operatorContent of [">Worker<", ">Database<", ">Storage<", ">Cleanup<", "signing key", 'href="/console/ops"', 'href="/console/tenants"']) {
       expect(overview).not.toContain(operatorContent);
@@ -131,14 +131,14 @@ describe("the control center", () => {
     expect(invitation).toContain(`href="${ORIGIN}/connect"`);
     const memberCode = /hf-[A-Za-z0-9_-]{16}/.exec(invitation)![0];
     // bob is a member, not an admin: he signs in to Assets, and the console sends him back there.
-    const bob = await consoleSession(ctl, { team, handle: "bob", access_code: memberCode });
+    const bob = await consoleSession(ctl, { handle: "bob", access_code: memberCode });
     expect((await bob.page("/console/overview")).location).toBe("/assets");
     expect((await bob.page("/assets")).status).toBe(200);
     expect(await env.DB.prepare("SELECT handle FROM members WHERE handle = ?").bind(`${team}/bob`).first()).toEqual({ handle: `${team}/bob` });
     expect((await s.page("/console/members")).text).toContain("<strong>bob</strong>");
 
     // The other team's admin does not see bob.
-    const theirs = await consoleSession(ctl, { team: other, handle: "ann", access_code: otherCode! });
+    const theirs = await consoleSession(ctl, { handle: "ann", access_code: otherCode! });
     const theirMembers = (await theirs.page("/console/members")).text;
     expect(theirMembers).toContain("<strong>ann</strong>");
     expect(theirMembers).not.toContain("<strong>bob</strong>");
@@ -174,11 +174,11 @@ describe("the control center", () => {
     expect(created.headers.get("cache-control")).toBe("no-store");
     const nonce = /script-src 'nonce-([^']+)'/.exec(created.headers.get("content-security-policy")!)![1];
     expect(created.text).toContain(`<script nonce="${nonce}">`);
-    expect(created.text).toContain(`Team: ${team}\nUsername: tim\nAccess code: ${created.code}`);
+    expect(created.text).toContain(`Server: ${ORIGIN}/mcp\nUsername: tim\nAccess code: ${created.code}`);
     expect([...created.text.matchAll(/href="([^"]+)"/g)].some(m => m[1]!.includes(created.code!))).toBe(false);
     const s = withCookie(ctl, cookie);
-    expect((await s.page(`/login?team=${team}`)).location).toBe("/assets");
-    expect((await s.page(`/login?team=${team}&next=%2Fconnect`)).location).toBe("/connect");
+    expect((await s.page("/login")).location).toBe("/assets");
+    expect((await s.page("/login?next=%2Fconnect")).location).toBe("/connect");
     // Signed in, Assistant setup is a page of the app: the left menu, and headers that let its sign-out form post.
     const guide = await fetchAs(ctl, "/connect", { headers: { cookie } });
     expect(guide.status).toBe(200);
@@ -189,7 +189,9 @@ describe("the control center", () => {
     const guideText = await guide.text();
     // Two scripts, both with the response's nonce: the "js" mark in the head and the tabs and copy script at the end.
     expect(guideText.match(/<script\b[^>]*>/g)).toEqual([`<script nonce="${guideNonce}">`, `<script nonce="${guideNonce}">`]);
-    expect(guideText).toContain(`Team <strong>${team}</strong>`);
+    expect(guideText).toContain(`<span class="acct-team">${team}</span>`);
+    expect(guideText).toContain("Username <strong>tim</strong>");
+    expect(guideText).toContain('<h1 id="connect-title">Assistant setup</h1>');
     expect(guideText).toContain('<a href="/connect" class="on" aria-current="page">Assistant setup</a>');
     expect(guideText).toContain('action="/logout"');
     // The page is the new team's; the old team stays signed in, offered in the account menu.
@@ -199,14 +201,10 @@ describe("the control center", () => {
     expect(guideText).not.toContain(created.code!);
     const overview = await s.page("/console/overview");
     expect(overview.status).toBe(200);
-    expect(overview.text).toContain(`Team administration · <strong>${team}</strong>`);
+    expect(overview.text).toContain(`Team <strong>${team}</strong>`);
     expect(withoutMenu(overview.text)).not.toContain(oldTeam);
     for (const path of ["/console/ops", "/console/tenants"]) expect((await s.page(path)).location).toBe("/console/overview");
 
-    // A stale success page must not silently open whichever account happens to be signed in now.
-    const mismatch = await s.page(`/login?team=${oldTeam}`);
-    expect(mismatch.status).toBe(200);
-    expect(mismatch.text).toContain(`value="${oldTeam}"`);
     expect((await join(team, "bob", cookie)).cookie).toBeNull();
     expect((await s.page("/console/overview")).status).toBe(200);
     expect((await s.submit("/logout")).status).toBe(303);
@@ -214,19 +212,19 @@ describe("the control center", () => {
     // Signed out, /connect is the public guide again.
     const after = await s.page("/connect");
     expect(after.status).toBe(200);
-    expect(after.text).not.toContain(`Team <strong>${team}</strong>`);
+    expect(after.text).not.toContain(team);
     expect(after.text).not.toContain('action="/logout"');
   });
 
   it("keeps a setup continuation through login, accepts only known destinations, and leaves public setup open to members", async () => {
     const team = `resume-${uid()}`;
     const me = await join(team, "tim");
-    const wrong = await fetchAs(ctl, "/login", form({ team, handle: "tim", access_code: "wrong", next: "/connect" }));
+    const wrong = await fetchAs(ctl, "/login", form({ handle: "tim", access_code: "wrong", next: "/connect" }));
     expect(wrong.status).toBe(401);
     expect(await wrong.text()).toContain('name="next" value="/connect"');
-    const good = await fetchAs(ctl, "/login", form({ team, handle: "tim", access_code: me.code!, next: "/connect" }));
+    const good = await fetchAs(ctl, "/login", form({ handle: "tim", access_code: me.code!, next: "/connect" }));
     expect(good.headers.get("location")).toBe("/connect");
-    const external = await fetchAs(ctl, "/login", form({ team, handle: "tim", access_code: me.code!, next: "https://example.org/steal" }));
+    const external = await fetchAs(ctl, "/login", form({ handle: "tim", access_code: me.code!, next: "https://example.org/steal" }));
     expect(external.headers.get("location")).toBe("/assets");
     const publicGuide = await fetchAs(ctl, "/connect");
     expect(publicGuide.status).toBe(200);
@@ -247,17 +245,15 @@ describe("the control center", () => {
       expect(created.status).toBe(200);
       expect(created.code).toMatch(/^hf-/);
       expect(created.cookie).toBeNull();
-      // The team is remembered, so the sign-in page fills it in.
-      expect(created.headers.getSetCookie().join("\n")).toContain(`__Host-handoff-teams=${team};`);
+      // No session cookie: Continue leads to the sign-in, which needs only the username and this code.
+      expect(created.headers.getSetCookie()).toEqual([]);
       expect(created.text).toContain("Save the code above");
-      const target = await withCookie(ctl, old.cookie!.split(";")[0]!).page(`/login?team=${team}`);
-      expect(target.status).toBe(200);
-      expect(target.text).toContain(`value="${team}"`);
+      expect(created.text).toContain('href="/login?next=%2Fconnect">Continue to setup');
     } finally {
       await env.DB.exec("DROP TRIGGER fail_join_session");
     }
-    const s = await consoleSession(ctl, { team, handle: "tim", access_code: created!.code! });
-    expect((await s.page("/console/overview")).text).toContain(`Team administration · <strong>${team}</strong>`);
+    const s = await consoleSession(ctl, { handle: "tim", access_code: created!.code! });
+    expect((await s.page("/console/overview")).text).toContain(`Team <strong>${team}</strong>`);
   });
 
   it("team home counts only this team's members, distinct live connections and unexpired handoffs", async () => {
@@ -283,25 +279,31 @@ describe("the control center", () => {
     expect(await teamOverview(env.DB, other, now)).toEqual({ members: 2, connected: 1, packetsLive: 1 });
   });
 
-  it("the wrong team with the right handle and code is refused, at the console and at the OAuth sign-in", async () => {
+  it("the access code decides the team, at the web sign-in and at the OAuth sign-in", async () => {
     const team = `delta-${uid()}`;
     const me = await join(team, "tim");
-    const wrong = await fetchAs(ctl, "/login", form({ team: `${team}-no`, handle: "tim", access_code: me.code! }));
-    expect(wrong.status).toBe(401);
-    const noTeam = await fetchAs(ctl, "/login", form({ handle: "tim", access_code: me.code! }));
-    expect(noTeam.status).toBe(401);
+    const other = await join(`${team}-b`, "tim");
+    // A team in the form changes nothing: the code is this team's, so this team it is.
+    const typed = await fetchAs(ctl, "/login", form({ team: `${team}-b`, handle: "tim", access_code: me.code! }));
+    expect(typed.status).toBe(303);
+    expect(await env.DB.prepare("SELECT handle FROM member_sessions WHERE token_hash = ?").bind(await sha256Hex(typed.headers.getSetCookie()[0]!.split(";")[0]!.split("=")[1]!)).first()).toEqual({ handle: `${team}/tim` });
+    expect((await fetchAs(ctl, "/login", form({ handle: "tom", access_code: me.code! }))).status).toBe(401);
 
-    // OAuth: register a client, sign in with team + handle + code, exchange the code: the token's sub is team/tim.
+    // OAuth: register a client, sign in with username + code, exchange the code: the token's sub is team/tim.
     const reg = await fetchAs(ctl, "/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: ["http://localhost:4321/cb"], client_name: "Test host" }) });
     const client = (await reg.json()) as { client_id: string };
     const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
     const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
     const oauth = { client_id: client.client_id, redirect_uri: "http://localhost:4321/cb", response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "handoff offline_access" };
-    const page = await fetchAs(ctl, `/authorize?${new URLSearchParams(oauth)}`);
-    expect(await page.text()).toContain('name="team"');
-    const bad = await fetchAs(ctl, "/authorize", form({ ...oauth, team: `${team}-no`, handle: "tim", access_code: me.code! }));
+    const page = await (await fetchAs(ctl, `/authorize?${new URLSearchParams(oauth)}`)).text();
+    expect(/<form method="post" action="\/authorize" class="flow-panel">[\s\S]*?<\/form>/.exec(page)![0]).not.toContain('name="team"');
+    const bad = await fetchAs(ctl, "/authorize", form({ ...oauth, handle: "tim", access_code: "hf-not-the-code-00" }));
     expect(bad.status).toBe(401);
-    const ok = await fetchAs(ctl, "/authorize", form({ ...oauth, team, handle: "tim", access_code: me.code! }));
+    expect(await bad.text()).toContain("That username and access code do not match.");
+    // The other team's tim, with his own code, gets his own identity.
+    const theirs = await fetchAs(ctl, "/authorize", form({ ...oauth, handle: "tim", access_code: other.code! }));
+    expect(theirs.status).toBe(302);
+    const ok = await fetchAs(ctl, "/authorize", form({ ...oauth, handle: "tim", access_code: me.code! }));
     expect(ok.status).toBe(302);
     const code = new URL(ok.headers.get("location")!).searchParams.get("code")!;
     const tok = await fetchAs(ctl, "/oauth/token", form({ grant_type: "authorization_code", code, code_verifier: verifier, client_id: client.client_id, redirect_uri: oauth.redirect_uri }));
@@ -324,7 +326,7 @@ describe("the control center", () => {
     await env.DB.prepare("INSERT OR IGNORE INTO admin_members (handle) VALUES (?)").bind(op.handle).run();
     const team = `zeta-${uid()}`;
     await join(team, "lee");
-    const s = await consoleSession(ctl, { team: "", handle: op.handle, access_code: op.code });
+    const s = await consoleSession(ctl, { handle: op.handle, access_code: op.code });
     const tenants = await s.page("/console/tenants");
     expect(tenants.status).toBe(200);
     expect(tenants.text).toContain(`<strong>${team}</strong>`);
@@ -336,7 +338,10 @@ describe("the control center", () => {
     expect(members).toContain(`<strong>${op.handle}</strong>`);
     expect(members).not.toContain(`${team}/lee`);
     expect((await s.page("/console/assistants")).text).not.toContain(`${team}/lee`);
-    // Sign-up cannot make a bare handle, so nobody else gets in through an empty team.
-    expect((await join("", "nobody")).status).toBe(400);
+    // Sign-up cannot make a bare handle: without a team name the team is named after the username.
+    const solo = `solo-${uid()}`;
+    expect((await join("", solo)).status).toBe(200);
+    expect(await env.DB.prepare("SELECT handle FROM members WHERE handle = ?").bind(solo).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT handle FROM members WHERE handle = ?").bind(`${solo}/${solo}`).first()).toEqual({ handle: `${solo}/${solo}` });
   });
 });

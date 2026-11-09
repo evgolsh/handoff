@@ -77,7 +77,7 @@ describe("connect page", () => {
     expect(html).not.toMatch(/https:\/\/fonts\.|googleapis/);
   });
 
-  it("a signed-in browser's public pages lead to Assets, not to Sign in, and no shared cache keeps either version", async () => {
+  it("a signed-in browser's public pages lead to the Dashboard, not to Sign in, and no shared cache keeps either version", async () => {
     const cookie = `__Host-handoff-session=${"s".repeat(43)}`;
     for (const path of ["/", "/privacy", "/about", "/contact"]) {
       const out = await home(path);
@@ -89,13 +89,14 @@ describe("connect page", () => {
       expect(html, path).toContain('href="/assets">');
     }
     const signedIn = await (await worker.fetch(new Request(`${ORIGIN}/`, { headers: { cookie } }), control, createExecutionContext())).text();
-    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Open Assets</a>');
-    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Open Assets <span aria-hidden="true">→</span></a>');
+    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Dashboard</a>');
+    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Dashboard <span aria-hidden="true">→</span></a>');
+    expect(signedIn).not.toContain("Open Assets");
     expect(signedIn).not.toContain('class="site-button primary" href="/join">');
     // A private install's pages say the same.
     const priv = await (await SELF.fetch(`${ORIGIN}/privacy`, { headers: { cookie } })).text();
     expect(priv).not.toContain(">Sign in</a>");
-    expect(priv).toContain('href="/assets">Assets</a>');
+    expect(priv).toContain('href="/assets">Dashboard</a>');
     // Old paths are gone.
     for (const path of ["/b", "/admin"]) expect((await home(path)).status, path).toBe(404);
   });
