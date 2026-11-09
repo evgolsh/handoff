@@ -1,6 +1,6 @@
 {
   "name": "handoff",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Send notes and the original files from your AI assistant to someone else's: Claude, ChatGPT, Codex, Claude Code. Free hosted, or your own private server.",
   "mcpServers": {
     "handoff": {

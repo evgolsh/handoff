@@ -3,7 +3,7 @@
   "name": "io.github.evgolsh/handoff",
   "title": "Handoff",
   "description": "Send notes and files from your AI assistant to someone else's: Claude, ChatGPT, Codex. Free.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "websiteUrl": "https://handoff.infraworks.net",
   "repository": {
     "url": "https://github.com/evgolsh/handoff",
