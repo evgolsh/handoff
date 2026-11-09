@@ -64,7 +64,7 @@ export class D1Repository implements Repository {
         : filter === "received"
           ? ["(p.recipient = ? OR p.recipient = ?) AND p.owner != ?", [owner, team, owner]]
           : ["(p.owner = ? OR p.recipient = ? OR p.recipient = ?)", [owner, owner, team]];
-    const base = `SELECT p.id, p.owner, p.recipient, p.title, p.created_at, p.expires_at,
+    const base = `SELECT p.id, p.owner, p.recipient, p.title, p.created_at, p.expires_at, p.sent_via,
         (SELECT COUNT(*) FROM packet_attachments pa WHERE pa.packet_id = p.id) AS attachment_count
       FROM packets p
       WHERE ${who} AND p.expires_at > ? AND p.revoked_at IS NULL`;
@@ -80,7 +80,7 @@ export class D1Repository implements Repository {
   async listUnseen(subject: string, nowIso: string, limit: number): Promise<InboxRow[]> {
     const { results } = await this.db
       .prepare(
-        `SELECT p.id, p.owner, p.recipient, p.title, p.created_at, p.expires_at,
+        `SELECT p.id, p.owner, p.recipient, p.title, p.created_at, p.expires_at, p.sent_via,
            (SELECT COUNT(*) FROM packet_attachments pa WHERE pa.packet_id = p.id) AS attachment_count
          FROM packets p
          WHERE (p.recipient = ? OR p.recipient = ?) AND p.owner != ? AND p.expires_at > ? AND p.revoked_at IS NULL

@@ -63,10 +63,19 @@ export interface UnsentFile {
   uploaded_at: string;
   /** The note typed in Assets, if any. */
   note: string | null;
+  /** Uploaded in Assets (browser) or by an assistant. */
+  via: "browser" | "assistant";
 }
 
 /** Where a file came from and the uploader's note, from attachments.provenance (JSON). */
 export const WEB_PROVENANCE = "web";
+const fromBrowser = (a: AttachmentRow): boolean => {
+  try {
+    return a.provenance !== null && (JSON.parse(a.provenance) as { via?: string }).via === WEB_PROVENANCE;
+  } catch {
+    return false;
+  }
+};
 export function webNote(a: AttachmentRow): string | null {
   try {
     const p = a.provenance ? (JSON.parse(a.provenance) as { via?: string; note?: unknown }) : null;
@@ -83,6 +92,7 @@ const unsent = (a: AttachmentRow): UnsentFile => ({
   size: a.size,
   uploaded_at: a.ready_at ?? a.created_at,
   note: webNote(a),
+  via: fromBrowser(a) ? "browser" : "assistant",
 });
 
 /** A name as people say it: no folders, case and surrounding space ignored. */
@@ -116,7 +126,7 @@ export interface Delivery {
 }
 
 /** A live handoff as Assets lists it: who sent it to whom, when it expires, its files, and who picked it up. */
-export type HandoffWithFiles = PacketSummary & Delivery & { attachments: AttachmentDescriptor[] };
+export type HandoffWithFiles = PacketSummary & Delivery & { attachments: AttachmentDescriptor[]; sent_via: string | null };
 
 /** An assistant's registered name, unless it is a generic one that says nothing. */
 export const assistantName = (name: string | null): string | null => {
@@ -442,7 +452,7 @@ export class HandoffService {
   async inbox(
     principal: Principal,
     opts: { limit?: number; cursor?: string; filter?: InboxFilter },
-  ): Promise<{ packets: (PacketSummary & Delivery & { attachment_count: number })[]; next_cursor: string | null }> {
+  ): Promise<{ packets: (PacketSummary & Delivery & { attachment_count: number; sent_via: string | null })[]; next_cursor: string | null }> {
     const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
     const cursor = opts.cursor ? decodeCursor(opts.cursor) : null;
     const rows = await this.repo.listInbox(principal.subject, nowIso(), limit + 1, cursor, opts.filter ?? "all");
@@ -458,6 +468,7 @@ export class HandoffService {
         created_at: r.created_at,
         expires_at: r.expires_at,
         attachment_count: r.attachment_count,
+        sent_via: r.sent_via ?? null,
         ...got.get(r.id)!,
       })),
       next_cursor: rows.length > limit && last ? encodeCursor(last) : null,
@@ -705,13 +716,14 @@ export class HandoffService {
         created_at: r.created_at,
         expires_at: r.expires_at,
         attachment_count: r.attachment_count,
+        sent_via: r.sent_via ?? null,
         pickups: [],
         waiting: [],
       })),
     );
   }
 
-  private async withFiles(packets: (PacketSummary & Delivery & { attachment_count: number })[]): Promise<HandoffWithFiles[]> {
+  private async withFiles(packets: (PacketSummary & Delivery & { attachment_count: number; sent_via: string | null })[]): Promise<HandoffWithFiles[]> {
     const rows = await this.repo.getAttachmentsForPackets(packets.map((p) => p.packet_id));
     return packets.map(({ attachment_count: _n, ...p }) => ({
       ...p,

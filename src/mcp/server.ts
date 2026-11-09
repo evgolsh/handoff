@@ -158,7 +158,7 @@ export function buildMcpServer(svc: HandoffService, principal: Principal, db: D1
         const me = handleOf(principal.subject);
         const page = {
           ...got,
-          packets: got.packets.map(({ pickups, ...p }) => ({ ...p, pickups: pickups.map((k) => ({ by: k.by, via: k.via, assistant: k.client, at: k.at })) })),
+          packets: got.packets.map(({ pickups, sent_via: _via, ...p }) => ({ ...p, pickups: pickups.map((k) => ({ by: k.by, via: k.via, assistant: k.client, at: k.at })) })),
         };
         const lines = page.packets.length
           ? got.packets.map((p) => {
@@ -173,7 +173,7 @@ export function buildMcpServer(svc: HandoffService, principal: Principal, db: D1
           lines.push("", "Unsent files (attach with attachment_ids or attachment_names in handoff_send; open with handoff_read and the attachment_id alone):");
           for (const f of files) lines.push(`- ${f.attachment_id}: ${f.filename} (${f.mime_type ?? "unknown"}, ${f.size ?? "?"} bytes, uploaded ${f.uploaded_at})${f.note ? `, note: ${JSON.stringify(f.note)}` : ""}`);
         }
-        return { content: [text(lines.join("\n"))], structuredContent: { ...page, unsent_files: files } };
+        return { content: [text(lines.join("\n"))], structuredContent: { ...page, unsent_files: files.map(({ via: _via, ...f }) => f) } };
       } catch (e) {
         return errorResult(e);
       }

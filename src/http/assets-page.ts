@@ -212,10 +212,14 @@ const expiresSoon = (iso: string, now: number): Html =>
   Date.parse(iso) - now < SOON_MS ? `<span class="st-soon" title="${esc(utc(iso))}">Expires in ${until(iso, now)}</span>` : "";
 
 /** Who a handoff went from and to, from the viewer's side. The team recipient is "*". */
-function direction(me: string, h: { from: string; to: string }): string {
-  if (h.from === me) return h.to === me ? "To yourself" : h.to === "*" ? "To the team" : `To ${h.to}`;
-  return h.to === "*" ? `From ${h.from}, to the team` : `From ${h.from}`;
+/** Who sent it to whom, and from which assistant when it is known: "To anna via Codex". */
+function direction(me: string, h: { from: string; to: string; sent_via?: string | null }): string {
+  const via = h.sent_via ? ` via ${h.sent_via}` : "";
+  if (h.from === me) return `${h.to === me ? "To yourself" : h.to === "*" ? "To the team" : `To ${h.to}`}${via}`;
+  return h.to === "*" ? `From ${h.from}${via}, to the team` : `From ${h.from}${via}`;
 }
+
+const uploadedBy = (f: UnsentFile): string => (f.via === "browser" ? "in the browser" : "by your assistant");
 
 const handoffHref = (packetId: string): string => `/assets/handoff/${encodeURIComponent(packetId)}`;
 const fileHref = (attachmentId: string): string => `/assets/file/${encodeURIComponent(attachmentId)}`;
@@ -287,7 +291,7 @@ function fileRow(v: AssetsViewer, f: UnsentFile, now: number, unsentTtlMs: numbe
     <span class="asset-icon">${FILE_ICON}</span>
     <div>
       <a class="asset-name" href="${fileHref(f.attachment_id)}">${esc(f.filename)}</a>
-      <div class="asset-sub">${esc(typeLabel(f.mime_type))}, ${esc(bytes(f.size))} · uploaded ${when(f.uploaded_at, now)}</div>
+      <div class="asset-sub">${esc(typeLabel(f.mime_type))}, ${esc(bytes(f.size))} · uploaded ${uploadedBy(f)} ${when(f.uploaded_at, now)}</div>
       ${f.note ? `<div class="asset-note">${esc(f.note)}</div>` : ""}
       ${sayBox(`Hand this off with ${f.filename}.`)}
     </div>
@@ -558,7 +562,7 @@ export function filePage(v: AssetsViewer, f: UnsentFile, card: FileCard, now: nu
   <header class="app-head"><div>
     <p class="eyebrow">Ready to send · Only you</p>
     <h1>${esc(f.filename)}</h1>
-    <p class="lead">Uploaded ${when(f.uploaded_at, now)} · <span title="${esc(utc(gone))}">Deleted in ${until(gone, now)} if not sent</span></p>
+    <p class="lead">Uploaded ${uploadedBy(f)} ${when(f.uploaded_at, now)} · <span title="${esc(utc(gone))}">Deleted in ${until(gone, now)} if not sent</span></p>
   </div></header>
   ${f.note ? `<p class="asset-note">${esc(f.note)}</p>` : ""}
   ${fileCard(card)}

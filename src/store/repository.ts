@@ -41,6 +41,8 @@ export interface InboxRow {
   created_at: string;
   expires_at: string;
   attachment_count: number;
+  /** The sending assistant's name, when known. */
+  sent_via?: string | null;
 }
 
 export interface AttachmentRow {

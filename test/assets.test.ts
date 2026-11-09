@@ -181,6 +181,7 @@ describe("Assets (/assets)", () => {
     expect(page).toContain(">Ready to send</h2>");
     expect(page).toContain('<span class="sect-note">Private to you until sent</span>');
     expect(page).toContain("Deleted in 7 days");
+    expect(page).toContain("· uploaded in the browser ");
     expect(page).toContain('<q>Hand this off with vat-q3-summary.pdf.</q><button type="button" class="btn sm" data-copy="Hand this off with vat-q3-summary.pdf."');
     expect(page).toContain("Signed copy");
     // The id is in links and the Remove form, never in the text people read.

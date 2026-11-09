@@ -162,7 +162,7 @@ describe("pickups: did she get it?", () => {
     const id = await sendTo(joe, "team", "Holiday packing list");
     expectOk(await anna.mcp("handoff_read", { packet_id: id }));
     const row = rowOf(await joe.page(), "Holiday packing list");
-    expect(row).toContain("To the team · Brief only");
+    expect(row).toContain("To the team via Claude · Brief only");
     expect(row).toContain("Picked up by anna</span>");
     // One line under the status: where, when, and who has not yet.
     expect(row).toContain('<span class="st-meta">in ChatGPT · just now · ben not yet</span>');
