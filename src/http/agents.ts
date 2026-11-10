@@ -191,7 +191,7 @@ ${PRIVATE_INSTALL}
 - [Homepage as Markdown](${f.site}/index.md)
 - [Assistant setup index](${f.site}/connect/llms.txt): only the setup steps, per assistant
 - [Create a team](${f.site}/join.md)
-- [Privacy](${f.site}/privacy.md) · [About](${f.site}/about.md) · [Contact](${f.site}/contact.md)
+- [Privacy](${f.site}/privacy.md) · [Terms](${f.site}/terms.md) · [About](${f.site}/about.md) · [Contact](${f.site}/contact.md)
 - [Source code](${GITHUB_URL}) · [Install guide for coding agents](${GITHUB_URL}/blob/main/llms-install.md)
 - [Everything in one file](${f.site}/llms-full.txt)
 `;
@@ -562,6 +562,7 @@ All the ways to reach us: ${f.site}/contact
 - Help and bug reports: ${ISSUES_URL}
 - Security reports: see ${GITHUB_URL}/blob/main/SECURITY.md
 - Privacy: ${f.site}/privacy
+- Terms: ${f.site}/terms
 `;
 }
 
@@ -594,6 +595,55 @@ Handoffs and files are deleted when they expire, and the sender can revoke a han
 ## Security problems
 
 Report a vulnerability privately as described in ${GITHUB_URL}/blob/main/SECURITY.md, not in a public issue.
+`;
+}
+
+/** /terms as Markdown (hosted only): the terms of the hosted service, approved by its operator on 10 November 2026. */
+export function termsMd(cfg: Config): string {
+  const f = facts(cfg);
+  return `---
+title: Handoff terms of use
+description: The terms of the hosted Handoff service: what it is, your account, your content, what not to do, and how it ends.
+canonical: ${f.site}/terms
+last-updated: 2026-11-10
+---
+
+# Terms of use
+
+These terms cover the hosted Handoff service at ${f.host}, run by Eugene Olshenbaum. Handoff's code is open source (MIT). A server you run on your own Cloudflare account is yours, and these terms don't apply to it.
+
+## The service
+
+Free and provided as is: no promise it is always available, free of errors, or keeps your data. Handoffs are deleted after ${days(f.days)} by default (up to ${f.maxDays}), so keep your own copy of anything that matters. Limits (${f.mib} MiB per file, ${cfg.maxAttachmentsPerPacket} files per handoff, ${f.cap} people per team) may change.
+
+## Your account
+
+Your access code is the only key, and nobody can recover it. Your team's admin can reset it. An admin who loses their code while signed out everywhere starts a new team.
+
+## Your content
+
+What you send stays yours. Handoff stores it only to deliver it to the people you address, and deletes it when it expires. The operator doesn't read it: see ${f.site}/privacy.
+
+## Don't
+
+- Send anything illegal, or anything you have no right to share.
+- Send malware or spam.
+- Probe or attack the service or other teams' data. Report problems privately: ${GITHUB_URL}/blob/main/SECURITY.md.
+- Use Handoff for bulk sign-ups or as general file hosting.
+
+## Ending
+
+You can delete your team at any time (Your team, then Delete team). The operator may suspend or delete a team that breaks these terms, and may end the service, with notice on the homepage where possible.
+
+## Liability
+
+As far as the law allows, the operator isn't liable for any loss from using Handoff, including lost data or a handoff that doesn't arrive.
+
+## Changes
+
+This page shows the date of its last change. Using Handoff after a change means you accept it.
+
+Questions: ${f.site}/contact
 `;
 }
 
@@ -754,6 +804,8 @@ function markdownFor(cfg: Config, mdPath: string): string | null {
       return hosted ? aboutMd(cfg) : null;
     case "/contact.md":
       return hosted ? contactMd(cfg) : null;
+    case "/terms.md":
+      return hosted ? termsMd(cfg) : null;
     case "/join.md":
       return hosted ? joinMd(cfg) : null;
     case "/agents.md":
@@ -816,7 +868,7 @@ export function robotsTxt(cfg: Config): string {
 }
 
 export function sitemapXml(cfg: Config, lastmod: string | null): string {
-  const paths = ["/", "/connect", "/join", "/privacy", "/about", "/contact", "/llms.txt", "/agents.md", "/auth.md", "/index.md", "/connect.md"];
+  const paths = ["/", "/connect", "/join", "/privacy", "/terms", "/about", "/contact", "/llms.txt", "/agents.md", "/auth.md", "/index.md", "/connect.md"];
   const mod = lastmod ? `<lastmod>${lastmod.slice(0, 10)}</lastmod>` : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -925,6 +977,7 @@ export function notFoundMarkdown(cfg: Config): Response {
 }
 
 const PRIVACY_UPDATED = "10 November 2026";
+const TERMS_UPDATED = "10 November 2026";
 
 /**
  * Routes. Mounted before the pages: a Markdown request for a public page is answered here, and every public
@@ -960,7 +1013,7 @@ export function agentRoutes(): Hono<{ Bindings: Env; Variables: Vars }> {
     if (cfg.mode === "control") parts.push(aboutMd(cfg));
     return new Response(parts.join("\n\n---\n\n"), { headers: TEXT_HEADERS });
   });
-  for (const p of ["/index.md", "/connect.md", "/privacy.md", "/about.md", "/contact.md", "/join.md", "/agents.md", "/auth.md", "/llms.md"]) {
+  for (const p of ["/index.md", "/connect.md", "/privacy.md", "/terms.md", "/about.md", "/contact.md", "/join.md", "/agents.md", "/auth.md", "/llms.md"]) {
     app.get(p, (c) => md(markdownFor(c.get("cfg"), p)) ?? c.notFound());
   }
   // A focused index for one section: an agent helping someone connect needs only this.
@@ -1023,6 +1076,11 @@ export function agentRoutes(): Hono<{ Bindings: Env; Variables: Vars }> {
   app.get("/privacy", (c) => {
     const cfg = c.get("cfg");
     return new Response(prosePage(cfg, "Privacy · Handoff", privacyMd(cfg), "/privacy", { updated: PRIVACY_UPDATED, signedIn: hasSessionCookie(c.req.header("cookie")) }), { headers: PROSE_HEADERS });
+  });
+  app.get("/terms", (c) => {
+    const cfg = c.get("cfg");
+    if (cfg.mode !== "control") return c.redirect(`${CONTROL_CENTER_URL}/terms`, 302);
+    return new Response(prosePage(cfg, "Terms · Handoff", termsMd(cfg), "/terms", { updated: TERMS_UPDATED, signedIn: hasSessionCookie(c.req.header("cookie")) }), { headers: PROSE_HEADERS });
   });
   app.get("/contact", (c) => {
     const cfg = c.get("cfg");

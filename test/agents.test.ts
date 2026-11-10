@@ -138,6 +138,22 @@ describe("agent files on the hosted service", () => {
     expect((await get(env, "/contact")).headers.get("location")).toBe("https://handoff.infraworks.net/contact");
   });
 
+  it("has terms of use on the hosted service, linked from the footer, the sitemap and llms.txt; a private install points to them", async () => {
+    const terms = await get(hosted, "/terms");
+    expect(terms.status).toBe(200);
+    const text = (await terms.text()).replace(/<[^>]+>/g, "");
+    for (const s of ["Terms of use", "provided as is", "nobody can recover it", "Delete team", "isn't liable", "Last updated 10 November 2026."]) expect(text).toContain(s);
+    expect(text).not.toMatch(/[a-z0-9._+-]+@[a-z0-9-]+\.[a-z]{2,}/i);
+    const md = await get(hosted, "/terms.md");
+    expect(md.headers.get("content-type")).toContain("text/markdown");
+    expect(await md.text()).toContain("# Terms of use");
+    expect(await (await get(hosted, "/")).text()).toContain('<a href="/terms">Terms</a>');
+    expect(await (await get(hosted, "/sitemap.xml")).text()).toContain(`<loc>${ORIGIN}/terms</loc>`);
+    expect(await (await get(hosted, "/llms.txt")).text()).toContain(`[Terms](${ORIGIN}/terms.md)`);
+    expect((await get(env, "/terms")).headers.get("location")).toBe("https://handoff.infraworks.net/terms");
+    expect((await get(env, "/terms.md")).status).toBe(404);
+  });
+
   it("publishes an RFC 9727 API catalog for the MCP server and a section llms.txt for setup", async () => {
     const res = await get(hosted, "/.well-known/api-catalog");
     expect(res.headers.get("content-type")).toContain("application/linkset+json");

@@ -79,7 +79,7 @@ describe("connect page", () => {
 
   it("a signed-in browser's public pages lead to the Dashboard, not to Sign in, and no shared cache keeps either version", async () => {
     const cookie = `__Host-handoff-session=${"s".repeat(43)}`;
-    for (const path of ["/", "/privacy", "/about", "/contact"]) {
+    for (const path of ["/", "/privacy", "/terms", "/about", "/contact"]) {
       const out = await home(path);
       expect(out.headers.get("cache-control"), path).toBe("private, no-cache");
       expect(await out.text(), path).toContain('href="/login">Sign in</a>');

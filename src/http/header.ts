@@ -121,7 +121,7 @@ export function pageFooter(opts: HeaderOpts = {}): string {
     return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
   }
-  const links = `<a href="/">Home</a>${active ? (opts.signedIn ? '<a href="/connect">Assistant setup</a>' : '<a href="/connect">Get started</a>') : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
+  const links = `<a href="/">Home</a>${active ? (opts.signedIn ? '<a href="/connect">Assistant setup</a>' : '<a href="/connect">Get started</a>') : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
   return `<footer class="site-footer site-width"><p>Handoff · Your notes and files, from your assistant to theirs.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
 }
