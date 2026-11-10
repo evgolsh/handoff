@@ -1,14 +1,14 @@
 {
   "name": "handoff",
-  "version": "0.2.0",
-  "description": "Tell something to a teammate's agent. Plan in one AI, build in another — sends a prepared brief with original attachments across assistants and computers.",
+  "version": "0.2.1",
+  "description": "Send a brief and the original files from your AI assistant to someone else's assistant: Claude, ChatGPT, Codex, Claude Code. Hosted at handoff.infraworks.net, or on your own private server.",
   "author": {
     "name": "Eugene Olshenbaum"
   },
   "license": "MIT",
-  "homepage": "https://github.com/evgolsh/handoff",
+  "homepage": "https://handoff.infraworks.net",
   "repository": "https://github.com/evgolsh/handoff",
-  "keywords": ["handoff", "mcp", "context", "continuation", "cloudflare-workers"],
+  "keywords": ["handoff", "mcp", "file-sharing", "family", "teams", "context"],
   "skills": "./plugin/skills/",
   "mcpServers": "./mcp.json"
 }

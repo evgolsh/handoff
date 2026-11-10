@@ -9,6 +9,7 @@ import { handleOf, shownRecipient } from "../domain/tenant";
 import type { AttachmentDescriptor, HandoffService, HostFile, Pickup } from "../domain/service";
 import { uploadCommands } from "./commands";
 import { createInvitation } from "../domain/invites";
+import { VERSION } from "../version";
 
 export const SERVER_INSTRUCTIONS = `Handoff carries a prepared brief, with original attachments, from one AI assistant to another: the same person on another computer or assistant, or a teammate or family member on the same Handoff server.
 When the user says "hand this off" (or asks to pass this work to another assistant or teammate), or when the next step of a task must run on another computer or in another assistant: write a brief from the current conversation that states the purpose, the decisions made and their reasons, the constraints, the next useful step, the references the recipient may use, and the open questions. Do not paste the whole transcript. Then call handoff_send with a title, the brief, optional "to" (a teammate's username like "tom", or "team" / "*" for the shared inbox; omit for yourself), any explicitly selected files, and a fresh idempotency_key. Report the returned packet_id.
@@ -57,8 +58,17 @@ function pickupNote(me: string, p: { from: string; pickups: Pickup[]; waiting: s
 }
 
 export function buildMcpServer(svc: HandoffService, principal: Principal, db: D1Database): McpServer {
-  const server = new McpServer({ name: "handoff", version: "0.1.0" }, { instructions: SERVER_INSTRUCTIONS });
   const { cfg } = svc;
+  const server = new McpServer(
+    {
+      name: "handoff",
+      title: "Handoff",
+      version: VERSION,
+      websiteUrl: cfg.publicUrl,
+      icons: [{ src: `${cfg.publicUrl}/img/icon.png`, mimeType: "image/png", sizes: ["512x512"] }],
+    },
+    { instructions: SERVER_INSTRUCTIONS },
+  );
 
   server.registerTool(
     "handoff_send",

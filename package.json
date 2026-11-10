@@ -1,6 +1,6 @@
 {
   "name": "handoff",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Handoff: a hosted MCP service that carries a prepared brief and original attachments from one AI assistant to another.",
@@ -23,7 +23,8 @@
     "predeploy:hosted": "npm run assets",
     "teardown": "node scripts/teardown.mjs",
     "images": "npm run assets && node scripts/images.mjs",
-    "video": "npm run assets && node scripts/demo-video/render.mjs"
+    "video": "npm run assets && node scripts/demo-video/render.mjs",
+    "pack:plugin": "node scripts/pack-plugin.mjs"
   },
   "license": "MIT",
   "cloudflare": {

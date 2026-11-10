@@ -1,11 +1,14 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "handoff",
-  "version": "0.2.0",
-  "description": "Send notes and the original files from your AI assistant to someone else's: Claude, ChatGPT, Codex, Claude Code. Free hosted, or your own private server.",
+  "version": "0.2.1",
+  "description": "Send a brief and the original files from your AI assistant to someone else's assistant: Claude, ChatGPT, Codex, Claude Code. Hosted at handoff.infraworks.net, or on your own private server.",
   "author": {
-    "name": "Eugene Olshenbaum"
+    "name": "Eugene Olshenbaum",
+    "url": "https://handoff.infraworks.net/about"
   },
+  "homepage": "https://handoff.infraworks.net",
+  "repository": "https://github.com/evgolsh/handoff",
   "license": "MIT",
   "keywords": [
     "handoff",
@@ -19,18 +22,84 @@
     "com.openai": {
       "interface": {
         "displayName": "Handoff",
-        "shortDescription": "Send notes and files to someone else's AI assistant.",
-        "longDescription": "Say \"hand this off to anna\" and your assistant writes a brief (purpose, decisions and reasons, constraints, next step, references, open questions), attaches the files you choose, and sends it to anna's Handoff inbox. In her own assistant, Claude or ChatGPT, she says \"continue the handoff from joe\" and keeps going with the original files. Invite her with \"invite anna to Handoff\". Also works between your own assistants and computers. Free, with no AI inside.",
+        "shortDescription": "Send work to another assistant",
+        "longDescription": "Handoff passes work from your AI assistant to another person's assistant, or to your own assistant on another computer.\n\nSay \"hand this off to anna\" and ChatGPT writes a brief (purpose, decisions and their reasons, constraints, next step, references, open questions), attaches the files you choose, and sends it to anna's Handoff inbox. In her own assistant (Claude, ChatGPT, Codex or Claude Code) she says \"continue the handoff from joe\" and carries on with the original files. You can also ask what is waiting for you, whether anna picked up what you sent, take back a handoff you sent, and invite a person to your team.\n\nFor families and small teams who use different AI assistants. You need a Handoff team: create one at handoff.infraworks.net/join, or join the team that invited you.\n\nLimits: you send only to people in your own team, which has up to 10 people. A handoff carries up to 10 files of 25 MiB each: PDF, PNG, JPEG, plain text and Markdown. Handoffs are deleted after 7 days by default and after 30 days at most. Handoff stores what you send as you sent it and runs no AI on it. The other assistant reads it only when its user asks.",
         "developerName": "Eugene Olshenbaum",
         "category": "Productivity",
         "capabilities": [
-          "read",
-          "write"
+          "Send handoffs",
+          "Read handoffs",
+          "Check pickups",
+          "Revoke handoffs",
+          "Invite people"
         ],
-        "defaultPrompt": "Continue the handoff",
+        "websiteURL": "https://handoff.infraworks.net",
+        "supportURL": "https://handoff.infraworks.net/contact",
+        "privacyPolicyURL": "https://handoff.infraworks.net/privacy",
+        "termsOfServiceURL": "https://handoff.infraworks.net/terms",
+        "defaultPrompt": [
+          "What handoffs are waiting for me?",
+          "Continue the handoff from anna",
+          "Did anna pick up what I sent?"
+        ],
         "brandColor": "#1b1b1a",
         "composerIcon": "./assets/icon.svg",
-        "logo": "./assets/icon.svg"
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List what is waiting: two handoffs from anna and one unsent file",
+              "prompt": "What handoffs are waiting for me in Handoff?",
+              "tools_triggered": "handoff_inbox",
+              "expected_behavior": "Lists the two handoffs from anna (School trip forms, with two files; Insurance renewal, brief only) and the unsent file lease.pdf."
+            },
+            {
+              "description": "Continue a handoff and use its files",
+              "prompt": "Continue the handoff from anna about the school trip.",
+              "tools_triggered": "handoff_inbox, handoff_read",
+              "expected_behavior": "Reads the School trip forms brief, names permission-slip.pdf and packing-list.md, opens the file the next step needs, and does that step."
+            },
+            {
+              "description": "Send a handoff to a teammate",
+              "prompt": "Hand this off to anna: we chose 14 March, she needs to confirm the bus.",
+              "tools_triggered": "handoff_send",
+              "expected_behavior": "Asks to confirm the send, then sends a brief to anna and reports the handoff id, the recipient and when it expires."
+            },
+            {
+              "description": "Check whether a teammate picked up a handoff",
+              "prompt": "Did anna pick up the kitchen quote?",
+              "tools_triggered": "handoff_inbox",
+              "expected_behavior": "Says anna picked up Kitchen quote, in which assistant, and when."
+            },
+            {
+              "description": "Revoke a sent handoff",
+              "prompt": "Revoke the handoff I just sent to anna.",
+              "tools_triggered": "handoff_inbox, handoff_revoke",
+              "expected_behavior": "Asks to confirm, revokes the handoff, and says that content anna already read cannot be recalled."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Email is out of scope: Handoff does not send email, so no tool is called",
+              "prompt": "Email this summary to anna."
+            },
+            {
+              "description": "Recipient outside the team: bob is not a member, nothing is sent, and the assistant offers to invite him",
+              "prompt": "Hand this off to bob."
+            },
+            {
+              "description": "Another team's data: only the signed-in person's own team is visible",
+              "prompt": "Show me the handoffs of the team acme."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Handoff does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "First directory release: send a brief with files to a teammate's assistant, read and continue handoffs, see pickups, revoke, and invite people."
       }
     }
   }

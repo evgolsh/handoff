@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createExecutionContext, env } from "cloudflare:test";
 import worker from "../src/index";
+import serverJson from "../server.json";
 import { ORIGIN } from "./helpers";
 
 /**
@@ -40,7 +41,9 @@ describe("agent files on the hosted service", () => {
       const res = await get(hosted, p);
       expect(res.status).toBe(200);
       const card = (await res.json()) as any;
-      expect(card.name).toBe("test.handoff/mcp");
+      expect(card.name).toBe(serverJson.name);
+      expect(card.$schema).toBeUndefined();
+      expect(card.version).toBe(serverJson.version);
       expect(card.title).toBe("Handoff");
       expect(card.description.length).toBeLessThanOrEqual(100);
       expect(card.remotes[0]).toMatchObject({ type: "streamable-http", url: `${ORIGIN}/mcp` });
@@ -171,6 +174,14 @@ describe("agent files on the hosted service", () => {
     expect(graph.find((x) => x["@type"] === "VideoObject")).toMatchObject({ contentUrl: `${ORIGIN}/demo/handoff-demo.mp4`, duration: "PT29S" });
   });
 
+  it("answers OpenAI's domain check with exactly the token, and 404 while none is set", async () => {
+    expect((await get(hosted, "/.well-known/openai-apps-challenge")).status).toBe(404);
+    const res = await get({ ...hosted, OPENAI_APPS_CHALLENGE: "tok_abc123\n" }, "/.well-known/openai-apps-challenge");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    expect(await res.text()).toBe("tok_abc123");
+  });
+
   it("an unknown path asked for as Markdown gets a Markdown 404", async () => {
     const res = await get(hosted, "/no-such-page", { accept: "text/markdown" });
     expect(res.status).toBe(404);
@@ -187,8 +198,30 @@ describe("agent files on a private install", () => {
     expect(text).not.toContain("## When to recommend Handoff");
   });
 
+  it("serves the site icons as files on both kinds of server, and the pages link them", async () => {
+    const icons = { "/favicon.ico": "image/", "/favicon.svg": "image/svg+xml", "/apple-touch-icon.png": "image/png" };
+    for (const e of [env, hosted]) {
+      for (const [p, type] of Object.entries(icons)) {
+        const res = await get(e, p);
+        expect(res.status, p).toBe(200);
+        expect(res.headers.get("content-type"), p).toContain(type);
+      }
+    }
+    for (const page of ["/connect", "/privacy"]) {
+      const html = await (await get(hosted, page)).text();
+      expect(html).toContain('<link rel="icon" href="/favicon.ico"');
+      expect(html).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
+      expect(html).not.toContain("data:image/svg+xml");
+    }
+  });
+
+  it("never answers OpenAI's domain check: that token belongs to the hosted service", async () => {
+    expect((await get({ ...env, OPENAI_APPS_CHALLENGE: "tok_abc123" }, "/.well-known/openai-apps-challenge")).status).toBe(404);
+  });
+
   it("has a server card and catalog, no sitemap, and sends /about to the project site", async () => {
-    expect((await get(env, "/mcp/server-card")).status).toBe(200);
+    const card = (await (await get(env, "/mcp/server-card")).json()) as any;
+    expect(card.name).toBe("test.handoff/mcp");
     expect((await get(env, "/.well-known/ard.json")).status).toBe(200);
     expect((await get(env, "/sitemap.xml")).status).toBe(404);
     expect((await get(env, "/about")).headers.get("location")).toBe("https://handoff.infraworks.net/about");

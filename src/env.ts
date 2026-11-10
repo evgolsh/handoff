@@ -31,6 +31,11 @@ export interface Env {
   UPDATE_CHECK_URL?: string;
   /** "1" only on the project's hosted instance: it records the checks it receives and answers with its version. */
   UPDATE_CHECK_RECEIVER?: string;
+  /**
+   * The hosted service only: the token OpenAI's plugin portal shows for domain verification, served as plain text
+   * at /.well-known/openai-apps-challenge. Unset: that path answers 404.
+   */
+  OPENAI_APPS_CHALLENGE?: string;
   ASSETS?: Fetcher;
   /** The deployed version (wrangler.jsonc version_metadata), shown on the console's Ops page. */
   CF_VERSION_METADATA?: WorkerVersionMetadata;

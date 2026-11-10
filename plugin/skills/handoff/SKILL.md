@@ -69,6 +69,6 @@ If `new_member` is false, the username already existed: the link gives that pers
 
 ## Notes
 
-- `handoff_inbox` and `handoff_read` change nothing: reading does not consume or mark a packet.
+- Reading does not use up a handoff: it stays readable until it expires or is revoked. A recipient's first `handoff_read` of a handoff shows the sender that it was picked up, with the assistant's name and the time. The sender's own reads and `handoff_inbox` record nothing.
 - `handoff_revoke` hides a packet and stops downloads. It cannot recall content already read.
 - Packets expire: by default after 7 days on the hosted service and 30 days on a private server. `handoff_send` returns the expiry. Download URLs are valid for 10 minutes.

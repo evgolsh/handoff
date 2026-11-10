@@ -76,6 +76,8 @@ export const BRAND_ICON =
 export const FILE_ICON =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.5h5l3.5 3.5v9.5h-8.5z"/><path d="M9 1.5V5h3.5"/></svg>';
 
-const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${PALETTE.light.ink}"/><path d="M17 25h28m-8-8 8 8-8 8M47 39H19m8-8-8 8 8 8" fill="none" stroke="${PALETTE.light.ground}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+/** The site icon. scripts/images.mjs writes it to docs/favicon.svg, with favicon.ico and apple-touch-icon.png. */
+export const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${PALETTE.light.ink}"/><path d="M17 25h28m-8-8 8 8-8 8M47 39H19m8-8-8 8 8 8" fill="none" stroke="${PALETTE.light.ground}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-export const FAVICON_LINK = `<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${encodeURIComponent(FAVICON_SVG)}">`;
+/** Static files from public/ (npm run assets), so crawlers and connector lists that fetch the site icon find one. */
+export const FAVICON_LINK = '<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="apple-touch-icon" href="/apple-touch-icon.png">';

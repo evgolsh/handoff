@@ -1,48 +1,48 @@
-# Handoff plugin package
+# Handoff
 
-Local plugin package with the Handoff skill and the deployed MCP endpoint in `mcp.json`.
-It contains no credential. If deploying another instance, change that endpoint before installing.
+Handoff passes work from your AI assistant to another person's assistant, or to your own assistant on another
+computer. Say "hand this off to anna" and your assistant writes a brief (purpose, decisions and their reasons,
+constraints, next step, references, open questions), attaches the files you choose, and sends it to anna's
+Handoff inbox. In her own assistant (Claude, ChatGPT, Codex or Claude Code) she says "continue the handoff from
+joe" and carries on with the original files.
 
-Install the `plugin/` folder through a local Codex plugin marketplace, complete OAuth, and check
-that all six `handoff_*` tools appear. An already-running chat may need to be reopened before
-it loads a newly installed plugin. See `../docs/DEPLOY.md` for the service setup.
+This plugin adds the Handoff skill, which tells the assistant how to write a brief and pick one up, and connects
+the Handoff server at `https://handoff.infraworks.net/mcp`.
 
-## Install in Codex (the tested route)
+## What you need
 
-Tested with Codex Desktop 0.164.0 on macOS (`../docs/evidence/codex-plugin-test-2026-10-25/`).
-A local marketplace is a folder with `.agents/plugins/marketplace.json`. The tested one was the home
-folder, with this file (`path` is relative to that folder):
+A Handoff team. Create one at [handoff.infraworks.net/join](https://handoff.infraworks.net/join), or open the
+invitation link a teammate sent you. The first time a Handoff tool runs, your assistant opens a browser page where
+you sign in with your username and access code. A team has up to 10 people.
 
-```json
-{
-  "name": "acme-local",
-  "plugins": [
-    {
-      "name": "handoff",
-      "source": { "source": "local", "path": "./dev/handoff/plugin" },
-      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
-      "category": "Productivity"
-    }
-  ]
-}
-```
+## Tools
 
-```sh
-codex plugin marketplace add ~      # the folder that holds .agents/plugins/marketplace.json
-codex plugin add handoff@acme-local # <plugin name>@<marketplace name>
-```
+- `handoff_send`: sends a brief, with files, to yourself, to one teammate or to the whole team.
+- `handoff_inbox`: lists your handoffs, who picked them up and who has not yet, and your unsent files.
+- `handoff_read`: reads a handoff or one of its files. A recipient's first read shows the sender that it was
+  picked up, in which assistant and when.
+- `handoff_upload_url`: gets a one-time upload address for a file on your computer.
+- `handoff_revoke`: takes back a handoff you sent. Content already read cannot be recalled.
+- `handoff_invite`: makes an invitation link for a new teammate (team admins only).
 
-Then start a new Codex chat, sign in with your username and access code, and check that the six
-tools appear. After a package change, raise the version in both manifests and install again.
+## What it sends, and where
 
-## Codex compatibility
+- The brief and the title go to handoff.infraworks.net, with the files you chose. Nothing is sent until you ask
+  for a handoff.
+- To attach a file from your computer, the assistant calls `handoff_upload_url` and runs the `curl` command
+  (macOS, Linux) or `powershell` command (Windows) that the server returns. That command uploads that one file
+  to handoff.infraworks.net and nothing else.
+- In Claude apps, attaching a file from the chat needs `handoff.infraworks.net` in Settings > Capabilities >
+  allowed domains. Without it the upload fails with a 403 error.
+- Handoffs are kept 7 days by default and 30 days at most, then deleted. Files are up to 25 MiB each, 10 per
+  handoff: PDF, PNG, JPEG, plain text and Markdown.
+- Handoff stores what you send as you sent it and runs no AI on it. In Handoff, only you and the people you sent
+  it to can open it. It is not end-to-end encrypted; the Privacy page says who can technically read it.
 
-Keep the MCP server entry to the standard transport and URL fields. Codex Desktop 0.164.0
-rejects a nested `mcpServers.handoff.extensions` field and omits the entire server, even when
-the plugin appears installed and its skill loads. Version 0.1.1 removes that field. Authentication
-still comes from the server's OAuth challenge and discovery metadata; removing the client
-extension does not disable OAuth. Native Codex DCR/PKCE login and all five tools were verified
-with this entry shape. Other host/account combinations require their own acceptance tests.
+[Privacy](https://handoff.infraworks.net/privacy) · [Terms](https://handoff.infraworks.net/terms) ·
+[Help](https://handoff.infraworks.net/contact) · [Source](https://github.com/evgolsh/handoff) (MIT)
 
-`plugin.json` is the portable manifest; `.codex-plugin/plugin.json` is the compatibility overlay.
-Keep their versions in sync so a package change does not reuse an older cached installation.
+## Your own server
+
+Handoff is open source. If your team runs its own Handoff server, change the URL in `.mcp.json` (Claude Code) and
+`mcp.json` (ChatGPT, Codex) to your server's `/mcp` address before you install.

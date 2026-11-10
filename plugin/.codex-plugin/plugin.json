@@ -1,6 +1,9 @@
 {
   "name": "handoff",
-  "version": "0.2.0",
-  "description": "Plan in one AI. Build in another. Sends a prepared brief with original attachments to your other assistant.",
+  "version": "0.2.1",
+  "description": "Send a brief and the original files from your AI assistant to someone else's assistant: Claude, ChatGPT, Codex, Claude Code.",
+  "author": {
+    "name": "Eugene Olshenbaum"
+  },
   "skills": "./skills/"
 }

@@ -1,0 +1,25 @@
+{
+  "name": "handoff",
+  "displayName": "Handoff",
+  "version": "0.2.1",
+  "description": "Send a brief and the original files from your AI assistant to someone else's assistant: Claude, ChatGPT, Codex, Claude Code. Hosted at handoff.infraworks.net, or on your own private server.",
+  "author": {
+    "name": "Eugene Olshenbaum",
+    "url": "https://handoff.infraworks.net/about"
+  },
+  "license": "MIT",
+  "homepage": "https://handoff.infraworks.net",
+  "repository": "https://github.com/evgolsh/handoff",
+  "privacyPolicyUrl": "https://handoff.infraworks.net/privacy",
+  "icon": "./assets/icon.png",
+  "keywords": [
+    "handoff",
+    "mcp",
+    "file-sharing",
+    "family",
+    "teams",
+    "claude",
+    "chatgpt",
+    "context"
+  ]
+}

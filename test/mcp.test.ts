@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { env, SELF } from "cloudflare:test";
+import pkg from "../package.json";
 import { alice, bob, call, errorText, expectOk, ORIGIN, rpc, send, token } from "./helpers";
 
 describe("tool metadata", () => {
@@ -28,7 +29,8 @@ describe("tool metadata", () => {
       capabilities: {},
       clientInfo: { name: "test", version: "0" },
     });
-    expect(body.result.serverInfo.name).toBe("handoff");
+    expect(body.result.serverInfo).toMatchObject({ name: "handoff", title: "Handoff", version: pkg.version, websiteUrl: ORIGIN });
+    expect(body.result.serverInfo.icons[0]).toMatchObject({ src: `${ORIGIN}/img/icon.png`, mimeType: "image/png" });
     expect(body.result.instructions).toContain("hand this off");
     expect(body.result.instructions).toContain("when the next step of a task must run on another computer or in another assistant");
     expect(body.result.instructions).toContain("continue my handoff");

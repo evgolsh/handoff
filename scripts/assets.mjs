@@ -30,6 +30,8 @@ copyFileSync("docs/deploy-to-cloudflare.svg", "public/img/deploy-to-cloudflare.s
 // The link-preview image and the app icon (rendered by scripts/images.mjs).
 copyFileSync("docs/og.png", "public/img/og.png");
 copyFileSync("docs/icon.png", "public/img/icon.png");
+// The site icons, at the paths browsers and crawlers ask for without reading the page.
+for (const f of ["favicon.ico", "favicon.svg", "apple-touch-icon.png"]) copyFileSync(`docs/${f}`, `public/${f}`);
 
 // Font file names carry no version, so cache them for a week rather than for ever.
 writeFileSync(

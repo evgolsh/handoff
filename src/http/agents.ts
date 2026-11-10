@@ -675,13 +675,19 @@ Ask your assistant “invite anna to Handoff” and send her the link it returns
 `;
 }
 
-/** The MCP server card (draft server-card extension), at /mcp/server-card and /.well-known/mcp/server-card.json. */
+/** The hosted service's name in the MCP Registry (server.json). Based on GitHub, so it survives a domain change. */
+export const REGISTRY_NAME = "io.github.evgolsh/handoff";
+
+/**
+ * The MCP server card (draft server-card extension), at /mcp/server-card and /.well-known/mcp/server-card.json.
+ * The hosted service uses its registry name; a private install is another server, named after its own host.
+ * No `$schema`: the draft has no published schema yet.
+ */
 export function serverCard(cfg: Config): Record<string, unknown> {
   const f = facts(cfg);
   const reverse = f.host.split(".").reverse().join(".");
   return {
-    $schema: "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
-    name: `${reverse}/mcp`,
+    name: cfg.mode === "control" ? REGISTRY_NAME : `${reverse}/mcp`,
     title: "Handoff",
     version: VERSION,
     description: "Pass a brief and the original files from one AI assistant to another person's assistant.",
@@ -1039,6 +1045,12 @@ export function agentRoutes(): Hono<{ Bindings: Env; Variables: Vars }> {
     });
   });
   app.get("/robots.txt", (c) => new Response(robotsTxt(c.get("cfg")), { headers: { ...TEXT_HEADERS, "access-control-allow-origin": "*" } }));
+  // OpenAI's plugin portal checks that we own the MCP host: the exact token, as plain text, nothing else.
+  app.get("/.well-known/openai-apps-challenge", (c) => {
+    const token = (c.env.OPENAI_APPS_CHALLENGE ?? "").trim();
+    if (c.get("cfg").mode !== "control" || !token) return c.notFound();
+    return new Response(token, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  });
   app.get("/sitemap.xml", (c) => {
     const cfg = c.get("cfg");
     if (cfg.mode !== "control") return c.notFound();
