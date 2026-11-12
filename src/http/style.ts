@@ -1,7 +1,7 @@
 /**
  * Threadpacket's Courier Hybrid visual language:
- * Warm archival stone (#faf9f5) and deep obsidian (#131312), IBM Plex Sans + IBM Plex Mono,
- * tactile 1px dot-grid stages with corner registration ticks, and high-contrast stamped courier bars.
+ * Paper white (#ffffff) and deep obsidian (#131312) with one blue accent, IBM Plex Sans + IBM Plex Mono,
+ * light-blue dot-grid stages with corner registration ticks, and black stamped courier bars with a blue edge.
  * Fonts are served by this Worker from /fonts (copied from @fontsource by scripts/assets.mjs).
  */
 
@@ -24,17 +24,19 @@ export const FONT_PRELOAD = ["ibm-plex-sans-latin-400-normal", "ibm-plex-sans-la
   .map((f) => `<link rel="preload" href="/fonts/${f}.woff2" as="font" type="font/woff2" crossorigin>`)
   .join("\n");
 
-/** Courier Hybrid palette, light and dark. */
+/** Courier Hybrid palette, light and dark. `select` tints chosen and new items; `stage` and `dot` tint the dot grid. */
 export const PALETTE = {
   light: {
-    ground: "#faf9f5", panel: "#ffffff", subtle: "#f2f0e9", line: "#e2dfd6", lineSoft: "#eceae2",
-    ink: "#181816", muted: "#66655f", faint: "#9b9991",
-    accent: "#1d5bd6", ok: "#1d8348", warn: "#b35c00", danger: "#b3261e", select: "#eaf0fd",
+    ground: "#ffffff", panel: "#ffffff", subtle: "#f5f5f3", line: "#e5e5e1", lineSoft: "#efefeb",
+    ink: "#151514", muted: "#5f5f5a", faint: "#9a9a95",
+    accent: "#2450e0", ok: "#1d8348", warn: "#b35c00", danger: "#b3261e", select: "#eaf0ff",
+    stage: "#f4f7ff", dot: "#c4d0f2",
   },
   dark: {
     ground: "#131312", panel: "#1b1b19", subtle: "#232320", line: "#30302c", lineSoft: "#252522",
     ink: "#efeee9", muted: "#9c9b94", faint: "#686761",
     accent: "#5591ff", ok: "#52c478", warn: "#f0a35a", danger: "#ff7b72", select: "#1c2840",
+    stage: "#171b26", dot: "#3a4766",
   },
 } as const;
 
@@ -44,7 +46,8 @@ const MONO = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 const vars = (p: (typeof PALETTE)["light" | "dark"]): string =>
   `--ground: ${p.ground}; --panel: ${p.panel}; --subtle: ${p.subtle}; --line: ${p.line}; --line-soft: ${p.lineSoft};
     --ink: ${p.ink}; --muted: ${p.muted}; --faint: ${p.faint};
-    --accent: ${p.accent}; --ok: ${p.ok}; --warn: ${p.warn}; --danger: ${p.danger}; --select: ${p.select};`;
+    --accent: ${p.accent}; --ok: ${p.ok}; --warn: ${p.warn}; --danger: ${p.danger}; --select: ${p.select};
+    --stage: ${p.stage}; --dot: ${p.dot};`;
 
 /** @font-face rules, colour tokens, and shared Courier tactile primitives. */
 export const BASE_CSS = `${FACES.map(
@@ -73,10 +76,11 @@ export const BASE_CSS = `${FACES.map(
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
   .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 600; font-size: 15.5px; letter-spacing: -.025em; }
   .brand svg { width: 23px; height: 23px; flex: none; }
-  .stamp-bar { background: var(--ink); color: var(--ground); padding: 8px 16px; font: 500 11px/1.4 var(--mono);
+  .stamp-bar { position: relative; background: var(--ink); color: var(--ground); padding: 8px 16px; font: 500 11px/1.4 var(--mono);
                letter-spacing: .04em; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .stamp-bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 4px; background: var(--accent); pointer-events: none; }
   .dot-stage { position: relative; padding: 20px; border-radius: 16px; border: 1px solid var(--line);
-               background-color: var(--subtle); background-image: radial-gradient(var(--faint) 0.75px, transparent 0.75px); background-size: 14px 14px; }
+               background-color: var(--stage); background-image: radial-gradient(var(--dot) 0.75px, transparent 0.75px); background-size: 14px 14px; }
   .reg-tick { position: absolute; width: 9px; height: 9px; border-color: var(--muted); border-style: solid; pointer-events: none; }
   .reg-tick.tl { top: 8px; left: 8px; border-width: 1.5px 0 0 1.5px; }
   .reg-tick.tr { top: 8px; right: 8px; border-width: 1.5px 1.5px 0 0; }

@@ -15,9 +15,9 @@ const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/M
 
 const og = `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}
   html,body { margin:0; width:1200px; height:630px; overflow:hidden; background:var(--ground); color:var(--ink); }
-  .stage { box-sizing:border-box; width:1200px; height:630px; padding:42px 48px; background-color:var(--subtle); background-image:radial-gradient(var(--faint) 0.9px, transparent 0.9px); background-size:16px 16px; display:flex; }
+  .stage { box-sizing:border-box; width:1200px; height:630px; padding:42px 48px; background-color:var(--stage); background-image:radial-gradient(var(--dot) 0.9px, transparent 0.9px); background-size:16px 16px; display:flex; }
   .card { width:100%; background:var(--panel); border:1.5px solid var(--line); border-radius:18px; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between; }
-  .stamp { background:var(--ink); color:var(--ground); padding:14px 28px; font:500 18px var(--mono); letter-spacing:.05em; text-transform:uppercase; display:flex; justify-content:space-between; }
+  .stamp { background:var(--ink); color:var(--ground); padding:14px 28px; font:500 18px var(--mono); letter-spacing:.05em; text-transform:uppercase; display:flex; justify-content:space-between; border-bottom:6px solid var(--accent); }
   .body { padding:44px 54px 48px; display:flex; flex-direction:column; justify-content:space-between; flex:1; }
   .brand { display:flex; align-items:center; gap:14px; font:600 30px var(--sans); letter-spacing:-.03em; }
   .brand svg { width:42px; height:42px; }

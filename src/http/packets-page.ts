@@ -53,7 +53,7 @@ main.packets{align-items:stretch}
 .say-box q{color:var(--ink);font-weight:500;overflow-wrap:anywhere}
 .say-box .btn.sm{padding:2px 8px;font-size:11px;border-color:var(--line)}
 .say-box .btn.sm:hover{border-color:var(--accent);color:var(--accent)}
-.entry.unread{box-shadow:inset 3px 0 0 var(--accent);background:color-mix(in srgb,var(--select) 32%,var(--panel))}
+.entry.unread{box-shadow:inset 3px 0 0 var(--accent);background:color-mix(in srgb,var(--select) 70%,var(--panel))}
 .entry.unread .entry-icon{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent);background:var(--select)}
 .first-steps{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-soft)}
 .first-steps>li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;padding:18px 22px;border-bottom:1px solid var(--line-soft)}
