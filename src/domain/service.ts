@@ -162,7 +162,7 @@ const summary = (p: PacketRow): PacketSummary => ({
  */
 export function normalizeRecipient(owner: string, to?: string): string {
   if (!to || !to.trim()) return owner;
-  const raw = to.trim();
+  const raw = to.trim().replace(/^@/, "");
   const tenant = tenantOf(owner);
   const lower = raw.toLowerCase();
   if (raw === "*" || lower === "team" || lower === "all") return teamOf(tenant);
@@ -391,7 +391,14 @@ export class HandoffService {
     const r = normalizeRecipient(owner, to);
     if (r === owner) return owner;
     if (!isTeam(r) && !(await this.repo.isMember(r))) {
-      throw new HandoffError("invalid_input", `to: "${to?.trim()}" is not a member of this server; use a member's username, or "team" for every member`);
+      const mates = (await this.repo.listTenantMembers(tenantOf(owner))).filter((m) => m !== owner).map(handleOf);
+      const said = to?.trim() ?? "";
+      throw new HandoffError(
+        "invalid_input",
+        mates.length
+          ? `to: "${said}" is not a teammate. Your teammates: ${mates.join(", ")}. Pass one of these usernames, or "team" for everyone; if none is the person the user named, ask the user.`
+          : `to: "${said}" is not a teammate, and you have no teammates on this server yet. Omit to to send to yourself, or invite them first (threadpacket_invite, team admins).`,
+      );
     }
     return r;
   }

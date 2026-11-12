@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SELF, env } from "cloudflare:test";
 import { upsertMember } from "../src/auth/builtin";
-import { ORIGIN, PDF, PNG, alice, bob, call, errorText, expectOk, send, sha256Hex, token, uploadBytes, type ToolResult } from "./helpers";
+import { ORIGIN, PDF, PNG, alice, bob, call, errorText, expectOk, rpc, send, sha256Hex, token, uploadBytes, type ToolResult } from "./helpers";
 
 // Members' tokens are signed by the test key, which is this Worker's signing key in the tests (vitest.config.ts).
 const teamFetch = (url: string, init?: RequestInit) => SELF.fetch(url, init);
@@ -91,9 +91,32 @@ describe("teammates", () => {
     const a = await member("alice");
     const title = `to a stranger ${crypto.randomUUID()}`;
     const r = await teamCall(a, "threadpacket_send", { title, brief: "x", to: "carol", idempotency_key: crypto.randomUUID() });
-    expect(errorText(r)).toContain('"carol" is not a member of this server');
+    // The error names the teammates, so an assistant that guessed a name can pick the right one.
+    const text = errorText(r);
+    expect(text).toContain('"carol" is not a teammate. Your teammates: ');
+    const listed = /Your teammates: ([^.]*)\./.exec(text)![1]!.split(", ");
+    expect(listed).toEqual(expect.arrayContaining(["bob", "mallory"]));
+    expect(listed).not.toContain("alice");
     const titles = (expectOk(await teamCall(a, "threadpacket_inbox")).packets as Array<{ title: string }>).map((p) => p.title);
     expect(titles).not.toContain(title);
+  });
+
+  it("names the caller's teammates in the send tool, so an assistant matches a name from a list", async () => {
+    await seedTeam();
+    const { body } = await rpc(await member("alice"), "tools/list");
+    const sendTool = body.result.tools.find((t: { name: string }) => t.name === "threadpacket_send");
+    for (const text of [sendTool.description, sendTool.inputSchema.properties.to.description]) {
+      const listed = /Your teammates: ([^.]*)\./.exec(text)![1]!.split(", ");
+      expect(listed).toEqual(expect.arrayContaining(["bob", "mallory"]));
+      expect(listed).not.toContain("alice");
+    }
+    expect(sendTool.inputSchema.properties.to.description).toContain("any language");
+  });
+
+  it("takes a username written with a leading @", async () => {
+    await seedTeam();
+    const sent = await teamSend(await member("alice"), { title: "To @bob", to: "@bob" });
+    expect(sent.to).toBe("bob");
   });
 });
 

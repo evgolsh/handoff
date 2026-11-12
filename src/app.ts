@@ -21,7 +21,7 @@ import { HandoffService } from "./domain/service";
 import { D1Repository } from "./store/d1";
 import { blobStore } from "./store/blobs";
 import { uploadRoutes } from "./http/routes";
-import { buildMcpServer } from "./mcp/server";
+import { asksForTools, buildMcpServer } from "./mcp/server";
 import { connectHeaders, connectPage } from "./http/connect";
 import { useCasesHeaders, useCasesPage } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
@@ -229,7 +229,9 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
     const started = Date.now();
     // Which tools were called (names only), so the console can show activity. Read from a copy of the body.
     const calls = c.req.method === "POST" ? await mcpCallsIn(c.req.raw.clone()) : [];
-    const server = buildMcpServer(c.get("service"), principal, c.env.DB);
+    // A tool list names the caller's teammates in threadpacket_send; other requests skip that read.
+    const teammates = c.req.method === "POST" && (await asksForTools(c.req.raw.clone())) ? await c.get("service").teammates(principal) : undefined;
+    const server = buildMcpServer(c.get("service"), principal, c.env.DB, { teammates });
     const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     await server.connect(transport);
     try {

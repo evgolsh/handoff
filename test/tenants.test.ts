@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { SELF, env } from "cloudflare:test";
 import { handleOf, isTeam, qualify, shownRecipient, teamOf, tenantOf, tenantWhere } from "../src/domain/tenant";
-import { ORIGIN, PDF, call, errorText, expectOk, send, token, uploadBytes } from "./helpers";
+import { ORIGIN, PDF, call, errorText, expectOk, rpc, send, token, uploadBytes } from "./helpers";
 
 /**
  * Tenancy by qualified identity: on the control center a member is `tenant/handle`. Two tenants with the same
@@ -78,9 +78,16 @@ describe("tenants are isolated by their qualified identities", () => {
     expect(errorText(await call(await betaTom(), "threadpacket_revoke", { packet_id: sent.packet_id }))).toContain("only its sender");
   });
 
-  it("a handle that exists only in another tenant is not a member here", async () => {
+  it("a handle that exists only in another tenant is not a teammate here, and the error lists only this tenant", async () => {
     const r = await call(await betaTom(), "threadpacket_send", { title: "t", brief: "b", to: "tim", idempotency_key: crypto.randomUUID() });
-    expect(errorText(r)).toContain("not a member");
+    expect(errorText(r)).toContain('"tim" is not a teammate. Your teammates: ann.');
+  });
+
+  it("the send tool names only the caller's own tenant's teammates", async () => {
+    const { body } = await rpc(await betaTom(), "tools/list");
+    const sendTool = body.result.tools.find((t: { name: string }) => t.name === "threadpacket_send");
+    expect(sendTool.description).toContain("Your teammates: ann.");
+    expect(sendTool.description).not.toMatch(/\btim\b/);
   });
 
   it("an attachment sent inside one tenant cannot be fetched from another", async () => {

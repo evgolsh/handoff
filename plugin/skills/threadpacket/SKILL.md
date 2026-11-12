@@ -10,7 +10,7 @@ There is no transcript export and no background sync.
 
 ## "Send a packet" (or "hand this off")
 
-Trigger: the user asks to send a packet, hand off, pass on, or continue this work in another assistant or send it to a teammate's assistant, or you finish work on one computer and the next required step must run on another machine or in another assistant.
+Trigger: the user asks, in any language, to send a packet, hand off, pass on, or continue this work in another assistant or send it to a teammate ("send this to anna", "Передай это Анне", "שלח את זה לאנה"), or you finish work on one computer and the next required step must run on another machine or in another assistant.
 
 1. Write the brief from the conversation you have. Keep it to what the next assistant needs:
    - Purpose: what the user is doing and why.
@@ -25,7 +25,8 @@ Trigger: the user asks to send a packet, hand off, pass on, or continue this wor
    - In Codex, Claude Code, Hermes, or a terminal: call `threadpacket_upload_url` for each file with its name and type. In the folder that holds the file, run the returned `curl` command (macOS, Linux) or `powershell` command (Windows) exactly as returned. Do not build your own command by pasting a file name into a shell. Then pass the `attachment_id` values in `attachment_ids`.
    - A file the user uploaded in Packets on the server (`/packets`): pass its name in `attachment_names`, for example `["lease.pdf"]`, or its id in `attachment_ids`. `threadpacket_inbox` lists these unsent files. If a name matches none or several, nothing is sent and the error lists the candidates: ask the user which one.
    - Accepted: PDF, PNG, JPEG, plain text, Markdown, up to the size limit the tool reports.
-3. Call `threadpacket_send` with a short `title`, the `brief`, optional `to` (a teammate's username such as `"tom"` or `"team"` for the shared inbox; omit for yourself), the attachments, and a fresh `idempotency_key` (a UUID).
+3. Call `threadpacket_send` with a short `title`, the `brief`, optional `to` (a teammate's username such as `"tom"`, or `"team"` for the shared inbox; omit for yourself), the attachments, and a fresh `idempotency_key` (a UUID).
+   The tool's description lists your teammates. Match the name the user said, in any language or form ("Анне", "לאנה"), to one of them; if none clearly matches, ask the user.
    If the call fails for a transient reason, retry with the same key; the server returns the same packet.
 4. Tell the user the `packet_id`, the title, the recipient (`to`), and the expiry. Do not promise that the other assistant opens it on its own: the user asks for it there.
 
