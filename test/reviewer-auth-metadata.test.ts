@@ -11,7 +11,7 @@ describe("reviewer: production bearer validation", () => {
 
   it("rejects a signed access token without an expiry", async () => {
     const key = await importJWK(privateJwk, "ES256");
-    const bearer = await new SignJWT({ scope: "handoff", client_id: "test-client" })
+    const bearer = await new SignJWT({ scope: "threadpacket", client_id: "test-client" })
       .setProtectedHeader({ alg: "ES256", kid: "test-key-1" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)

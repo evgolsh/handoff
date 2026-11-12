@@ -25,7 +25,7 @@ beforeEach(async () => {
 
 describe("the daily update check (sending end)", () => {
   // The suite runs with the check off (vitest.config.ts); these cases turn it on.
-  const on = { ...env, HANDOFF_UPDATE_CHECK: "" };
+  const on = { ...env, THREADPACKET_UPDATE_CHECK: "" };
 
   it("sends one anonymous request a day: id, version and two buckets, nothing else", async () => {
     const m = mockFetch(() => Response.json({ latest: "9.9.9" }));
@@ -33,13 +33,13 @@ describe("the daily update check (sending end)", () => {
     expect(await runUpdateCheck(on, { now, fetch: m.fetch })).toEqual({ sent: true, latest: "9.9.9" });
     expect(m.calls).toHaveLength(1);
     const { url, init } = m.calls[0]!;
-    expect(url.origin + url.pathname).toBe("https://handoff.infraworks.net/v1/update-check");
+    expect(url.origin + url.pathname).toBe("https://threadpacket.com/v1/update-check");
     expect([...url.searchParams.keys()].sort()).toEqual(["id", "m", "p", "v"]);
     expect(url.searchParams.get("id")).toMatch(ID);
     expect(url.searchParams.get("v")).toBe(VERSION);
     expect(url.searchParams.get("m")).toBe("0");
     expect(url.searchParams.get("p")).toBe("0");
-    expect((init.headers as Record<string, string>)["user-agent"]).toBe(`handoff/${VERSION}`);
+    expect((init.headers as Record<string, string>)["user-agent"]).toBe(`threadpacket/${VERSION}`);
 
     // Within the day: nothing more is sent. The next day: the same id.
     expect(await runUpdateCheck(on, { now: now + 3_600_000, fetch: m.fetch })).toEqual({ sent: false, reason: "recent" });
@@ -52,9 +52,9 @@ describe("the daily update check (sending end)", () => {
     expect(state.checkedAt).toBe(new Date(now + 25 * 3_600_000).toISOString());
   });
 
-  it("HANDOFF_UPDATE_CHECK=off sends nothing and says so", async () => {
+  it("THREADPACKET_UPDATE_CHECK=off sends nothing and says so", async () => {
     const m = mockFetch(() => Response.json({ latest: "9.9.9" }));
-    const off = { ...on, HANDOFF_UPDATE_CHECK: "off" };
+    const off = { ...on, THREADPACKET_UPDATE_CHECK: "off" };
     expect(await runUpdateCheck(off, { fetch: m.fetch })).toEqual({ sent: false, reason: "off" });
     expect(m.calls).toHaveLength(0);
     expect(await updateState(off)).toMatchObject({ enabled: false, latest: null, checkedAt: null });

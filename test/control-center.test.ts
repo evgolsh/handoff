@@ -8,9 +8,9 @@ import { ORIGIN } from "./helpers";
 
 /**
  * One code base, two modes. The suite runs as a private install; these cases run the same Worker with
- * HANDOFF_MODE=control, the control center: homepage, /join, a console per tenant, the operator's dashboard.
+ * THREADPACKET_MODE=control, the control center: homepage, /join, a console per tenant, the operator's dashboard.
  */
-const ctl = { ...env, HANDOFF_MODE: "control" };
+const ctl = { ...env, THREADPACKET_MODE: "control" };
 const uid = () => crypto.randomUUID().slice(0, 6);
 const ip = () => `198.51.100.${Math.floor(Math.random() * 250) + 1}-${uid()}`;
 
@@ -24,8 +24,8 @@ const form = (fields: Record<string, string>, extra: Record<string, string> = {}
 async function join(team: string, handle: string, oldCookie = "") {
   const res = await fetchAs(ctl, "/join", form({ team, handle }, { cookie: oldCookie }));
   const text = await res.text();
-  const cookie = res.headers.getSetCookie().find((c) => c.startsWith("__Host-handoff-session=")) ?? null;
-  return { status: res.status, code: /hf-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text, cookie, headers: res.headers };
+  const cookie = res.headers.getSetCookie().find((c) => c.startsWith("__Host-threadpacket-session=")) ?? null;
+  return { status: res.status, code: /tp-[A-Za-z0-9_-]{16}/.exec(text)?.[0] ?? null, text, cookie, headers: res.headers };
 }
 
 interface Session {
@@ -60,8 +60,8 @@ describe("a private install", () => {
     expect((await SELF.fetch(`${ORIGIN}/stats`)).status).toBe(404);
     expect((await SELF.fetch(`${ORIGIN}/stats.json`)).status).toBe(404);
     const connect = await (await SELF.fetch(`${ORIGIN}/connect`)).text();
-    expect(connect).toContain("About Handoff");
-    expect(connect).toContain("https://handoff.infraworks.net/");
+    expect(connect).toContain("About Threadpacket");
+    expect(connect).toContain("https://threadpacket.com/");
     expect(connect).not.toContain('name="team"');
   });
 });
@@ -70,12 +70,12 @@ describe("the control center", () => {
   it("serves the homepage, the sign-up form and the public counters, and receives update checks", async () => {
     const home = await fetchAs(ctl, "/");
     expect(home.status).toBe(200);
-    expect(await home.text()).toContain("use-cases");
+    expect(await home.text()).toContain("From your AI to theirs.");
     const join = await fetchAs(ctl, "/join");
     expect(join.status).toBe(200);
     const page = await join.text();
     expect(page).toContain('action="/join"');
-    expect(page).toContain("Handoff, hosted");
+    expect(page).toContain("Threadpacket, hosted");
     expect(page).not.toMatch(/playground/i);
     const stats = await fetchAs(ctl, "/stats.json");
     expect(stats.status).toBe(200);
@@ -88,7 +88,7 @@ describe("the control center", () => {
     const team = `acme-${uid()}`;
     const first = await join(team, "Tim");
     expect(first.status).toBe(200);
-    expect(first.code).toMatch(/^hf-/);
+    expect(first.code).toMatch(/^tp-/);
     expect(first.text).toContain(`Team ${team} is ready`);
     const rows = await env.DB.prepare("SELECT m.handle, a.handle AS admin FROM members m LEFT JOIN admin_members a ON a.handle = m.handle WHERE m.handle = ?").bind(`${team}/tim`).first();
     expect(rows).toEqual({ handle: `${team}/tim`, admin: `${team}/tim` });
@@ -129,11 +129,11 @@ describe("the control center", () => {
     expect(invitation).toContain(`<dt>Team</dt><dd class="mono">${team}</dd>`);
     expect(invitation).toContain(`<dt>Server</dt><dd class="mono">${ORIGIN}/mcp</dd>`);
     expect(invitation).toContain(`href="${ORIGIN}/connect"`);
-    const memberCode = /hf-[A-Za-z0-9_-]{16}/.exec(invitation)![0];
-    // bob is a member, not an admin: he signs in to Assets, and the console sends him back there.
+    const memberCode = /tp-[A-Za-z0-9_-]{16}/.exec(invitation)![0];
+    // bob is a member, not an admin: he signs in to Packets, and the console sends him back there.
     const bob = await consoleSession(ctl, { handle: "bob", access_code: memberCode });
-    expect((await bob.page("/console/overview")).location).toBe("/assets");
-    expect((await bob.page("/assets")).status).toBe(200);
+    expect((await bob.page("/console/overview")).location).toBe("/packets");
+    expect((await bob.page("/packets")).status).toBe(200);
     expect(await env.DB.prepare("SELECT handle FROM members WHERE handle = ?").bind(`${team}/bob`).first()).toEqual({ handle: `${team}/bob` });
     expect((await s.page("/console/members")).text).toContain("<strong>bob</strong>");
 
@@ -164,7 +164,7 @@ describe("the control center", () => {
     const team = `new-${uid()}`;
     const created = await join(team, "tim", oldCookie);
     expect(created.status).toBe(200);
-    expect(created.cookie).toMatch(/^__Host-handoff-session=/);
+    expect(created.cookie).toMatch(/^__Host-threadpacket-session=/);
     for (const flag of ["Secure", "HttpOnly", "SameSite=Strict", "Path=/"]) expect(created.cookie).toContain(flag);
     const cookie = created.cookie!.split(";")[0]!;
     expect(cookie).not.toBe(oldCookie);
@@ -175,9 +175,9 @@ describe("the control center", () => {
     const nonce = /script-src 'nonce-([^']+)'/.exec(created.headers.get("content-security-policy")!)![1];
     expect(created.text).toContain(`<script nonce="${nonce}">`);
     expect(created.text).toContain(`Server: ${ORIGIN}/mcp\nUsername: tim\nAccess code: ${created.code}`);
-    expect([...created.text.matchAll(/href="([^"]+)"/g)].some(m => m[1]!.includes(created.code!))).toBe(false);
+    expect([...created.text.matchAll(/href="([^"]+)"/g)].some((m) => m[1]!.includes(created.code!))).toBe(false);
     const s = withCookie(ctl, cookie);
-    expect((await s.page("/login")).location).toBe("/assets");
+    expect((await s.page("/login")).location).toBe("/packets");
     expect((await s.page("/login?next=%2Fconnect")).location).toBe("/connect");
     // Signed in, Assistant setup is a page of the app: the left menu, and headers that let its sign-out form post.
     const guide = await fetchAs(ctl, "/connect", { headers: { cookie } });
@@ -225,7 +225,7 @@ describe("the control center", () => {
     const good = await fetchAs(ctl, "/login", form({ handle: "tim", access_code: me.code!, next: "/connect" }));
     expect(good.headers.get("location")).toBe("/connect");
     const external = await fetchAs(ctl, "/login", form({ handle: "tim", access_code: me.code!, next: "https://example.org/steal" }));
-    expect(external.headers.get("location")).toBe("/assets");
+    expect(external.headers.get("location")).toBe("/packets");
     const publicGuide = await fetchAs(ctl, "/connect");
     expect(publicGuide.status).toBe(200);
     expect(publicGuide.headers.get("cache-control")).toBe("no-store");
@@ -243,7 +243,7 @@ describe("the control center", () => {
     try {
       created = await join(team, "tim", old.cookie!.split(";")[0]!);
       expect(created.status).toBe(200);
-      expect(created.code).toMatch(/^hf-/);
+      expect(created.code).toMatch(/^tp-/);
       expect(created.cookie).toBeNull();
       // No session cookie: Continue leads to the sign-in, which needs only the username and this code.
       expect(created.headers.getSetCookie()).toEqual([]);
@@ -256,7 +256,7 @@ describe("the control center", () => {
     expect((await s.page("/console/overview")).text).toContain(`Team <strong>${team}</strong>`);
   });
 
-  it("team home counts only this team's members, distinct live connections and unexpired handoffs", async () => {
+  it("team home counts only this team's members, distinct live connections and unexpired packets", async () => {
     const team = `count-${uid()}`;
     const other = `${team}-other`;
     await join(team, "tim");
@@ -269,7 +269,7 @@ describe("the control center", () => {
       [`${team}/tim`, "same-client", future, null], [`${team}/tim`, "same-client", future, null],
       [`${other}/tim`, "other-client", future, null], [`${team}/tim`, "expired", past, null], [`${team}/tim`, "revoked", future, past],
     ]) {
-      await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at, revoked_at) VALUES (?, ?, ?, 'handoff', ?, ?)").bind(uid(), client, subject, expires, revoked).run();
+      await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at, revoked_at) VALUES (?, ?, ?, 'threadpacket', ?, ?)").bind(uid(), client, subject, expires, revoked).run();
     }
     for (const [owner, expires, revoked] of [[`${team}/tim`, future, null], [`${other}/tim`, future, null], [`${team}/tim`, past, null], [`${team}/tim`, future, past]]) {
       const id = uid();
@@ -279,7 +279,7 @@ describe("the control center", () => {
     expect(await teamOverview(env.DB, other, now)).toEqual({ members: 2, connected: 1, packetsLive: 1 });
   });
 
-  it("a team's admin deletes the whole team: members, sign-ins, handoffs and unsent files; other teams stay", async () => {
+  it("a team's admin deletes the whole team: members, sign-ins, packets and unsent files; other teams stay", async () => {
     const team = `del-${uid()}`;
     const other = `${team}-x`;
     const j = await join(team, "tim");
@@ -297,7 +297,7 @@ describe("the control center", () => {
     const fileId = `att_${uid()}`;
     await env.DB.prepare("INSERT INTO attachments (id, owner, filename, state, blob_key, source, created_at, ready_at) VALUES (?, ?, 'lease.pdf', 'ready', ?, 'upload', ?, ?)").bind(fileId, `${team}/tim`, `blob/${fileId}`, at, at).run();
     for (const subject of [`${team}/tom`, `${other}/tim`]) {
-      await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at, revoked_at) VALUES (?, 'c', ?, 'handoff', ?, NULL)").bind(uid(), subject, future).run();
+      await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at, revoked_at) VALUES (?, 'c', ?, 'threadpacket', ?, NULL)").bind(uid(), subject, future).run();
     }
 
     const s = withCookie(ctl, j.cookie!.split(";")[0]!);
@@ -322,7 +322,7 @@ describe("the control center", () => {
     expect((await s.page("/console/overview")).location).toMatch(/^\/login/);
     const again = await join(team, "tim");
     expect(again.status).toBe(200);
-    expect((await withCookie(ctl, again.cookie!.split(";")[0]!).page("/assets")).text).not.toContain("lease.pdf");
+    expect((await withCookie(ctl, again.cookie!.split(";")[0]!).page("/packets")).text).not.toContain("lease.pdf");
   });
 
   it("the access code decides the team, at the web sign-in and at the OAuth sign-in", async () => {
@@ -340,10 +340,10 @@ describe("the control center", () => {
     const client = (await reg.json()) as { client_id: string };
     const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
     const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
-    const oauth = { client_id: client.client_id, redirect_uri: "http://localhost:4321/cb", response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "handoff offline_access" };
+    const oauth = { client_id: client.client_id, redirect_uri: "http://localhost:4321/cb", response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "threadpacket offline_access" };
     const page = await (await fetchAs(ctl, `/authorize?${new URLSearchParams(oauth)}`)).text();
     expect(/<form method="post" action="\/authorize" class="flow-panel">[\s\S]*?<\/form>/.exec(page)![0]).not.toContain('name="team"');
-    const bad = await fetchAs(ctl, "/authorize", form({ ...oauth, handle: "tim", access_code: "hf-not-the-code-00" }));
+    const bad = await fetchAs(ctl, "/authorize", form({ ...oauth, handle: "tim", access_code: "tp-not-the-code-00" }));
     expect(bad.status).toBe(401);
     expect(await bad.text()).toContain("That username and access code do not match.");
     // The other team's tim, with his own code, gets his own identity.

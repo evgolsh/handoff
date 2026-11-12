@@ -25,7 +25,7 @@ import { buildMcpServer } from "./mcp/server";
 import { connectHeaders, connectPage } from "./http/connect";
 import { useCasesHeaders, useCasesPage } from "./http/use-cases";
 import { consoleRoutes, hasAdmin } from "./console/routes";
-import { assetsRoutes } from "./http/assets";
+import { packetsRoutes } from "./http/packets";
 import { loginRoutes } from "./http/login";
 import { handleOf, tenantOf } from "./domain/tenant";
 import { hasSessionCookie, isAdmin, sameOrigin, sessionFrom, startSession } from "./console/session";
@@ -150,7 +150,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
       .filter(([k]) => k !== "as_of")
       .map(([k, v]) => `<dt>${esc(k.replace(/_/g, " "))}</dt><dd>${esc(String(v))}</dd>`)
       .join("");
-    const page = consoleDocument("Stats", `<div class="login"><div class="panel"><div class="t">Handoff in numbers</div><div class="small muted">Counts only, no names. As of ${esc(String(s.as_of))}. Also at <a class="u" href="/stats.json">/stats.json</a>.</div><dl class="kv">${rows}</dl></div></div>`);
+    const page = consoleDocument("Stats", `<div class="login"><div class="panel"><div class="t">Threadpacket in numbers</div><div class="small muted">Counts only, no names. As of ${esc(String(s.as_of))}. JSON at <a class="u" href="/stats.json">/stats.json</a>.</div><dl class="kv">${rows}</dl></div></div>`);
     return new Response(page, { headers: { ...CONSOLE_HEADERS, "cache-control": "public, max-age=300" } });
   });
   // The pages' Deploy button: counts the click (nothing about who), then sends the browser to Cloudflare.
@@ -162,7 +162,7 @@ export function createApp(): Hono<{ Bindings: Env; Variables: Variables }> {
   app.get("/v1/update-check", (c) => receiveUpdateCheck(c.env, new URL(c.req.url)));
   app.route("/", consoleRoutes());
   app.route("/", loginRoutes());
-  app.route("/", assetsRoutes());
+  app.route("/", packetsRoutes());
   app.route("/", inviteRoutes());
 
   // This Worker is its own OAuth 2.1 authorization server (src/auth/builtin.ts): RFC 8414 metadata, RFC 7591

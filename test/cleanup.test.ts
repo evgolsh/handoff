@@ -49,7 +49,7 @@ describe("scheduled cleanup", () => {
     expect(await env.BLOBS.head(blobKey(loose.attachment_id))).toBeNull();
     expect(await env.BLOBS.head(blobKey(shared.attachment_id))).not.toBeNull();
 
-    const view = expectOk(await call(a, "handoff_read", { packet_id: live.packet_id, attachment_id: shared.attachment_id, representation: "original" }));
+    const view = expectOk(await call(a, "threadpacket_read", { packet_id: live.packet_id, attachment_id: shared.attachment_id, representation: "original" }));
     expect((await SELF.fetch(String(view.download_url))).status).toBe(200);
   });
 });

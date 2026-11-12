@@ -1,7 +1,7 @@
 {
-  // Handoff: hosted MCP service on Cloudflare Workers. One deployment profile (Workers + D1 + KV).
+  // Threadpacket: hosted MCP service on Cloudflare Workers. One deployment profile (Workers + D1 + KV).
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "handoff",
+  "name": "threadpacket",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,7 +10,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "handoff",
+      "database_name": "threadpacket",
       // This deployment's database. The Deploy to Cloudflare button and npm run setup put your own id here.
       "database_id": "428963e4-d377-46f7-b0c5-3d36d5bad609",
       "migrations_dir": "migrations"
@@ -27,12 +27,12 @@
   // Cleanup, hourly. Each run is bounded (src/env.ts cleanupBatch, cleanupRounds) and logs backlog: true if it stopped early.
   "triggers": { "crons": ["17 * * * *"] }
   // No "vars": every setting has a default in the code, so the Deploy to Cloudflare button asks for nothing but
-  // the HANDOFF_SETUP_CODE secret (a variable listed here, even empty, becomes a required field there).
+  // the THREADPACKET_SETUP_CODE secret (a variable listed here, even empty, becomes a required field there).
   // Optional variables, set under "vars" or in the dashboard, documented in docs/DEPLOY.md:
-  //   PUBLIC_URL             public origin without a trailing slash; empty = the origin each request came to.
-  //   HANDOFF_ENV            "dev" honours DEV_TOKENS for local wrangler dev; anything else is production.
-  //   MAX_ATTACHMENT_BYTES   bound on one file, default 26214400 (25 MiB).
-  //   IMPORT_HOST_ALLOWLIST  hosts for server-side imports of host file URLs (ChatGPT files); empty = off.
-  //   HANDOFF_UPDATE_CHECK   "off" turns off the daily update check (README, "Update check").
-  //   FILE_STORE             "kv" (default) or "r2": the file store; unset picks R2 if a bucket is bound, else KV.
+  //   PUBLIC_URL                 public origin without a trailing slash; empty = the origin each request came to.
+  //   THREADPACKET_ENV           "dev" honours DEV_TOKENS for local wrangler dev; anything else is production.
+  //   MAX_ATTACHMENT_BYTES       bound on one file, default 26214400 (25 MiB).
+  //   IMPORT_HOST_ALLOWLIST      hosts for server-side imports of host file URLs (ChatGPT files); empty = off.
+  //   THREADPACKET_UPDATE_CHECK  "off" turns off the daily update check (README, "Update check").
+  //   FILE_STORE                 "kv" (default) or "r2": the file store; unset picks R2 if a bucket is bound, else KV.
 }

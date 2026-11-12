@@ -125,8 +125,8 @@ export interface Delivery {
   waiting: string[];
 }
 
-/** A live handoff as Assets lists it: who sent it to whom, when it expires, its files, and who picked it up. */
-export type HandoffWithFiles = PacketSummary & Delivery & { attachments: AttachmentDescriptor[]; sent_via: string | null };
+/** A live packet as Packets lists it: who sent it to whom, when it expires, its files, and who picked it up. */
+export type PacketWithFiles = PacketSummary & Delivery & { attachments: AttachmentDescriptor[]; sent_via: string | null };
 
 /** An assistant's registered name, unless it is a generic one that says nothing. */
 export const assistantName = (name: string | null): string | null => {
@@ -134,7 +134,7 @@ export const assistantName = (name: string | null): string | null => {
   return n && !/^(an )?mcp client$/i.test(n) ? n : null;
 };
 
-/** Longest note Assets stores with an upload. */
+/** Longest note Packets stores with an upload. */
 export const MAX_NOTE_CHARS = 200;
 
 export const describe = (a: AttachmentRow): AttachmentDescriptor => ({
@@ -285,8 +285,8 @@ export class HandoffService {
           "not_found",
           `attachment_names: none of your unsent files is named ${shown}. Nothing was sent. ` +
             (list.length
-              ? `Your unsent files: ${list.join("; ")}. Pass the right one in attachment_ids, or ask the user to upload the file at ${this.cfg.publicUrl}/assets.`
-              : `You have no unsent files. Ask the user to upload it at ${this.cfg.publicUrl}/assets, or upload it with handoff_upload_url.`),
+              ? `Your unsent files: ${list.join("; ")}. Pass the right one in attachment_ids, or ask the user to upload the file at ${this.cfg.publicUrl}/packets.`
+              : `You have no unsent files. Ask the user to upload it at ${this.cfg.publicUrl}/packets, or upload it with threadpacket_upload_url.`),
         );
       }
       throw new HandoffError(
@@ -641,7 +641,7 @@ export class HandoffService {
     if (!live) {
       const a = await this.getOwnedAttachment(principal, attachmentId);
       if (a.state !== "ready") throw new HandoffError("attachment_not_ready", `attachment ${attachmentId} is ${a.state}`);
-      throw new HandoffError("unavailable", `attachment ${attachmentId} was sent in a handoff that was revoked or has expired`);
+      throw new HandoffError("unavailable", `attachment ${attachmentId} was sent in a packet that was revoked or has expired`);
     }
     return (await this.readAttachment(principal, live, attachmentId)).attachment;
   }
@@ -657,7 +657,7 @@ export class HandoffService {
     return new Uint8Array(await new Response(blob.body).arrayBuffer());
   }
 
-  // ---- Assets (/assets) ----------------------------------------------------
+  // ---- Packets (/packets) --------------------------------------------------
 
   /** The caller's files that no packet carries yet, newest first. */
   async unsentFiles(principal: Principal, limit = 20): Promise<UnsentFile[]> {
@@ -667,13 +667,13 @@ export class HandoffService {
   /** One of the caller's unsent files, for an assistant to open: only its uploader can, and only while unsent. */
   async readUnsent(principal: Principal, attachmentId: string): Promise<{ attachment: AttachmentRow; file: UnsentFile }> {
     const a = await this.repo.getUnsentAttachment(principal.subject, attachmentId);
-    if (!a) throw new HandoffError("not_found", `${attachmentId} is not one of your unsent files; a file in a handoff is read with that handoff's packet_id`);
+    if (!a) throw new HandoffError("not_found", `${attachmentId} is not one of your unsent files; a file in a packet is read with that packet's packet_id`);
     return { attachment: a, file: unsent(a) };
   }
 
   /**
-   * A file uploaded in Assets. Stored like an assistant's upload (same table, store, checks and quota),
-   * owned by the uploader and visible to nobody else until an assistant sends it in a handoff. If one of the
+   * A file uploaded in Packets. Stored like an assistant's upload (same table, store, checks and quota),
+   * owned by the uploader and visible to nobody else until an assistant sends it in a packet. If one of the
    * caller's unsent files already has the name (case ignored), it is stored as "name (2).ext", so an assistant
    * can always attach it by name; `renamed` says so.
    */
@@ -692,20 +692,20 @@ export class HandoffService {
   async removeUnsent(principal: Principal, attachmentId: string): Promise<AttachmentRow> {
     const a = await this.getOwnedAttachment(principal, attachmentId);
     if (!(await this.repo.claimUnattachedForDeletion(a.id, null))) {
-      throw new HandoffError("unavailable", `attachment ${attachmentId} is in a handoff or is already being removed`);
+      throw new HandoffError("unavailable", `attachment ${attachmentId} is in a packet or is already being removed`);
     }
     await this.dropClaimed(a);
     return a;
   }
 
-  /** One page of the caller's live handoffs (sent or received), newest first, each with its files. */
-  async handoffsPage(principal: Principal, opts: { limit?: number; cursor?: string; filter?: InboxFilter } = {}): Promise<{ handoffs: HandoffWithFiles[]; next_cursor: string | null }> {
+  /** One page of the caller's live packets (sent or received), newest first, each with its files. */
+  async packetsPage(principal: Principal, opts: { limit?: number; cursor?: string; filter?: InboxFilter } = {}): Promise<{ packets: PacketWithFiles[]; next_cursor: string | null }> {
     const page = await this.inbox(principal, opts);
-    return { handoffs: await this.withFiles(page.packets), next_cursor: page.next_cursor };
+    return { packets: await this.withFiles(page.packets), next_cursor: page.next_cursor };
   }
 
-  /** Handoffs others sent this member that they have neither picked up nor opened, newest first. */
-  async unseen(principal: Principal, limit = 10): Promise<HandoffWithFiles[]> {
+  /** Packets others sent this member that they have neither picked up nor opened, newest first. */
+  async unseen(principal: Principal, limit = 10): Promise<PacketWithFiles[]> {
     const rows = await this.repo.listUnseen(principal.subject, nowIso(), limit);
     return this.withFiles(
       rows.map((r) => ({
@@ -723,7 +723,7 @@ export class HandoffService {
     );
   }
 
-  private async withFiles(packets: (PacketSummary & Delivery & { attachment_count: number; sent_via: string | null })[]): Promise<HandoffWithFiles[]> {
+  private async withFiles(packets: (PacketSummary & Delivery & { attachment_count: number; sent_via: string | null })[]): Promise<PacketWithFiles[]> {
     const rows = await this.repo.getAttachmentsForPackets(packets.map((p) => p.packet_id));
     return packets.map(({ attachment_count: _n, ...p }) => ({
       ...p,

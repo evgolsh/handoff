@@ -73,22 +73,22 @@ function clientCell(clients: Map<string, ClientInfo>, id: string | null): Html {
 export function teamOverviewPage(v: Viewer, cfg: Config, d: TeamOverviewData): Html {
   const connected = d.connected > 0;
   return shell("overview", v, "Your team", `
-<header class="app-head"><div><h1>Your team</h1><p class="lead">${connected ? `Team <strong>${esc(v.tenant)}</strong>: members, connected assistants and live handoffs.` : `Team <strong>${esc(v.tenant)}</strong> is ready. Connect your first assistant.`}</p></div></header>
-<section class="team-start" aria-label="Get started">
-  <div><span class="kicker">${connected ? "Next" : "Start here"}</span><h2>${connected ? "Connect another assistant." : "Connect your first assistant."}</h2><p>Choose Claude, Codex, ChatGPT or Hermes. Follow the setup steps, then sign in as <strong>${esc(v.handle)}</strong>.</p><a class="btn primary" href="/connect">${connected ? "Connect an assistant" : "Choose your assistant"} →</a></div>
-  <div class="team-steps">
-    <div class="team-step"><span>1</span><div><strong>Connect</strong><p>Add Handoff to the assistants you use.</p></div></div>
-    <div class="team-step"><span>2</span><div><strong>Send a brief</strong><p>Say “Hand this off” in your first chat.</p></div></div>
-    <div class="team-step"><span>3</span><div><strong>Pick it up</strong><p>Say “Continue my handoff” in another.</p></div></div>
+<header class="app-head"><div><h1>Your team</h1><p class="lead">Team <strong>${esc(v.tenant)}</strong>: ${connected ? "members, connected assistants, and active packets." : "connect your first assistant to start sending packets."}</p></div><a class="btn primary" href="/connect">${connected ? "Connect assistant" : "Choose assistant"} →</a></header>
+<section class="dot-stage" aria-label="Team summary">
+  <i class="reg-tick tl" aria-hidden="true"></i><i class="reg-tick tr" aria-hidden="true"></i><i class="reg-tick bl" aria-hidden="true"></i><i class="reg-tick br" aria-hidden="true"></i>
+  <div class="flow-card">
+    <div class="stamp-bar"><span>Team // ${esc(v.tenant)}</span><span>Signed in as ${esc(v.handle)}</span></div>
+    <div style="padding:20px;display:grid;gap:16px">
+      <div class="team-metrics" aria-label="Your team"><span><strong>${num(d.members)}</strong> ${d.members === 1 ? "member" : "members"}</span><span><strong>${num(d.connected)}</strong> connected ${d.connected === 1 ? "assistant" : "assistants"}</span><span><strong>${num(d.packetsLive)}</strong> active ${d.packetsLive === 1 ? "packet" : "packets"}</span></div>
+      <div class="team-shortcuts" aria-label="Manage your team">
+        <a href="/console/members"><div><strong>Invite a teammate</strong><p>Create or reset member sign-in codes.</p></div><span aria-hidden="true">→</span></a>
+        <a href="/console/assistants"><div><strong>Manage connections</strong><p>View and revoke connected AI assistants.</p></div><span aria-hidden="true">→</span></a>
+      </div>
+    </div>
   </div>
 </section>
-<section class="team-shortcuts" aria-label="Manage your team">
-  <a href="/console/members"><div><strong>Invite a teammate</strong><p>Add someone and share their sign-in details.</p></div><span aria-hidden="true">↗</span></a>
-  <a href="/console/assistants"><div><strong>Manage connections</strong><p>See which assistants your team has connected.</p></div><span aria-hidden="true">↗</span></a>
-</section>
-<section class="team-metrics" aria-label="Your team"><span><strong>${num(d.members)}</strong> ${d.members === 1 ? "member" : "members"}</span><span><strong>${num(d.connected)}</strong> connected ${d.connected === 1 ? "assistant" : "assistants"}</span><span><strong>${num(d.packetsLive)}</strong> active ${d.packetsLive === 1 ? "handoff" : "handoffs"}</span></section>
-<div class="team-limits">Hosted · handoffs kept ${Math.round(cfg.defaultExpiryHours / 24)} days · ${Math.round(cfg.maxAttachmentBytes / 1048576)} MiB per file · <a class="u" href="/#install" target="_blank" rel="noopener">Run your own private server ↗</a></div>
-<section class="people-list" aria-label="Delete team"><article class="person-row"><div><strong>Delete team</strong><p>Removes every member and deletes every handoff and file of ${esc(v.tenant)}. It cannot be undone.</p></div><a class="btn sm danger" href="/console/team/delete">Delete team…</a></article></section>`);
+<div class="team-limits">Free hosted · ${Math.round(cfg.defaultExpiryHours / 24)}-day auto-expiry · ${Math.round(cfg.maxAttachmentBytes / 1048576)} MiB per file · <a class="u" href="/#install" target="_blank" rel="noopener">Self-host on Cloudflare ↗</a></div>
+<section class="people-list" aria-label="Delete team"><article class="person-row"><div><strong>Delete team</strong><p>Removes every member, packet, and file in ${esc(v.tenant)}.</p></div><a class="btn sm danger" href="/console/team/delete">Delete team…</a></article></section>`);
 }
 
 export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {
@@ -141,10 +141,10 @@ export function overviewPage(v: Viewer, cfg: Config, d: OverviewData): Html {
   const sends = d.days.reduce((s, x) => s + x.sends, 0);
   const label = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const strip = `<div class="panel">
-    <div class="t">Handoffs sent</div>
+    <div class="t">Packets sent</div>
     <div style="display:flex;align-items:baseline;gap:8px"><span class="big">${num(sends)}</span><span class="muted small">in ${STRIP_DAYS} days</span></div>
-    <div class="small muted">${plural(d.toolTotals.handoff_read ?? 0, "read")} · ${plural(d.toolTotals.handoff_revoke ?? 0, "revoke")} · ${plural(d.toolTotals.handoff_inbox ?? 0, "inbox check")}</div>
-    <div class="days" role="img" aria-label="Handoffs sent per day, last ${STRIP_DAYS} days">${d.days
+    <div class="small muted">${plural(d.toolTotals.threadpacket_read ?? 0, "read")} · ${plural(d.toolTotals.threadpacket_revoke ?? 0, "revoke")} · ${plural(d.toolTotals.threadpacket_inbox ?? 0, "inbox check")}</div>
+    <div class="days" role="img" aria-label="Packets sent per day, last ${STRIP_DAYS} days">${d.days
       .map((x) => `<i class="${x.sends ? "" : "zero"}" style="height:${x.sends ? Math.max(8, Math.round((100 * x.sends) / maxDay)) : 4}%" title="${esc(label(x.date))}: ${x.sends} sent"></i>`)
       .join("")}</div>
     <div class="small muted" style="display:flex;justify-content:space-between"><span>${esc(label(d.days[0]!.date))}</span><span>${esc(label(d.days[d.days.length - 1]!.date))}</span></div>
@@ -280,11 +280,11 @@ ${note ? flash(note.text, note.ok) : ""}
   </form>
   <div class="panel">
     <div class="t">Admins</div>
-    ${v.tenant ? `<div class="small">The person who created this team is its admin. Adding a member lets them use Handoff with their assistants; it does not grant console access.</div>` : `
+    ${v.tenant ? `<div class="small">The person who created this team is its admin. Adding a member lets them use Threadpacket with their assistants; it does not grant console access.</div>` : `
     <div class="small">Admins can open this console. The operator grants it in a terminal, so the console cannot make new admins:</div>
 <pre class="code">npm run admin -- &lt;handle&gt;
 npm run admin -- &lt;handle&gt; --revoke</pre>`}
-    <div class="small muted">Reset code gives a new code and signs out every assistant of that member at once. Remove also revokes the packets they sent or received.</div>
+    <div class="small muted">Reset code gives a new code and signs out every assistant of that member at once. Remove revokes the packets they sent or received.</div>
   </div>
 </section>`,
   );
@@ -293,7 +293,7 @@ npm run admin -- &lt;handle&gt; --revoke</pre>`}
 /** The new access code, shown once. */
 export function codePage(v: Viewer, handle: string, code: string, kind: "added" | "reset", publicUrl: string, nonce: string): Html {
   const self = handle === v.handle;
-  const invitation = `Handoff\nServer: ${publicUrl}/mcp\nUsername: ${handle}\nAccess code: ${code}\nSetup: ${publicUrl}/connect`;
+  const invitation = `Threadpacket\nServer: ${publicUrl}/mcp\nUsername: ${handle}\nAccess code: ${code}\nSetup: ${publicUrl}/connect`;
   return shell(
     "members",
     v,
@@ -483,7 +483,7 @@ export function opsPage(v: Viewer, cfg: Config, d: OpsData, note: string | null)
     ${kv([
       ["version", d.version ? `<span class="mono">${esc(d.version.id)}</span>${d.version.tag ? ` <span class="chip">${esc(d.version.tag)}</span>` : ""}` : `<span class="faint">not reported (no version_metadata binding)</span>`],
       ["deployed", d.version?.timestamp ? `${when(d.version.timestamp, now)} <span class="muted">· ${esc(utc(d.version.timestamp))}</span>` : `<span class="faint">—</span>`],
-      ["handoff", updateRow(d.update, now)],
+      ["threadpacket", updateRow(d.update, now)],
       ["address", `<span class="mono">${esc(cfg.mcpResource)}</span>`],
       ["sign-in", `built in · issuer <span class="mono">${esc(cfg.issuer)}</span>`],
       [
@@ -584,7 +584,7 @@ export function tenantsPage(v: Viewer, d: ControlCenterData): Html {
   const now = d.now;
   const tile = (label: string, value: string, sub = "") => `<div class="panel"><div class="small muted">${esc(label)}</div><div style="font-size:26px;font-weight:600;letter-spacing:-.02em">${value}</div>${sub ? `<div class="small muted">${sub}</div>` : ""}</div>`;
   const tiles = `<section class="grid3">
-    ${tile("users, 28 days", num(d.users.d28), `${num(d.users.d7)} in 7 days · a user read a handoff`)}
+    ${tile("users, 28 days", num(d.users.d28), `${num(d.users.d7)} in 7 days · a user read a packet`)}
     ${tile("teams", num(d.totals.tenants), `${plural(d.totals.members, "member")} in all`)}
     ${tile("private instances alive", num(d.instances.d28), `${num(d.instances.d7)} checked in within 7 days`)}
     ${tile("Deploy clicks, 30 days", num(d.deployClicks30d), `${plural(d.activity.round_trips_7d, "person")} completed a round trip this week`)}
@@ -595,7 +595,7 @@ export function tenantsPage(v: Viewer, d: ControlCenterData): Html {
     <div style="display:flex;gap:4px;align-items:flex-end;height:80px">${d.days
       .map((x) => `<div title="${x.date}: ${x.sends} sent, ${x.reads} read" style="flex:1;display:flex;gap:1px;align-items:flex-end;height:100%"><div style="flex:1;background:var(--muted);height:${Math.round((x.sends / maxDay) * 100)}%"></div><div style="flex:1;background:var(--accent);height:${Math.round((x.reads / maxDay) * 100)}%"></div></div>`)
       .join("")}</div>
-    <div class="small muted">grey: sent · orange: read · ${num(d.activity.sends_7d)} sent and ${num(d.activity.reads_7d)} read in 7 days</div>
+    <div class="small muted">grey: sent · blue: read · ${num(d.activity.sends_7d)} sent and ${num(d.activity.reads_7d)} read in 7 days</div>
   </div>`;
   const tenants = `<section class="panel flush scroll">
     <table>

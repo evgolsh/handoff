@@ -45,7 +45,7 @@ export async function createInvitation(db: D1Database, cfg: Config, inviter: str
     const cap = cfg.tenantMembersCap;
     if (tenant && cap > 0) {
       const n = await db.prepare("SELECT COUNT(*) AS n FROM members WHERE handle >= ? AND handle < ?").bind(`${tenant}/`, `${tenant}0`).first<{ n: number }>();
-      if ((n?.n ?? 0) >= cap) throw new HandoffError("quota_exceeded", `this team has ${cap} people, the most the hosted service allows. A private Handoff server has no limit.`);
+      if ((n?.n ?? 0) >= cap) throw new HandoffError("quota_exceeded", `this team has ${cap} people, the most the hosted service allows. A private Threadpacket server has no limit.`);
     }
     const { salt, hash, lookup } = await randomCodeHash();
     await db.prepare("INSERT INTO members (handle, code_salt, code_hash, code_lookup, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(handle) DO NOTHING").bind(identity, salt, hash, lookup, nowIso()).run();

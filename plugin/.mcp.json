@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "handoff": {
+    "threadpacket": {
       "type": "http",
-      "url": "https://handoff.infraworks.net/mcp"
+      "url": "https://threadpacket.com/mcp"
     }
   }
 }

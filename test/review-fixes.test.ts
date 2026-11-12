@@ -84,7 +84,7 @@ const PS_SKELETON =
   "$f = (Resolve-Path -LiteralPath L).ProviderPath; Invoke-RestMethod -Method Put -Uri L -ContentType L -Body ([IO.File]::ReadAllBytes($f))";
 
 describe("R1: upload commands never execute a file name or type", () => {
-  const url = "https://handoff.test/v1/uploads/at_x?ticket=AbC-_1";
+  const url = "https://threadpacket.test/v1/uploads/at_x?ticket=AbC-_1";
   const names = [
     "proof$(printf FILENAME_EXPANDED).txt",
     "back`printf X`tick.pdf",
@@ -114,7 +114,7 @@ describe("R1: upload commands never execute a file name or type", () => {
 
   it("the tool reduces the name to a base name, quotes it, and refuses a type that is not accepted", async () => {
     const a = await alice();
-    const r = expectOk(await call(a, "handoff_upload_url", { filename: "../dir/proof$(printf X)\n.pdf", mime_type: "application/pdf" }));
+    const r = expectOk(await call(a, "threadpacket_upload_url", { filename: "../dir/proof$(printf X)\n.pdf", mime_type: "application/pdf" }));
     expect(r.method).toBe("PUT");
     expect(r.headers).toEqual({ "content-type": "application/pdf" });
     const words = shWords(String(r.curl));
@@ -123,17 +123,17 @@ describe("R1: upload commands never execute a file name or type", () => {
     expect(psLiterals(String(r.powershell)).skeleton).toBe(PS_SKELETON);
 
     for (const bad of ["text/plain$(printf MIME_EXPANDED)", 'text/plain"; printf TYPE_ESCAPED; #', "application/x-sh", "text/html"]) {
-      const res = await call(a, "handoff_upload_url", { filename: "proof.txt", mime_type: bad });
+      const res = await call(a, "threadpacket_upload_url", { filename: "proof.txt", mime_type: bad });
       expect(res.isError).toBe(true);
       expect(errorText(res)).toContain("unsupported_type");
     }
-    const canon = expectOk(await call(a, "handoff_upload_url", { filename: "n.md", mime_type: "Text/Markdown; charset=UTF-8" }));
+    const canon = expectOk(await call(a, "threadpacket_upload_url", { filename: "n.md", mime_type: "Text/Markdown; charset=UTF-8" }));
     expect(canon.headers).toEqual({ "content-type": "text/markdown" });
   });
 
   it("without a declared type the command sends application/octet-stream and the upload succeeds", async () => {
     const a = await alice();
-    const r = expectOk(await call(a, "handoff_upload_url", { filename: "codeword.pdf" }));
+    const r = expectOk(await call(a, "threadpacket_upload_url", { filename: "codeword.pdf" }));
     expect(shWords(String(r.curl))[7]).toBe("content-type: application/octet-stream");
     const put = await SELF.fetch(String(r.upload_url), { method: "PUT", headers: { "content-type": "application/octet-stream" }, body: PDF });
     expect(put.status).toBe(200);
@@ -180,10 +180,10 @@ describe("R3: cleanup finishes deletions it claimed earlier", () => {
 });
 
 describe("R4: development tokens", () => {
-  const devCfg = (tokens: unknown, origin = "http://localhost:8787") => configFrom({ ...env, HANDOFF_ENV: "dev", DEV_TOKENS: JSON.stringify(tokens) }, origin);
+  const devCfg = (tokens: unknown, origin = "http://localhost:8787") => configFrom({ ...env, THREADPACKET_ENV: "dev", DEV_TOKENS: JSON.stringify(tokens) }, origin);
 
   it("production ignores DEV_TOKENS entirely", async () => {
-    const cfg = configFrom({ ...env, HANDOFF_ENV: "production", DEV_TOKENS: JSON.stringify({ "dev-token-1": "user_dev" }) });
+    const cfg = configFrom({ ...env, THREADPACKET_ENV: "production", DEV_TOKENS: JSON.stringify({ "dev-token-1": "user_dev" }) });
     expect(cfg.devTokens.size).toBe(0);
     await expect(verifyBearer(cfg, "dev-token-1", env.DB)).rejects.toMatchObject({ error: "invalid_token" });
   });
@@ -207,7 +207,7 @@ describe("R4: development tokens", () => {
 describe("R5: token claims", () => {
   it("a signed token whose subject is not a string is refused", async () => {
     const now = Math.floor(Date.now() / 1000);
-    const bearer = await new SignJWT({ sub: 42 as unknown as string, scope: "handoff", client_id: "test-client" })
+    const bearer = await new SignJWT({ sub: 42 as unknown as string, scope: "threadpacket", client_id: "test-client" })
       .setProtectedHeader({ alg: "ES256", kid: "test-key-1" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)

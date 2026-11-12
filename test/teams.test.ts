@@ -23,7 +23,7 @@ async function teamCall(bearer: string, name: string, args: Record<string, unkno
   return ((await res.json()) as { result: ToolResult }).result;
 }
 const teamSend = async (bearer: string, overrides: Record<string, unknown>) =>
-  expectOk(await teamCall(bearer, "handoff_send", { title: "Q3 VAT", brief: "Purpose: file Q3 VAT.", idempotency_key: crypto.randomUUID(), ...overrides }));
+  expectOk(await teamCall(bearer, "threadpacket_send", { title: "Q3 VAT", brief: "Purpose: file Q3 VAT.", idempotency_key: crypto.randomUUID(), ...overrides }));
 async function teamUpload(bearer: string, filename: string, bytes: Uint8Array, mime: string): Promise<string> {
   const created = await teamFetch(`${ORIGIN}/v1/uploads`, {
     method: "POST",
@@ -36,7 +36,7 @@ async function teamUpload(bearer: string, filename: string, bytes: Uint8Array, m
   return attachment_id;
 }
 const inboxIds = async (bearer: string) =>
-  ((expectOk(await teamCall(bearer, "handoff_inbox")).packets as Array<{ packet_id: string }>) ?? []).map((p) => p.packet_id);
+  ((expectOk(await teamCall(bearer, "threadpacket_inbox")).packets as Array<{ packet_id: string }>) ?? []).map((p) => p.packet_id);
 
 async function seedTeam() {
   for (const h of ["alice", "bob", "mallory"]) await upsertMember(env.DB, h, `${h}-passcode-2026`);
@@ -51,26 +51,26 @@ describe("teammates", () => {
     const sent = await teamSend(a, { to: "Bob", attachment_ids: [pdf, png] });
     expect(sent).toMatchObject({ from: "alice", to: "bob" });
 
-    const summary = (expectOk(await teamCall(b, "handoff_inbox")).packets as any[]).find((p) => p.packet_id === sent.packet_id);
+    const summary = (expectOk(await teamCall(b, "threadpacket_inbox")).packets as any[]).find((p) => p.packet_id === sent.packet_id);
     expect(summary).toMatchObject({ from: "alice", to: "bob", attachment_count: 2 });
-    const read = await teamCall(b, "handoff_read", { packet_id: sent.packet_id });
+    const read = await teamCall(b, "threadpacket_read", { packet_id: sent.packet_id });
     expect(expectOk(read)).toMatchObject({ from: "alice", to: "bob", brief: "Purpose: file Q3 VAT." });
     expect(read.content[0]?.text).toContain("from alice to bob");
-    expect(expectOk(await teamCall(b, "handoff_read", { packet_id: sent.packet_id, attachment_id: png })).representation).toBe("image");
+    expect(expectOk(await teamCall(b, "threadpacket_read", { packet_id: sent.packet_id, attachment_id: png })).representation).toBe("image");
 
-    const ticket = expectOk(await teamCall(b, "handoff_read", { packet_id: sent.packet_id, attachment_id: pdf, representation: "original" }));
+    const ticket = expectOk(await teamCall(b, "threadpacket_read", { packet_id: sent.packet_id, attachment_id: pdf, representation: "original" }));
     const dl = await teamFetch(String(ticket.download_url));
     expect(await sha256Hex(new Uint8Array(await dl.arrayBuffer()))).toBe(await sha256Hex(PDF));
     expect((await teamFetch(`${ORIGIN}/v1/attachments/${pdf}/original`, { headers: { authorization: `Bearer ${b}` } })).status).toBe(200);
 
     // Another member is not the recipient.
     expect(await inboxIds(m)).not.toContain(sent.packet_id);
-    expect(errorText(await teamCall(m, "handoff_read", { packet_id: sent.packet_id }))).toContain("not_found");
-    expect(errorText(await teamCall(m, "handoff_revoke", { packet_id: sent.packet_id }))).toContain("not_found");
+    expect(errorText(await teamCall(m, "threadpacket_read", { packet_id: sent.packet_id }))).toContain("not_found");
+    expect(errorText(await teamCall(m, "threadpacket_revoke", { packet_id: sent.packet_id }))).toContain("not_found");
     expect((await teamFetch(`${ORIGIN}/v1/attachments/${pdf}/original`, { headers: { authorization: `Bearer ${m}` } })).status).toBe(404);
 
     // The recipient may revoke it when done; the download link stops at once.
-    expectOk(await teamCall(b, "handoff_revoke", { packet_id: sent.packet_id }));
+    expectOk(await teamCall(b, "threadpacket_revoke", { packet_id: sent.packet_id }));
     expect((await teamFetch(String(ticket.download_url))).status).toBe(410);
   });
 
@@ -80,9 +80,9 @@ describe("teammates", () => {
     const sent = await teamSend(a, { title: "Family groceries", to: "team" });
     expect(sent.to).toBe("*");
     expect(await inboxIds(b)).toContain(sent.packet_id);
-    expect(expectOk(await teamCall(b, "handoff_read", { packet_id: sent.packet_id })).title).toBe("Family groceries");
-    expect(errorText(await teamCall(b, "handoff_revoke", { packet_id: sent.packet_id }))).toContain("only its sender can revoke it");
-    expectOk(await teamCall(a, "handoff_revoke", { packet_id: sent.packet_id }));
+    expect(expectOk(await teamCall(b, "threadpacket_read", { packet_id: sent.packet_id })).title).toBe("Family groceries");
+    expect(errorText(await teamCall(b, "threadpacket_revoke", { packet_id: sent.packet_id }))).toContain("only its sender can revoke it");
+    expectOk(await teamCall(a, "threadpacket_revoke", { packet_id: sent.packet_id }));
     expect(await inboxIds(b)).not.toContain(sent.packet_id);
   });
 
@@ -90,9 +90,9 @@ describe("teammates", () => {
     await seedTeam();
     const a = await member("alice");
     const title = `to a stranger ${crypto.randomUUID()}`;
-    const r = await teamCall(a, "handoff_send", { title, brief: "x", to: "carol", idempotency_key: crypto.randomUUID() });
+    const r = await teamCall(a, "threadpacket_send", { title, brief: "x", to: "carol", idempotency_key: crypto.randomUUID() });
     expect(errorText(r)).toContain('"carol" is not a member of this server');
-    const titles = (expectOk(await teamCall(a, "handoff_inbox")).packets as Array<{ title: string }>).map((p) => p.title);
+    const titles = (expectOk(await teamCall(a, "threadpacket_inbox")).packets as Array<{ title: string }>).map((p) => p.title);
     expect(titles).not.toContain(title);
   });
 });
@@ -152,7 +152,7 @@ describe("text attachments in the structured result", () => {
     const body = "# Notes\n\nFile-only codeword: KESTREL-1234\n";
     const up = await uploadBytes(a, "notes.md", new TextEncoder().encode(body), "text/markdown");
     const p = await send(a, { attachment_ids: [up.attachment_id] });
-    const r = await call(a, "handoff_read", { packet_id: p.packet_id, attachment_id: up.attachment_id, representation: "text" });
+    const r = await call(a, "threadpacket_read", { packet_id: p.packet_id, attachment_id: up.attachment_id, representation: "text" });
     expect(expectOk(r).text).toBe(body);
     expect(r.content[1]?.text).toBe(body);
   });

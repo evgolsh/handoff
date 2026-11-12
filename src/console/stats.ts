@@ -230,7 +230,7 @@ export async function overview(env: Env, cfg: Config, tenant = "", now = Date.no
 
   const perDay = await all<{ d: string; n: number }>(
     db,
-    `SELECT substr(ts, 1, 10) AS d, COUNT(*) AS n FROM events WHERE kind = 'tool' AND name = 'handoff_send' AND outcome = 'ok' AND ts >= ?${ev.sql} GROUP BY d`,
+    `SELECT substr(ts, 1, 10) AS d, COUNT(*) AS n FROM events WHERE kind = 'tool' AND name = 'threadpacket_send' AND outcome = 'ok' AND ts >= ?${ev.sql} GROUP BY d`,
     stripStart,
     ...ev.binds,
   );
@@ -568,7 +568,7 @@ export interface ControlCenterData {
   now: number;
   tenants: TenantRow[];
   totals: { tenants: number; members: number };
-  /** The KPI: distinct identities that read a packet (handoff_read ok). */
+  /** The KPI: distinct identities that read a packet (threadpacket_read ok). */
   users: { d7: number; d28: number };
   activity: { sends_7d: number; reads_7d: number; round_trips_7d: number };
   instances: { d7: number; d28: number; byVersion: Array<{ version: string; n: number }>; byMembers: Array<{ members: string; n: number }> };
@@ -589,7 +589,7 @@ export async function controlCenter(db: D1Database, now = Date.now()): Promise<C
     `SELECT t.slug, t.name, t.created_at,
        (SELECT COUNT(*) FROM members m WHERE m.handle >= t.slug || '/' AND m.handle < t.slug || '0') AS members,
        (SELECT COUNT(*) FROM packets p WHERE p.owner >= t.slug || '/' AND p.owner < t.slug || '0' AND p.revoked_at IS NULL AND p.expires_at > ?) AS packets_live,
-       (SELECT COUNT(*) FROM events e WHERE e.kind = 'tool' AND e.name = 'handoff_read' AND e.outcome = 'ok' AND e.ts >= ? AND e.subject >= t.slug || '/' AND e.subject < t.slug || '0') AS reads_7d,
+       (SELECT COUNT(*) FROM events e WHERE e.kind = 'tool' AND e.name = 'threadpacket_read' AND e.outcome = 'ok' AND ts >= ? AND e.subject >= t.slug || '/' AND e.subject < t.slug || '0') AS reads_7d,
        (SELECT MAX(e.ts) FROM events e WHERE e.subject >= t.slug || '/' AND e.subject < t.slug || '0') AS last_seen
      FROM tenants t ORDER BY last_seen DESC, t.created_at DESC`,
     nowIso,
@@ -598,17 +598,17 @@ export async function controlCenter(db: D1Database, now = Date.now()): Promise<C
   const totals = await one<{ tenants: number; members: number }>(db, "SELECT (SELECT COUNT(*) FROM tenants) AS tenants, (SELECT COUNT(*) FROM members WHERE instr(handle, '/') > 0) AS members");
   const users = await one<{ d7: number; d28: number }>(
     db,
-    `SELECT (SELECT COUNT(DISTINCT subject) FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?) AS d7,
-            (SELECT COUNT(DISTINCT subject) FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?) AS d28`,
+    `SELECT (SELECT COUNT(DISTINCT subject) FROM events WHERE kind = 'tool' AND name = 'threadpacket_read' AND outcome = 'ok' AND ts >= ?) AS d7,
+            (SELECT COUNT(DISTINCT subject) FROM events WHERE kind = 'tool' AND name = 'threadpacket_read' AND outcome = 'ok' AND ts >= ?) AS d28`,
     d7,
     d28,
   );
   const activity = await one<{ sends_7d: number; reads_7d: number; round_trips_7d: number }>(
     db,
-    `SELECT (SELECT COUNT(*) FROM events WHERE kind = 'tool' AND name = 'handoff_send' AND outcome = 'ok' AND ts >= ?) AS sends_7d,
-            (SELECT COUNT(*) FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?) AS reads_7d,
-            (SELECT COUNT(*) FROM (SELECT DISTINCT subject FROM events WHERE kind = 'tool' AND name = 'handoff_read' AND outcome = 'ok' AND ts >= ?
-                                   AND subject IN (SELECT subject FROM events WHERE kind = 'tool' AND name = 'handoff_send' AND outcome = 'ok' AND ts >= ?))) AS round_trips_7d`,
+    `SELECT (SELECT COUNT(*) FROM events WHERE kind = 'tool' AND name = 'threadpacket_send' AND outcome = 'ok' AND ts >= ?) AS sends_7d,
+            (SELECT COUNT(*) FROM events WHERE kind = 'tool' AND name = 'threadpacket_read' AND outcome = 'ok' AND ts >= ?) AS reads_7d,
+            (SELECT COUNT(*) FROM (SELECT DISTINCT subject FROM events WHERE kind = 'tool' AND name = 'threadpacket_read' AND outcome = 'ok' AND ts >= ?
+                                   AND subject IN (SELECT subject FROM events WHERE kind = 'tool' AND name = 'threadpacket_send' AND outcome = 'ok' AND ts >= ?))) AS round_trips_7d`,
     d7,
     d7,
     d7,
@@ -630,13 +630,13 @@ export async function controlCenter(db: D1Database, now = Date.now()): Promise<C
   );
   const perDay = await all<{ d: string; name: string; n: number }>(
     db,
-    "SELECT substr(ts, 1, 10) AS d, name, COUNT(*) AS n FROM events WHERE kind = 'tool' AND name IN ('handoff_send', 'handoff_read') AND outcome = 'ok' AND ts >= ? GROUP BY d, name",
+    "SELECT substr(ts, 1, 10) AS d, name, COUNT(*) AS n FROM events WHERE kind = 'tool' AND name IN ('threadpacket_send', 'threadpacket_read') AND outcome = 'ok' AND ts >= ? GROUP BY d, name",
     stripStart,
   );
   const days = Array.from({ length: STRIP_DAYS }, (_, i) => {
     const date = new Date(now - (STRIP_DAYS - 1 - i) * DAY).toISOString().slice(0, 10);
     const on = (name: string) => perDay.find((r) => r.d === date && r.name === name)?.n ?? 0;
-    return { date, sends: on("handoff_send"), reads: on("handoff_read") };
+    return { date, sends: on("threadpacket_send"), reads: on("threadpacket_read") };
   });
   return {
     now,
@@ -660,8 +660,8 @@ export async function publicStats(db: D1Database, now = Date.now()): Promise<Rec
     members: c.totals.members,
     users_7d: c.users.d7,
     users_28d: c.users.d28,
-    handoffs_sent_7d: c.activity.sends_7d,
-    handoffs_read_7d: c.activity.reads_7d,
+    packets_sent_7d: c.activity.sends_7d,
+    packets_read_7d: c.activity.reads_7d,
     people_with_round_trip_7d: c.activity.round_trips_7d,
     private_instances_7d: c.instances.d7,
     private_instances_28d: c.instances.d28,

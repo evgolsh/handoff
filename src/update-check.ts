@@ -7,12 +7,12 @@ import { VERSION } from "./version";
  * The update check. Once a day the hourly cron (src/index.ts) asks the project's hosted instance for the latest
  * version and the console's Ops page shows the answer. The request carries a random id made once for this
  * deployment, its version, and two size buckets: nothing else, so the project can count deployments in use
- * without learning who runs them. HANDOFF_UPDATE_CHECK=off turns it off.
+ * without learning who runs them. THREADPACKET_UPDATE_CHECK=off turns it off.
  *
  * The same module is the receiving end, active only where UPDATE_CHECK_RECEIVER=1.
  */
-export const DEFAULT_UPDATE_CHECK_URL = "https://handoff.infraworks.net/v1/update-check";
-export const RELEASES_URL = "https://github.com/evgolsh/handoff/releases";
+export const DEFAULT_UPDATE_CHECK_URL = "https://threadpacket.com/v1/update-check";
+export const RELEASES_URL = "https://github.com/evgolsh/threadpacket/releases";
 
 const DAY = 86_400_000;
 
@@ -22,12 +22,12 @@ export const bucketMembers = (n: number): (typeof MEMBER_BUCKETS)[number] => (n 
 export const bucketPackets = (n: number): (typeof PACKET_BUCKETS)[number] => (n <= 0 ? "0" : n < 10 ? "1-9" : n < 50 ? "10-49" : "50+");
 
 export function updateCheckEnabled(env: Env): boolean {
-  const v = (env.HANDOFF_UPDATE_CHECK ?? "").trim().toLowerCase();
+  const v = (env.THREADPACKET_UPDATE_CHECK ?? "").trim().toLowerCase();
   return !["off", "0", "false", "no"].includes(v);
 }
 
 export const receiverEnabled = (env: Env): boolean =>
-  (env.UPDATE_CHECK_RECEIVER ?? "").trim() === "1" || (env.HANDOFF_MODE ?? "").trim().toLowerCase() === "control";
+  (env.UPDATE_CHECK_RECEIVER ?? "").trim() === "1" || (env.THREADPACKET_MODE ?? "").trim().toLowerCase() === "control";
 
 async function setting(db: D1Database, key: string): Promise<string | null> {
   try {
@@ -104,7 +104,7 @@ export async function runUpdateCheck(env: Env, opts: { now?: number; fetch?: typ
   try {
     const res = await doFetch(url.toString(), {
       method: "GET",
-      headers: { "user-agent": `handoff/${VERSION}`, accept: "application/json" },
+      headers: { "user-agent": `threadpacket/${VERSION}`, accept: "application/json" },
       signal: abort.signal,
     });
     const body = res.ok ? ((await res.json().catch(() => null)) as { latest?: unknown } | null) : null;

@@ -42,7 +42,7 @@ export function uploadRoutes(): App {
         upload_url: `${svc.cfg.publicUrl}/v1/uploads/${row.id}`,
         method: "PUT",
         max_bytes: svc.cfg.maxAttachmentBytes,
-        note: "PUT the raw file bytes with your bearer token, or with ?ticket= from handoff_upload_url.",
+        note: "PUT the raw file bytes with your bearer token, or with ?ticket= from threadpacket_upload_url.",
       },
       201,
     );

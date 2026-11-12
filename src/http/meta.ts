@@ -9,7 +9,7 @@ const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;"
 
 /** The link that opens Claude's "Add custom connector" dialog with the name and address filled in. */
 export function claudeInstallLink(mcpUrl: string): string {
-  return `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Handoff&connectorUrl=${encodeURIComponent(mcpUrl)}`;
+  return `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Threadpacket&connectorUrl=${encodeURIComponent(mcpUrl)}`;
 }
 
 /** Public pages that have a Markdown version, and where it is. */
@@ -36,7 +36,7 @@ export function socialMeta(cfg: Config, title: string, description: string, path
   const url = `${cfg.publicUrl}${path}`;
   return [
     `<meta property="og:type" content="website">`,
-    `<meta property="og:site_name" content="Handoff">`,
+    `<meta property="og:site_name" content="Threadpacket">`,
     `<meta property="og:title" content="${esc(title)}">`,
     `<meta property="og:description" content="${esc(description)}">`,
     `<meta property="og:url" content="${esc(url)}">`,

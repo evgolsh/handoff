@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 const sendWithFiles = (bearer: string, files: unknown[], extra: Record<string, unknown> = {}) =>
-  call(bearer, "handoff_send", { title: "with files", brief: "see files", idempotency_key: crypto.randomUUID(), files, ...extra });
+  call(bearer, "threadpacket_send", { title: "with files", brief: "see files", idempotency_key: crypto.randomUUID(), files, ...extra });
 
 describe("OpenAI file adapter: server-side import of host file references", () => {
   it("imports originals from the host URL, verifies them and publishes ready attachments", async () => {
@@ -54,7 +54,7 @@ describe("OpenAI file adapter: server-side import of host file references", () =
     expect(atts[0]).toMatchObject({ filename: "codeword.pdf", mime_type: "application/pdf", sha256: await sha256Hex(PDF), state: "ready" });
     expect(atts[1]).toMatchObject({ filename: "file-png-1", mime_type: "image/png", sha256: await sha256Hex(PNG), state: "ready" });
 
-    const read = expectOk(await call(a, "handoff_read", { packet_id: sent.packet_id }));
+    const read = expectOk(await call(a, "threadpacket_read", { packet_id: sent.packet_id }));
     expect((read.attachments as any[]).map((x) => x.attachment_id)).toEqual(atts.map((x) => x.attachment_id));
   });
 
@@ -88,7 +88,7 @@ describe("OpenAI file adapter: server-side import of host file references", () =
     route("/dl/zip", 200, new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]), { "content-type": "application/zip" });
     const r = await sendWithFiles(a, [{ download_url: `${HOST}/dl/zip`, file_id: "f-zip" }], { title: "zip attempt" });
     expect(errorText(r)).toContain("unsupported_type");
-    const inbox = expectOk(await call(a, "handoff_inbox"));
+    const inbox = expectOk(await call(a, "threadpacket_inbox"));
     expect((inbox.packets as any[]).find((p) => p.title === "zip attempt")).toBeUndefined();
   });
 });

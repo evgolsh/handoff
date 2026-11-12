@@ -1,68 +1,51 @@
 import { BRAND_ICON } from "./style";
 import { CONTROL_CENTER_URL } from "../env";
-import { GITHUB_ICON } from "./assistant-icons";
 
-export const GITHUB_URL = "https://github.com/evgolsh/handoff";
+export const GITHUB_URL = "https://github.com/evgolsh/threadpacket";
 /** Installation guidance lives on the project site, not a private server's root. */
 export const INSTALL_URL = `${CONTROL_CENTER_URL}/#install`;
-export const DEPLOY_URL = "https://deploy.workers.cloudflare.com/?url=https://github.com/evgolsh/handoff";
+export const DEPLOY_URL = "https://deploy.workers.cloudflare.com/?url=https://github.com/evgolsh/threadpacket";
 /** The pages link here: the Worker counts the click (an anonymous "visit" event) and redirects to DEPLOY_URL. */
 export const DEPLOY_PATH = "/deploy";
 
-/** Public pages share the console's fonts and palette, with a wider layout. */
+/** Minimal, airy top bar and single-line footer shared across public pages. */
 export const PAGE_HEADER_CSS = `
-  :root { --gutter:clamp(20px,4.5vw,80px); }
-  html { scroll-padding-top:32px; }
+  :root { --gutter:clamp(18px,3.5vw,40px); }
+  html { scroll-padding-top:24px; }
   body { min-width:320px; }
-  .site-width { width:calc(100% - var(--gutter)*2); max-width:1440px; margin-inline:auto; }
-  .page-header { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:72px; border-bottom:1px solid var(--line); }
-  .page-header .brand { text-decoration:none; font-size:20px; letter-spacing:-.04em; min-height:44px; flex:none; }
-  .page-header .brand svg { width:28px; height:28px; }
-  .page-nav { display:flex; gap:20px; align-items:center; font-size:14px; }
+  .site-width { width:calc(100% - var(--gutter)*2); max-width:1120px; margin-inline:auto; }
+  .page-header { display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:64px; }
+  .page-header .brand { text-decoration:none; font-size:15.5px; font-weight:600; letter-spacing:-.025em; min-height:40px; flex:none; }
+  .page-header .brand svg { width:23px; height:23px; }
+  .page-nav { display:flex; gap:6px; align-items:center; font-size:13px; }
   .page-nav a { text-decoration:none; }
-  .page-nav .nav-link { display:inline-flex; align-items:center; gap:7px; color:var(--muted); padding-block:12px; white-space:nowrap; }
-  .page-nav .nav-link:hover { color:var(--ink); }
-  .page-nav .nav-link svg { width:16px; height:16px; flex:none; }
-  .site-button { display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:48px; padding:12px 20px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:500 14px/1.4 var(--sans); text-decoration:none; white-space:nowrap; }
-  .site-button svg { width:17px; height:17px; flex:none; }
-  .site-button.primary { background:var(--ink); border-color:var(--ink); color:var(--ground); }
-  .site-button:hover { border-color:var(--accent); color:var(--accent); }
-  .site-button.primary:hover { background:var(--accent); border-color:var(--accent); color:var(--ground); }
-  .page-nav .site-button { min-height:38px; padding:8px 13px; gap:8px; }
-  .page-nav { position:relative; }
-  .mobile-menu { display:none; }
-  .mobile-menu summary { cursor:pointer; padding:9px 10px; border:1px solid var(--line); border-radius:6px; list-style:none; }
-  .mobile-menu summary::-webkit-details-marker { display:none; }
-  .mobile-menu nav { position:absolute; right:0; top:calc(100% + 8px); width:220px; padding:8px; border:1px solid var(--line); border-radius:10px; background:var(--panel); z-index:20; box-shadow:0 12px 36px #00000016; }
-  .mobile-menu nav a { display:block; padding:12px; border-radius:6px; }
-  .mobile-menu nav a:hover { background:var(--ground); }
-  .deploy-label-short { display:none; }
-  .eyebrow { font:500 11px/1.5 var(--mono); text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
-  .site-footer { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-block:30px; border-top:1px solid var(--line); font-size:13px; color:var(--muted); }
+  .page-nav .nav-link { display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 12px; border-radius:999px; color:var(--muted); font-weight:500; white-space:nowrap; }
+  .page-nav .nav-link:hover,.page-nav .nav-link[aria-current=page] { color:var(--ink); background:var(--subtle); }
+  .site-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:42px; padding:0 19px; border:1px solid var(--line); border-radius:999px; background:var(--panel); color:var(--ink); font:500 14px/1 var(--sans); text-decoration:none; white-space:nowrap; box-shadow:var(--shadow-sm); }
+  .site-button svg { width:16px; height:16px; flex:none; }
+  .site-button.primary { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 6px 20px rgba(29,91,214,.22); }
+  .site-button:hover { border-color:var(--ink); color:var(--ink); }
+  .site-button.primary:hover { filter:brightness(1.07); color:#fff; border-color:var(--accent); }
+  .page-nav .site-button { height:34px; padding:0 15px; font-size:13px; background:var(--ink); border-color:var(--ink); color:var(--ground); box-shadow:none; }
+  .page-nav .site-button:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .eyebrow { font:500 11px/1.4 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  .site-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 24px; margin-top:36px; padding:20px 0 34px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); }
   .site-footer p { margin:0; }
-  .site-footer nav { display:flex; flex-wrap:wrap; gap:12px 24px; }
+  .site-footer nav { display:flex; flex-wrap:wrap; gap:10px 20px; }
   .site-footer a { text-decoration:none; white-space:nowrap; }
-  .skip-link { position:absolute; top:8px; left:var(--gutter); padding:10px 16px; background:var(--ink); color:var(--ground); transform:translateY(-200%); z-index:10; }
+  .site-footer a:hover { color:var(--ink); }
+  .skip-link { position:absolute; top:8px; left:var(--gutter); padding:8px 14px; border-radius:999px; background:var(--ink); color:var(--ground); transform:translateY(-200%); z-index:10; }
   .skip-link:focus { transform:none; }
-  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-  @media(max-width:860px) {
-    .page-nav { gap:14px; }
-    .page-nav .nav-secondary { display:none; }
-    .mobile-menu { display:block; }
+  .sr-only { position:absolute; left:0; top:0; width:1px; height:1px; padding:0; margin:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  @media(max-width:560px) {
+    .page-header { min-height:58px; gap:8px; }
+    .page-nav { gap:2px; }
+    .page-nav .nav-optional { display:none; }
+    .page-nav .nav-link { padding:0 9px; font-size:12.5px; }
+    .page-nav .site-button { padding:0 12px; font-size:12.5px; }
+    .site-footer { flex-direction:column; align-items:flex-start; }
   }
-  @media(max-width:640px) {
-    .page-header { min-height:64px; gap:10px; }
-    .page-header .brand { font-size:18px; gap:8px; }
-    .page-header .brand svg { width:26px; height:26px; }
-    .page-nav { gap:8px; font-size:13px; }
-    .page-nav .nav-github { display:none; }
-    .page-nav .nav-github-text { display:none; }
-    .page-nav .site-button { padding:8px 11px; gap:6px; font-size:13px; }
-    .deploy-label-long { display:none; }
-    .deploy-label-short { display:inline; }
-    .site-footer { align-items:flex-start; flex-direction:column; gap:14px; }
-  }
-  @media(prefers-reduced-motion:no-preference) { .site-button { transition:background .15s,color .15s,border-color .15s; } }
+  @media(prefers-reduced-motion:no-preference) { .site-button,.nav-link { transition:background .15s,color .15s,border-color .15s,filter .15s; } }
 `;
 
 export interface HeaderOpts {
@@ -75,40 +58,29 @@ export interface HeaderOpts {
 
 /** Sign in, or Dashboard once signed in: the way into the app. */
 const appLink = (signedIn: boolean | undefined, cls = ""): string =>
-  `<a${cls ? ` class="${cls}"` : ""} href="${signedIn ? "/assets" : "/login"}">${signedIn ? "Dashboard" : "Sign in"}</a>`;
+  `<a${cls ? ` class="${cls}"` : ""} href="${signedIn ? "/packets" : "/login"}">${signedIn ? "Dashboard" : "Sign in"}</a>`;
 
 export function pageHeader(current: "connect" | "use-cases" = "connect", opts: HeaderOpts = {}): string {
   const active = opts.active ?? true;
-  const menu =
-    opts.mode === "private"
-      ? `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation"><a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff ↗</a>${active ? '<a href="/connect">Assistant setup</a>' : ""}${appLink(opts.signedIn)}<a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`
-      : `<details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation">${active ? `<a href="/#how">How it works</a>${opts.signedIn ? '<a href="/connect">Assistant setup</a>' : ""}` : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub ↗</a></nav></details>`;
   if (opts.mode === "private") {
-    // A private install: its own Connect page and sign-in, and where to read about Handoff.
     return `<a href="#main" class="skip-link">Skip to content</a>
-  <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff">${BRAND_ICON}<span>Handoff</span></a>
-    <nav class="page-nav" aria-label="Handoff">
-      <a class="nav-link nav-secondary" href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>
-      ${active ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}
-      <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
-      ${appLink(opts.signedIn, "nav-link nav-secondary")}
-      ${menu}
+  <header class="page-header site-width"><a class="brand" href="/" aria-label="Threadpacket">${BRAND_ICON}<span>Threadpacket</span></a>
+    <nav class="page-nav" aria-label="Threadpacket">
+      <a class="nav-link nav-optional" href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About</a>
+      ${active ? `<a class="nav-link" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Setup</a>` : ""}
+      ${opts.signedIn ? `<a class="site-button primary" href="/packets">Dashboard</a>` : appLink(false, "nav-link nav-secondary")}
     </nav></header>`;
   }
-  // The hosted service: the homepage is the brand link. Signed in, the button opens the Dashboard; otherwise "Get started"
-  // leads to Assistant setup once sign-up is open (a team is created on the sign-in page), else "Install".
   const button = opts.signedIn
-    ? `<a class="site-button primary" href="/assets">Dashboard</a>`
+    ? `<a class="site-button primary" href="/packets">Dashboard</a>`
     : active
       ? current === "connect" ? "" : `<a class="site-button primary" href="/connect">Get started</a>`
-      : `<a class="site-button primary" href="/#install"><span class="deploy-label-long">Install Handoff</span><span class="deploy-label-short">Install</span></a>`;
+      : `<a class="site-button primary" href="/#install">Self-host</a>`;
   return `<a href="#main" class="skip-link">Skip to content</a>
-  <header class="page-header site-width"><a class="brand" href="/" aria-label="Handoff home">${BRAND_ICON}<span>Handoff</span></a>
-    <nav class="page-nav" aria-label="Handoff">
-      ${active ? `<a class="nav-link nav-secondary" href="/#how">How it works</a>${opts.signedIn ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}` : ""}
+  <header class="page-header site-width"><a class="brand" href="/" aria-label="Threadpacket home">${BRAND_ICON}<span>Threadpacket</span></a>
+    <nav class="page-nav" aria-label="Threadpacket">
+      ${active ? `<a class="nav-link nav-optional" href="/#install">Self-host</a>${opts.signedIn ? `<a class="nav-link nav-secondary" href="/connect"${current === "connect" ? ' aria-current="page"' : ""}>Assistant setup</a>` : ""}` : ""}
       ${opts.signedIn ? "" : appLink(false, "nav-link nav-secondary")}
-      <a class="nav-link nav-github" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="GitHub repository">${GITHUB_ICON}<span class="nav-github-text">GitHub</span></a>
-      ${menu}
       ${button}
     </nav></header>`;
 }
@@ -116,12 +88,11 @@ export function pageHeader(current: "connect" | "use-cases" = "connect", opts: H
 export function pageFooter(opts: HeaderOpts = {}): string {
   const active = opts.active ?? true;
   if (opts.mode === "private") {
-    // A private install's "/" is its Connect page, so it links to the hosted site for the rest.
-    const links = `<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Handoff</a>${active ? '<a href="/connect">Assistant setup</a>' : ""}${appLink(opts.signedIn)}<a href="/privacy">Privacy</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a><a href="${INSTALL_URL}">Install Handoff</a>`;
-    return `<footer class="site-footer site-width"><p>Handoff · Your context. Your files. Your Cloudflare account.</p>
+    const links = `${active ? '<a href="/connect">Assistant setup</a>' : ""}${appLink(opts.signedIn)}<a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Threadpacket</a><a href="/privacy">Privacy</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
+    return `<footer class="site-footer site-width"><p>Threadpacket · Ephemeral packets on your Cloudflare account.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
   }
-  const links = `<a href="/">Home</a>${active ? (opts.signedIn ? '<a href="/connect">Assistant setup</a>' : '<a href="/connect">Get started</a>') : ""}${appLink(opts.signedIn)}<a href="/#install">Private server</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/llms.txt">For assistants</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
-  return `<footer class="site-footer site-width"><p>Handoff · Your notes and files, from your assistant to theirs.</p>
+  const links = `${active ? `<a href="/connect">${opts.signedIn ? "Assistant setup" : "Get started"}</a>` : ""}${appLink(opts.signedIn)}<a href="/#install">Self-host</a><a href="/llms.txt">llms.txt</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>`;
+  return `<footer class="site-footer site-width"><p>Threadpacket · Ephemeral packets between AI assistants.</p>
     <nav aria-label="Footer">${links}</nav></footer>`;
 }

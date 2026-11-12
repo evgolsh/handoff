@@ -1,25 +1,25 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.evgolsh/handoff",
-  "title": "Handoff",
-  "description": "Send a brief and the original files from your AI assistant to someone else's assistant.",
-  "version": "0.2.1",
-  "websiteUrl": "https://handoff.infraworks.net",
+  "name": "io.github.evgolsh/threadpacket",
+  "title": "Threadpacket",
+  "description": "Threadpacket sends a packet from one person's AI assistant to another person's assistant: a brief of the work so far, with the original files.",
+  "version": "0.3.0",
+  "websiteUrl": "https://threadpacket.com",
   "icons": [
     {
-      "src": "https://handoff.infraworks.net/img/icon.png",
+      "src": "https://threadpacket.com/img/icon.png",
       "mimeType": "image/png",
       "sizes": ["512x512"]
     }
   ],
   "repository": {
-    "url": "https://github.com/evgolsh/handoff",
+    "url": "https://github.com/evgolsh/threadpacket",
     "source": "github"
   },
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://handoff.infraworks.net/mcp"
+      "url": "https://threadpacket.com/mcp"
     }
   ]
 }

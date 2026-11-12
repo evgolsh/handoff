@@ -17,7 +17,7 @@ const ctx = { waitUntil: () => undefined, passThroughOnException: () => undefine
 const uid = () => crypto.randomUUID().slice(0, 8);
 
 function fetchWith(setupCode: string | undefined, path: string, init: RequestInit = {}): Promise<Response> {
-  const e = { ...env, PUBLIC_URL: ORIGIN, HANDOFF_SETUP_CODE: setupCode } as Env;
+  const e = { ...env, PUBLIC_URL: ORIGIN, THREADPACKET_SETUP_CODE: setupCode } as Env;
   return Promise.resolve(app.fetch(new Request(`${ORIGIN}${path}`, { redirect: "manual", ...init }), e, ctx));
 }
 
@@ -42,7 +42,7 @@ describe("first admin at /console/setup (servers deployed without a terminal)", 
       const page = await (await fetchWith(code, "/console/setup")).text();
       // A short secret (the Deploy button cannot check its length) is named as such, so the fix is clear.
       expect(page).toContain(code === "too-short" ? "shorter than 12 characters" : "no setup code is set");
-      expect(page).toContain("HANDOFF_SETUP_CODE");
+      expect(page).toContain("THREADPACKET_SETUP_CODE");
       expect(page).not.toContain("<form");
       const res = await submit({ setup_code: code ?? "", handle: "owner" }, { setupCode: code });
       expect(res.status).toBe(403);
@@ -71,12 +71,12 @@ describe("first admin at /console/setup (servers deployed without a terminal)", 
     expect(res.status).toBe(200);
     const page = await res.text();
     const code = secretIn(page);
-    expect(code).toMatch(/^hf-[A-Za-z0-9_-]{16}$/);
+    expect(code).toMatch(/^tp-[A-Za-z0-9_-]{16}$/);
     expect(await verifyMemberCode(env.DB, "owner", code)).toBe("owner");
     expect(await admins()).toEqual(["owner"]);
 
     const cookie = (res.headers.get("set-cookie") ?? "").split(";")[0]!;
-    expect(cookie).toMatch(/^__Host-handoff-session=/);
+    expect(cookie).toMatch(/^__Host-threadpacket-session=/);
     expect((await fetchWith(SETUP, "/console/overview", { headers: { cookie } })).status).toBe(200);
 
     // Closed: the page sends you to sign in, and the setup code makes no one else an admin.

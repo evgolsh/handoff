@@ -1,4 +1,4 @@
-// Writes dist/handoff-plugin-<version>.zip, the package for OpenAI's plugin portal (ChatGPT and Codex):
+// Writes dist/threadpacket-plugin-<version>.zip, the package for OpenAI's plugin portal (ChatGPT and Codex):
 // plugin.json, mcp.json, skills/, assets/, README.md and LICENSE from plugin/, at the archive root, and nothing
 // else. The Claude files (.claude-plugin/, .mcp.json) stay out. Fixed timestamps, so the same input gives the
 // same ZIP.
@@ -26,9 +26,9 @@ for (const path of files) {
   const crc = crc32(data);
   const local = Buffer.alloc(30);
   local.writeUInt32LE(0x04034b50, 0);
-  local.writeUInt16LE(20, 4); // version needed
-  local.writeUInt16LE(0x0800, 6); // UTF-8 names
-  local.writeUInt16LE(8, 8); // deflate
+  local.writeUInt16LE(20, 4);
+  local.writeUInt16LE(0x0800, 6);
+  local.writeUInt16LE(8, 8);
   local.writeUInt16LE(0, 10);
   local.writeUInt16LE(DOS_DATE, 12);
   local.writeUInt32LE(crc, 14);
@@ -38,7 +38,7 @@ for (const path of files) {
   local.writeUInt16LE(0, 28);
   const central = Buffer.alloc(46);
   central.writeUInt32LE(0x02014b50, 0);
-  central.writeUInt16LE(0x0314, 4); // made by: Unix, 2.0
+  central.writeUInt16LE(0x0314, 4);
   central.writeUInt16LE(20, 6);
   central.writeUInt16LE(0x0800, 8);
   central.writeUInt16LE(8, 10);
@@ -48,7 +48,7 @@ for (const path of files) {
   central.writeUInt32LE(packed.length, 20);
   central.writeUInt32LE(data.length, 24);
   central.writeUInt16LE(name.length, 28);
-  central.writeUInt32LE((0o100644 << 16) >>> 0, 38); // -rw-r--r--
+  central.writeUInt32LE((0o100644 << 16) >>> 0, 38);
   central.writeUInt32LE(offset, 42);
   locals.push(local, name, packed);
   centrals.push(central, name);
@@ -63,6 +63,6 @@ end.writeUInt32LE(dir.length, 12);
 end.writeUInt32LE(offset, 16);
 
 mkdirSync("dist", { recursive: true });
-const out = join("dist", `handoff-plugin-${version}.zip`);
+const out = join("dist", `threadpacket-plugin-${version}.zip`);
 writeFileSync(out, Buffer.concat([...locals, dir, end]));
 console.log(`wrote ${out}: ${files.length} files`);

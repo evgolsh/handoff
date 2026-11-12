@@ -12,7 +12,7 @@ export function metadataUrl(cfg: Config): string {
 
 export function challenge(cfg: Config, err: AuthError): Response {
   const parts = [
-    `Bearer realm="handoff"`,
+    `Bearer realm="threadpacket"`,
     `error="${err.error}"`,
     `error_description="${err.message.replace(/"/g, "'")}"`,
     `resource_metadata="${metadataUrl(cfg)}"`,
@@ -63,7 +63,7 @@ export function protectedResourceMetadata(cfg: Config): Record<string, unknown> 
     authorization_servers: [cfg.issuer],
     scopes_supported: SCOPES,
     bearer_methods_supported: ["header"],
-    resource_name: "Handoff",
+    resource_name: "Threadpacket",
     resource_documentation: `${cfg.publicUrl}/`,
   };
 }

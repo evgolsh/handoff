@@ -1,10 +1,10 @@
 {
-  "name": "handoff",
-  "version": "0.2.1",
-  "description": "Send a brief and the original files from your AI assistant to someone else's assistant: Claude, ChatGPT, Codex, Claude Code. Hosted at handoff.infraworks.net, or on your own private server.",
+  "name": "threadpacket",
+  "version": "0.3.0",
+  "description": "Threadpacket sends a packet from one person's AI assistant to another person's assistant: a brief of the work so far, with the original files. Hosted at threadpacket.com, or on your own private server.",
   "mcpServers": {
-    "handoff": {
-      "httpUrl": "https://handoff.infraworks.net/mcp"
+    "threadpacket": {
+      "httpUrl": "https://threadpacket.com/mcp"
     }
   }
 }

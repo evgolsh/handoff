@@ -33,7 +33,7 @@ export async function hasAdmin(db: D1Database): Promise<boolean> {
 }
 
 const setupCodeOf = (env: Env): string | null => {
-  const v = env.HANDOFF_SETUP_CODE?.trim() ?? "";
+  const v = env.THREADPACKET_SETUP_CODE?.trim() ?? "";
   return v.length >= SETUP_CODE_MIN ? v : null;
 };
 
@@ -53,9 +53,9 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
   app.use("/console/*", bodyLimit({ maxSize: 4096, onError: () => html(problemPage("Too large", "That form was larger than the console accepts."), 413) }));
 
   // First admin, for a server deployed without a terminal (the Deploy to Cloudflare button). Open only while no
-  // member is an admin, and only with the HANDOFF_SETUP_CODE secret the deployer chose.
+  // member is an admin, and only with the THREADPACKET_SETUP_CODE secret the deployer chose.
   const tooShort = (env: Env) => {
-    const n = env.HANDOFF_SETUP_CODE?.trim().length ?? 0;
+    const n = env.THREADPACKET_SETUP_CODE?.trim().length ?? 0;
     return n > 0 && n < SETUP_CODE_MIN;
   };
   app.get("/console/setup", async (c) => {
@@ -118,8 +118,8 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
   app.use("/console/*", async (c, next) => {
     const session = await sessionFrom(c.env.DB, c.req.header("cookie"));
     if (!session) return redirect(`/login?next=${encodeURIComponent(c.req.path)}`);
-    // A member without the admin grant has no console pages: Assets is theirs.
-    if (!(await isAdmin(c.env.DB, session.handle))) return redirect("/assets");
+    // A member without the admin grant has no console pages: Packets is theirs.
+    if (!(await isAdmin(c.env.DB, session.handle))) return redirect("/packets");
     if (c.req.method !== "GET" && c.req.method !== "HEAD") {
       if (!sameOrigin(c.req.header("origin"), c.get("cfg").publicUrl)) {
         return html(problemPage("Refused", "Changes must be sent from this console's own pages."), 403);
@@ -147,14 +147,14 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
       : html(overviewPage(v, c.get("cfg"), await overview(c.env, c.get("cfg"))));
   });
 
-  // A hosted team's admin deletes the whole team. Nobody else can: the people who run Handoff do not.
+  // A hosted team's admin deletes the whole team. Nobody else can: the people who run Threadpacket do not.
   app.get("/console/team/delete", (c) => {
     const v = vw(c);
     if (!v.tenant) return redirect("/console/overview");
     return html(
       confirmPage(v, "overview", {
         title: `Delete team ${v.tenant}?`,
-        text: `Every member of <strong>${esc(v.tenant)}</strong>, you included, is removed and signed out at once, in the browser and in every assistant. Every handoff the team sent or received stops working, and its handoffs and files are deleted within 7 days. This cannot be undone.`,
+        text: `Every member of <strong>${esc(v.tenant)}</strong>, you included, is removed and signed out at once, in the browser and in every assistant. Every packet the team sent or received stops working, and its packets and files are deleted within 7 days. This cannot be undone.`,
         action: "/console/team/delete",
         button: "Delete team",
         danger: true,
@@ -171,8 +171,8 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     await audit(db, s, "team_delete");
     await deleteTeam(db, tenant);
     const kept = await keptSessions(db, c.req.header("cookie"));
-    const back = kept.signedIn ? { site: "Handoff", href: "/assets", label: "Back to Dashboard" } : { site: "Handoff", href: "/", label: "Back to Handoff" };
-    return html(problemPage("Team deleted", `Team ${tenant} and its members are gone. Its handoffs and files are deleted within 7 days.`, back), 200, { "set-cookie": kept.cookie });
+    const back = kept.signedIn ? { site: "Threadpacket", href: "/packets", label: "Back to Dashboard" } : { site: "Threadpacket", href: "/", label: "Back to Threadpacket" };
+    return html(problemPage("Team deleted", `Team ${tenant} and its members are gone. Its packets and files are deleted within 7 days.`, back), 200, { "set-cookie": kept.cookie });
   });
 
   // The control center's operator: every tenant, and the project's tracking.
@@ -206,7 +206,7 @@ export function consoleRoutes(): Hono<{ Bindings: Env; Variables: ConsoleVariabl
     const cap = c.get("cfg").tenantMembersCap;
     if (tenant && cap > 0) {
       const n = await db.prepare("SELECT COUNT(*) AS n FROM members WHERE handle >= ? AND handle < ?").bind(`${tenant}/`, `${tenant}0`).first<{ n: number }>();
-      if ((n?.n ?? 0) >= cap) return refuse(`This team has ${cap} members, the most the shared control center allows. Run your own private Handoff for a larger team.`, 409);
+      if ((n?.n ?? 0) >= cap) return refuse(`This team has ${cap} members, the most the shared control center allows. Run your own private Threadpacket for a larger team.`, 409);
     }
     const identity = qualify(tenant, handle);
     const code = newAccessCode();

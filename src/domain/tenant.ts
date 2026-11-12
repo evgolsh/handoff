@@ -36,5 +36,5 @@ export function tenantWhere(col: string, tenant: string): { sql: string; binds: 
 }
 
 /** Tenant slugs: 3 to 32 of [a-z0-9-], not a path or a word with a meaning here. */
-export const RESERVED_TENANTS = new Set(["team", "all", "admin", "console", "api", "www", "handoff", "join", "stats", "connect", "mcp", "oauth", "authorize", "deploy", "v1"]);
+export const RESERVED_TENANTS = new Set(["team", "all", "admin", "console", "api", "www", "threadpacket", "handoff", "packets", "assets", "login", "logout", "switch", "invite", "join", "stats", "connect", "mcp", "oauth", "authorize", "deploy", "v1"]);
 export const isValidTenant = (slug: string): boolean => /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/.test(slug) && !RESERVED_TENANTS.has(slug);

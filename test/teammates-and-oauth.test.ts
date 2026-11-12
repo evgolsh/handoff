@@ -75,7 +75,7 @@ describe("built-in Worker OAuth 2.1 server (zero external IdP)", () => {
     );
     expect(authGet.status).toBe(200);
     const authHtml = await authGet.text();
-    expect(authHtml).toContain("<strong>Hermes Agent</strong> asks to use Handoff as you");
+    expect(authHtml).toContain("<strong>Hermes Agent</strong> asks to use Threadpacket as you");
     expect(authHtml).not.toContain("/stytch.js");
 
     // 5. POST /authorize rejects a bad passcode, then issues a single-use code on the valid passcode.
@@ -175,7 +175,7 @@ describe("built-in Worker OAuth 2.1 server (zero external IdP)", () => {
           id: 1,
           method: "tools/call",
           params: {
-            name: "handoff_send",
+            name: "threadpacket_send",
             arguments: {
               title: "Built-in OAuth test",
               brief: "Sent by tom using built-in Worker OAuth.",

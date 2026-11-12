@@ -72,9 +72,9 @@ export function refusedSubject(cfg: Config, rawUsername: string | undefined): st
   return cfg.mode !== "control" && isValidHandle(h) ? h : null;
 }
 
-/** A new access code: "hf-" and 96 random bits, short enough to type on a phone. */
+/** A new access code: "tp-" and 96 random bits, short enough to type on a phone. */
 export function newAccessCode(): string {
-  return `hf-${base64url(crypto.getRandomValues(new Uint8Array(12)))}`;
+  return `tp-${base64url(crypto.getRandomValues(new Uint8Array(12)))}`;
 }
 
 /** The first 16 bits of the code's SHA-256: enough to narrow a sign-in to a few members, too little to name a code. */
@@ -155,7 +155,7 @@ export async function getOrCreateSigningKey(db: D1Database, cfg: Config): Promis
 
   if (cfg.oauthSigningJwk) {
     const priv = JSON.parse(cfg.oauthSigningJwk) as JWK;
-    const kid = priv.kid ?? "handoff-builtin-1";
+    const kid = priv.kid ?? "threadpacket-builtin-1";
     const privateKey = await importJWK({ ...priv, alg: "ES256" }, "ES256");
     const { d: _d, ...pub } = priv;
     const publicJwk: JWK = { ...pub, kid, alg: "ES256", use: "sig" };
@@ -170,7 +170,7 @@ export async function getOrCreateSigningKey(db: D1Database, cfg: Config): Promis
 
   if (!row) {
     const { privateKey, publicKey } = await generateKeyPair("ES256", { extractable: true });
-    const kid = `handoff-${(await sha256Hex(crypto.getRandomValues(new Uint8Array(8)))).slice(0, 12)}`;
+    const kid = `threadpacket-${(await sha256Hex(crypto.getRandomValues(new Uint8Array(8)))).slice(0, 12)}`;
     const privJwk: JWK = { ...(await exportJWK(privateKey)), kid, alg: "ES256", use: "sig" };
     const pubJwk: JWK = { ...(await exportJWK(publicKey)), kid, alg: "ES256", use: "sig" };
     await db
@@ -273,7 +273,7 @@ export function parseAuthorizeParams(input: URLSearchParams | Record<string, str
     code_challenge: get("code_challenge"),
     code_challenge_method: get("code_challenge_method") || "S256",
     state: get("state"),
-    scope: get("scope") || "handoff offline_access",
+    scope: get("scope") || "threadpacket offline_access",
   };
 }
 
@@ -303,7 +303,7 @@ function authorizeDocument(intro: string, stack: string): string {
   </div>
 </main>`,
     undefined,
-    "Handoff",
+    "Threadpacket",
   );
 }
 
@@ -325,24 +325,24 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
   const kicker = `<span class="kicker">Assistant sign-in</span>`;
   if (!hasOAuth || !client) {
     return authorizeDocument(
-      `${kicker}<h1>Start from your assistant.</h1><p>${!hasOAuth ? "Your assistant opens this page when you add Handoff to it." : "This sign-in link did not come from an assistant registered with this server."}</p>`,
-      `<div class="flow-panel">${hasOAuth ? `<div class="flash" role="alert">Start the connection again from your assistant.</div>` : ""}<p>Choose your assistant on the setup page, add Handoff, then sign in here when it asks.</p><a class="btn primary" href="/connect">Assistant setup</a></div>`,
+      `${kicker}<h1>Start from your assistant.</h1><p>${!hasOAuth ? "Your assistant opens this page when you add Threadpacket to it." : "This sign-in link did not come from an assistant registered with this server."}</p>`,
+      `<div class="flow-panel">${hasOAuth ? `<div class="flash" role="alert">Start the connection again from your assistant.</div>` : ""}<p>Choose your assistant on the setup page, add Threadpacket, then sign in here when it asks.</p><a class="btn primary" href="/connect">Assistant setup</a></div>`,
     );
   }
   const name = esc(client.name);
-  const intro = `${kicker}<h1>Sign in to connect ${name}.</h1><p><strong>${name}</strong>${client.publisher ? ` <span title="who publishes this assistant's sign-in details">(${esc(client.publisher)})</span>` : ""} asks to use Handoff as you. After you sign in it returns to <code>${esc(returnsTo)}</code>.</p><p class="flow-note">Use the same username and access code in each of your assistants.</p>`;
+  const intro = `${kicker}<h1>Sign in to connect ${name}.</h1><p><strong>${name}</strong>${client.publisher ? ` <span title="who publishes this assistant's sign-in details">(${esc(client.publisher)})</span>` : ""} asks to use Threadpacket as you. After you sign in it returns to <code>${esc(returnsTo)}</code>.</p><p class="flow-note">Use the same username and access code in each of your assistants.</p>`;
   const signIn = `<form method="post" action="/authorize" class="flow-panel">
       ${hiddenParams(params)}
       ${errorMsg ? `<div class="flash" role="alert">${esc(errorMsg)}</div>` : ""}
       <div><label class="lbl" for="handle">Username</label><input id="handle" name="handle" class="field" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="63" value="${esc(handle)}"${create.error || handle ? "" : " autofocus"}></div>
       <div><label class="lbl" for="access_code">Access code</label><input id="access_code" name="access_code" class="field" type="password" autocomplete="current-password" required${handle && !create.error ? " autofocus" : ""}></div>
       <button type="submit" class="btn primary">Sign in and allow</button>
-      <p class="flow-note">${control ? `Your access code comes from creating a team or from the invitation you got. New to Handoff? <a href="#new-team">Create a team</a>.` : "Your access code comes from the person who runs this Handoff server."}</p>
+      <p class="flow-note">${control ? `Your access code comes from creating a team or from the invitation you got. New to Threadpacket? <a href="#new-team">Create a team</a>.` : "Your access code comes from the person who runs this Threadpacket server."}</p>
     </form>`;
   // The hosted service: a new person creates their team here and continues with the same request.
   const newTeam = control
     ? `<section class="flow-panel" id="new-team" aria-labelledby="new-team-title">
-      <div><h2 id="new-team-title">New to Handoff?</h2><p class="flow-note">Pick a username and get an access code. You become your team's admin and can invite others later.</p></div>
+      <div><h2 id="new-team-title">New to Threadpacket?</h2><p class="flow-note">No email or personal data required. Pick a username and get an access code.</p></div>
       ${create.error ? `<div class="flash" role="alert">${esc(create.error)}</div>` : ""}
       <form method="post" action="/authorize" class="flow-stack">
         ${hiddenParams(params)}
@@ -373,7 +373,7 @@ export function teamCreatedAuthorizePage(cfg: Config, params: AuthorizeParams, c
         <input type="hidden" name="access_code" value="${esc(code)}">
         <button type="submit" class="btn primary">I saved it. Continue to ${esc(client.name)}</button>
       </form>
-      <p class="flow-note">Next, invite the others: ask your assistant “invite anna to Handoff”.</p>
+      <p class="flow-note">Next, invite the others: ask your assistant “invite anna to Threadpacket”.</p>
     </section>`,
   );
 }

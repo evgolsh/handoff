@@ -87,13 +87,13 @@ describe("attachments in packets", () => {
     // staging: created but no bytes
     const created = await SELF.fetch(`${ORIGIN}/v1/uploads`, { method: "POST", headers: { authorization: `Bearer ${a}`, "content-type": "application/json" }, body: JSON.stringify({ filename: "x.pdf" }) });
     const staging = ((await created.json()) as any).attachment_id;
-    expect(errorText(await call(a, "handoff_send", { title: "t", brief: "b", idempotency_key: crypto.randomUUID(), attachment_ids: [staging] }))).toContain("attachment_not_ready");
+    expect(errorText(await call(a, "threadpacket_send", { title: "t", brief: "b", idempotency_key: crypto.randomUUID(), attachment_ids: [staging] }))).toContain("attachment_not_ready");
 
     // Bob cannot bind Alice's attachment just by knowing the id.
-    expect(errorText(await call(b, "handoff_send", { title: "t", brief: "b", idempotency_key: crypto.randomUUID(), attachment_ids: [ready.attachment_id] }))).toContain("not_found");
+    expect(errorText(await call(b, "threadpacket_send", { title: "t", brief: "b", idempotency_key: crypto.randomUUID(), attachment_ids: [ready.attachment_id] }))).toContain("not_found");
 
     // Unknown id
-    expect(errorText(await call(a, "handoff_send", { title: "t", brief: "b", idempotency_key: crypto.randomUUID(), attachment_ids: ["at_nope"] }))).toContain("not_found");
+    expect(errorText(await call(a, "threadpacket_send", { title: "t", brief: "b", idempotency_key: crypto.randomUUID(), attachment_ids: ["at_nope"] }))).toContain("not_found");
   });
 
   it("reads an attachment only through a packet it belongs to", async () => {
@@ -103,19 +103,19 @@ describe("attachments in packets", () => {
     const p1 = await send(a, { attachment_ids: [pdf.attachment_id] });
     const p2 = await send(a, { attachment_ids: [png.attachment_id] });
 
-    const okRead = expectOk(await call(a, "handoff_read", { packet_id: p1.packet_id, attachment_id: pdf.attachment_id }));
+    const okRead = expectOk(await call(a, "threadpacket_read", { packet_id: p1.packet_id, attachment_id: pdf.attachment_id }));
     expect(okRead.representation).toBe("original");
 
     // Substitution: same owner, wrong packet.
-    expect(errorText(await call(a, "handoff_read", { packet_id: p1.packet_id, attachment_id: png.attachment_id }))).toContain("not_found");
+    expect(errorText(await call(a, "threadpacket_read", { packet_id: p1.packet_id, attachment_id: png.attachment_id }))).toContain("not_found");
 
     // Substitution through an expired packet of the same owner.
     const past = new Date(Date.now() - 60_000).toISOString();
     await env.DB.prepare("UPDATE packets SET expires_at = ? WHERE id = ?").bind(past, p2.packet_id).run();
-    expect(errorText(await call(a, "handoff_read", { packet_id: p2.packet_id, attachment_id: png.attachment_id }))).toContain("expired");
+    expect(errorText(await call(a, "threadpacket_read", { packet_id: p2.packet_id, attachment_id: png.attachment_id }))).toContain("expired");
 
     // Other identity.
-    expect(errorText(await call(await bob(), "handoff_read", { packet_id: p1.packet_id, attachment_id: pdf.attachment_id }))).toContain("not_found");
+    expect(errorText(await call(await bob(), "threadpacket_read", { packet_id: p1.packet_id, attachment_id: pdf.attachment_id }))).toContain("not_found");
   });
 
   it("returns images inline and text inline, and refuses a text derivative of a PDF", async () => {
@@ -125,24 +125,24 @@ describe("attachments in packets", () => {
     const pdf = await uploadBytes(a, "codeword.pdf", PDF, "application/pdf");
     const p = await send(a, { attachment_ids: [png.attachment_id, txt.attachment_id, pdf.attachment_id] });
 
-    const img = await call(a, "handoff_read", { packet_id: p.packet_id, attachment_id: png.attachment_id });
+    const img = await call(a, "threadpacket_read", { packet_id: p.packet_id, attachment_id: png.attachment_id });
     expectOk(img);
     const imageBlock = img.content.find((c) => c.type === "image")!;
     expect(imageBlock.mimeType).toBe("image/png");
     expect(new Uint8Array(Uint8Array.from(atob(imageBlock.data!), (ch) => ch.charCodeAt(0)))).toEqual(PNG);
 
-    const text = await call(a, "handoff_read", { packet_id: p.packet_id, attachment_id: txt.attachment_id });
+    const text = await call(a, "threadpacket_read", { packet_id: p.packet_id, attachment_id: txt.attachment_id });
     expectOk(text);
     expect(text.content.map((c) => c.text).join("\n")).toContain("The code word is PELICAN.");
 
-    expect(errorText(await call(a, "handoff_read", { packet_id: p.packet_id, attachment_id: pdf.attachment_id, representation: "text" }))).toContain("no_representation");
+    expect(errorText(await call(a, "threadpacket_read", { packet_id: p.packet_id, attachment_id: pdf.attachment_id, representation: "text" }))).toContain("no_representation");
   });
 
   it("the original download ticket serves identical bytes and dies with the packet", async () => {
     const a = await alice();
     const pdf = await uploadBytes(a, "codeword.pdf", PDF, "application/pdf");
     const p = await send(a, { attachment_ids: [pdf.attachment_id] });
-    const r = expectOk(await call(a, "handoff_read", { packet_id: p.packet_id, attachment_id: pdf.attachment_id, representation: "original" }));
+    const r = expectOk(await call(a, "threadpacket_read", { packet_id: p.packet_id, attachment_id: pdf.attachment_id, representation: "original" }));
     const url = String(r.download_url);
     expect(url.startsWith(`${ORIGIN}/v1/dl/`)).toBe(true);
     expect(Date.parse(String(r.download_expires_at)) - Date.now()).toBeLessThanOrEqual(10 * 60_000);
@@ -153,7 +153,7 @@ describe("attachments in packets", () => {
     expect(new Uint8Array(await dl.arrayBuffer())).toEqual(PDF);
 
     // Still inside the window, but the packet is revoked: access stops at once.
-    expectOk(await call(a, "handoff_revoke", { packet_id: p.packet_id }));
+    expectOk(await call(a, "threadpacket_revoke", { packet_id: p.packet_id }));
     expect((await SELF.fetch(url)).status).toBe(410);
 
     expect((await SELF.fetch(`${ORIGIN}/v1/dl/not-a-ticket`)).status).toBe(401);
@@ -161,7 +161,7 @@ describe("attachments in packets", () => {
 
   it("upload tickets are single use and bound to one attachment", async () => {
     const a = await alice();
-    const t = expectOk(await call(a, "handoff_upload_url", { filename: "codeword.pdf", mime_type: "application/pdf" }));
+    const t = expectOk(await call(a, "threadpacket_upload_url", { filename: "codeword.pdf", mime_type: "application/pdf" }));
     expect(String(t.curl)).toContain("curl");
     const url = String(t.upload_url);
 
@@ -173,7 +173,7 @@ describe("attachments in packets", () => {
     expect(again.status).toBe(401);
 
     // Ticket for attachment X cannot be used on attachment Y.
-    const t2 = expectOk(await call(a, "handoff_upload_url", { filename: "other.pdf" }));
+    const t2 = expectOk(await call(a, "threadpacket_upload_url", { filename: "other.pdf" }));
     const ticket2 = new URL(String(t2.upload_url)).searchParams.get("ticket");
     const cross = await SELF.fetch(`${ORIGIN}/v1/uploads/${t.attachment_id}?ticket=${ticket2}`, { method: "PUT", body: PDF });
     expect(cross.status).toBe(401);

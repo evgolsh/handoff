@@ -10,7 +10,7 @@ import { ORIGIN, call, errorText, expectOk, token } from "./helpers";
  * calls handoff_invite and sends the link, or a new person creates a team on the sign-in page their assistant
  * opened, then continues the same OAuth request.
  */
-const ctl = { ...env, HANDOFF_MODE: "control" };
+const ctl = { ...env, THREADPACKET_MODE: "control" };
 const uid = () => crypto.randomUUID().slice(0, 6);
 const ip = () => `203.0.113.${Math.floor(Math.random() * 250) + 1}-${uid()}`;
 const fetchAs = (e: typeof env, path: string, init: RequestInit = {}) =>
@@ -30,11 +30,11 @@ async function seedTeam(team: string, admin: string) {
   ]);
 }
 
-describe("handoff_invite", () => {
+describe("threadpacket_invite", () => {
   it("an admin invites a teammate; the link shows who invited them and gives the code once, on a button", async () => {
     const team = `fam-${uid()}`;
     await seedTeam(team, "joe");
-    const inv = expectOk(await call(await token(`${team}/joe`), "handoff_invite", { username: "Anna" }));
+    const inv = expectOk(await call(await token(`${team}/joe`), "threadpacket_invite", { username: "Anna" }));
     expect(inv).toMatchObject({ username: "anna", team, new_member: true });
     const url = new URL(inv.invite_url as string);
     expect(url.origin).toBe(ORIGIN);
@@ -49,16 +49,16 @@ describe("handoff_invite", () => {
       const html = await view.text();
       expect(html).toContain("joe invited you.");
       expect(html).toContain(`<strong>${team}</strong>`);
-      expect(html).not.toMatch(/hf-[A-Za-z0-9_-]{16}/);
+      expect(html).not.toMatch(/tp-[A-Za-z0-9_-]{16}/);
     }
 
     const open = await fetchAs(ctl, url.pathname, { method: "POST" });
     expect(open.status).toBe(200);
     const page = await open.text();
-    const code = /hf-[A-Za-z0-9_-]{16}/.exec(page)?.[0];
+    const code = /tp-[A-Za-z0-9_-]{16}/.exec(page)?.[0];
     expect(code).toBeTruthy();
     expect(page).toContain("claude.ai/customize/connectors?modal=add-custom-connector");
-    expect(page).toContain("Continue the handoff from joe.");
+    expect(page).toContain("Continue the packet from joe.");
     expect(await verifyMemberCode(env.DB, `${team}/anna`, code!)).toBe(`${team}/anna`);
 
     // Once only.
@@ -72,8 +72,8 @@ describe("handoff_invite", () => {
     const team = `fam-${uid()}`;
     await seedTeam(team, "joe");
     const joe = await token(`${team}/joe`);
-    const first = expectOk(await call(joe, "handoff_invite", { username: "anna" }));
-    const second = expectOk(await call(joe, "handoff_invite", { username: "anna" }));
+    const first = expectOk(await call(joe, "threadpacket_invite", { username: "anna" }));
+    const second = expectOk(await call(joe, "threadpacket_invite", { username: "anna" }));
     expect(second.new_member).toBe(false);
     expect((await fetchAs(ctl, new URL(first.invite_url as string).pathname)).status).toBe(404);
     expect((await fetchAs(ctl, new URL(second.invite_url as string).pathname)).status).toBe(200);
@@ -83,18 +83,18 @@ describe("handoff_invite", () => {
     const team = `fam-${uid()}`;
     await seedTeam(team, "joe");
     await env.DB.prepare("INSERT OR IGNORE INTO members (handle, code_salt, code_hash, created_at) VALUES (?, 's', 'h', ?)").bind(`${team}/kid`, new Date().toISOString()).run();
-    expect(errorText(await call(await token(`${team}/kid`), "handoff_invite", { username: "friend" }))).toContain("only a team admin");
+    expect(errorText(await call(await token(`${team}/kid`), "threadpacket_invite", { username: "friend" }))).toContain("only a team admin");
     const joe = await token(`${team}/joe`);
-    expect(errorText(await call(joe, "handoff_invite", { username: "joe" }))).toContain("own username");
-    expect(errorText(await call(joe, "handoff_invite", { username: "team" }))).toContain("reserved");
-    expect(errorText(await call(joe, "handoff_invite", { username: "-x" }))).toContain("username");
+    expect(errorText(await call(joe, "threadpacket_invite", { username: "joe" }))).toContain("own username");
+    expect(errorText(await call(joe, "threadpacket_invite", { username: "team" }))).toContain("reserved");
+    expect(errorText(await call(joe, "threadpacket_invite", { username: "-x" }))).toContain("username");
   });
 
   it("an unknown or expired link says so", async () => {
     expect((await fetchAs(ctl, "/invite/not-a-real-token")).status).toBe(404);
     const team = `fam-${uid()}`;
     await seedTeam(team, "joe");
-    const inv = expectOk(await call(await token(`${team}/joe`), "handoff_invite", { username: "anna" }));
+    const inv = expectOk(await call(await token(`${team}/joe`), "threadpacket_invite", { username: "anna" }));
     await env.DB.prepare("UPDATE invites SET expires_at = ? WHERE handle = ?").bind("2000-01-01T00:00:00.000Z", `${team}/anna`).run();
     const path = new URL(inv.invite_url as string).pathname;
     expect(await (await fetchAs(ctl, path)).text()).toContain("expired");
@@ -114,7 +114,7 @@ describe("creating a team on the sign-in page", () => {
     const { client_id } = (await reg.json()) as { client_id: string };
     const verifier = `verifier-${crypto.randomUUID()}-${crypto.randomUUID()}`;
     const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
-    const params = { client_id, redirect_uri: redirectUri, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "handoff" };
+    const params = { client_id, redirect_uri: redirectUri, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "threadpacket" };
     return { params, redirectUri };
   }
 
@@ -137,7 +137,7 @@ describe("creating a team on the sign-in page", () => {
     const html = await res.text();
     expect(html).toContain(`Team ${team} is ready`);
     expect(html).not.toContain('id="new-team"');
-    const code = /hf-[A-Za-z0-9_-]{16}/.exec(html)?.[0];
+    const code = /tp-[A-Za-z0-9_-]{16}/.exec(html)?.[0];
     expect(code).toBeTruthy();
     expect(await env.DB.prepare("SELECT handle FROM admin_members WHERE handle = ?").bind(`${team}/joe`).first()).toEqual({ handle: `${team}/joe` });
 

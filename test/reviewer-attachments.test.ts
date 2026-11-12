@@ -7,7 +7,7 @@ import { R2BlobStore } from "../src/store/blobs";
 import { createApp } from "../src/app";
 import { PDF, alice, ORIGIN, sha256Hex } from "./helpers";
 
-const owner = { subject: "user_alice", scopes: ["handoff"], clientId: "review", token: "" };
+const owner = { subject: "user_alice", scopes: ["threadpacket"], clientId: "review", token: "" };
 const cfg=()=>configFrom(env);
 const fresh=()=>new HandoffService(new D1Repository(env.DB), new R2BlobStore(env.BLOBS), cfg());
 const input=(ids:string[])=>({title:"Independent attachment audit",brief:"A synthetic brief",attachment_ids:ids,idempotency_key:crypto.randomUUID()});

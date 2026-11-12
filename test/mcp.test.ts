@@ -8,18 +8,18 @@ describe("tool metadata", () => {
     const { body } = await rpc(await alice(), "tools/list");
     const tools = Object.fromEntries(body.result.tools.map((t: any) => [t.name, t]));
 
-    expect(tools.handoff_inbox.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
-    expect(tools.handoff_read.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
-    expect(tools.handoff_send.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false });
-    expect(tools.handoff_revoke.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true, openWorldHint: false });
-    expect(tools.handoff_upload_url.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, openWorldHint: false });
+    expect(tools.threadpacket_inbox.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
+    expect(tools.threadpacket_read.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
+    expect(tools.threadpacket_send.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false });
+    expect(tools.threadpacket_revoke.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true, openWorldHint: false });
+    expect(tools.threadpacket_upload_url.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, openWorldHint: false });
 
-    expect(tools.handoff_send._meta["openai/fileParams"]).toEqual(["files"]);
-    const files = tools.handoff_send.inputSchema.properties.files;
-    const item = files.items.$ref ? resolveRef(tools.handoff_send.inputSchema, files.items.$ref) : files.items;
+    expect(tools.threadpacket_send._meta["openai/fileParams"]).toEqual(["files"]);
+    const files = tools.threadpacket_send.inputSchema.properties.files;
+    const item = files.items.$ref ? resolveRef(tools.threadpacket_send.inputSchema, files.items.$ref) : files.items;
     expect(Object.keys(item.properties).sort()).toEqual(["download_url", "file_id", "file_name", "mime_type"]);
     expect([...item.required].sort()).toEqual(["download_url", "file_id"]);
-    expect(tools.handoff_send.inputSchema.required).not.toContain("files");
+    expect(tools.threadpacket_send.inputSchema.required).not.toContain("files");
     for (const t of Object.values(tools) as any[]) expect(t.outputSchema).toBeTruthy();
   });
 
@@ -29,11 +29,11 @@ describe("tool metadata", () => {
       capabilities: {},
       clientInfo: { name: "test", version: "0" },
     });
-    expect(body.result.serverInfo).toMatchObject({ name: "handoff", title: "Handoff", version: pkg.version, websiteUrl: ORIGIN });
+    expect(body.result.serverInfo).toMatchObject({ name: "threadpacket", title: "Threadpacket", version: pkg.version, websiteUrl: ORIGIN });
     expect(body.result.serverInfo.icons[0]).toMatchObject({ src: `${ORIGIN}/img/icon.png`, mimeType: "image/png" });
-    expect(body.result.instructions).toContain("hand this off");
+    expect(body.result.instructions).toContain("send a packet");
     expect(body.result.instructions).toContain("when the next step of a task must run on another computer or in another assistant");
-    expect(body.result.instructions).toContain("continue my handoff");
+    expect(body.result.instructions).toContain("continue my packet");
   });
 });
 
@@ -64,11 +64,11 @@ describe("send, inbox, read", () => {
     expect(sent.replayed).toBe(false);
     expect(String(sent.packet_id)).toMatch(/^pk_/);
 
-    const inbox = expectOk(await call(a, "handoff_inbox"));
+    const inbox = expectOk(await call(a, "threadpacket_inbox"));
     expect((inbox.packets as any[]).map((p) => p.packet_id)).toContain(sent.packet_id);
     expect((inbox.packets as any[])[0]).not.toHaveProperty("brief");
 
-    const read = expectOk(await call(a, "handoff_read", { packet_id: sent.packet_id }));
+    const read = expectOk(await call(a, "threadpacket_read", { packet_id: sent.packet_id }));
     expect(read.brief).toBe(brief);
     expect(read.title).toBe("Exact brief");
     expect(read.attachments).toEqual([]);
@@ -77,9 +77,9 @@ describe("send, inbox, read", () => {
   it("reading does not change the inbox (no read receipts)", async () => {
     const a = await alice();
     const sent = await send(a);
-    await call(a, "handoff_read", { packet_id: sent.packet_id });
-    await call(a, "handoff_read", { packet_id: sent.packet_id });
-    const inbox = expectOk(await call(a, "handoff_inbox"));
+    await call(a, "threadpacket_read", { packet_id: sent.packet_id });
+    await call(a, "threadpacket_read", { packet_id: sent.packet_id });
+    const inbox = expectOk(await call(a, "threadpacket_inbox"));
     expect((inbox.packets as any[]).find((p) => p.packet_id === sent.packet_id)).toBeTruthy();
   });
 
@@ -87,11 +87,11 @@ describe("send, inbox, read", () => {
     const a = await token(`user_pager_${crypto.randomUUID()}`); // a user with no other packets
     const ids: string[] = [];
     for (let i = 0; i < 5; i++) ids.push(String((await send(a, { title: `n${i}` })).packet_id));
-    const p1 = expectOk(await call(a, "handoff_inbox", { limit: 2 }));
+    const p1 = expectOk(await call(a, "threadpacket_inbox", { limit: 2 }));
     expect((p1.packets as any[]).length).toBe(2);
     expect(p1.next_cursor).toBeTruthy();
-    const p2 = expectOk(await call(a, "handoff_inbox", { limit: 2, cursor: p1.next_cursor }));
-    const p3 = expectOk(await call(a, "handoff_inbox", { limit: 2, cursor: p2.next_cursor }));
+    const p2 = expectOk(await call(a, "threadpacket_inbox", { limit: 2, cursor: p1.next_cursor }));
+    const p3 = expectOk(await call(a, "threadpacket_inbox", { limit: 2, cursor: p2.next_cursor }));
     const seen = [...(p1.packets as any[]), ...(p2.packets as any[]), ...(p3.packets as any[])].map((p) => p.packet_id);
     expect(new Set(seen).size).toBe(seen.length);
     for (const id of ids) expect(seen).toContain(id);
@@ -100,9 +100,9 @@ describe("send, inbox, read", () => {
 
   it("rejects an empty brief and an over-long title", async () => {
     const a = await alice();
-    const r1 = await call(a, "handoff_send", { title: "t", brief: "   ", idempotency_key: crypto.randomUUID() });
+    const r1 = await call(a, "threadpacket_send", { title: "t", brief: "   ", idempotency_key: crypto.randomUUID() });
     expect(errorText(r1)).toContain("invalid_input");
-    const { body } = await rpc(a, "tools/call", { name: "handoff_send", arguments: { title: "x".repeat(201), brief: "b", idempotency_key: "k" } });
+    const { body } = await rpc(a, "tools/call", { name: "threadpacket_send", arguments: { title: "x".repeat(201), brief: "b", idempotency_key: "k" } });
     expect(body.result?.isError ?? body.error).toBeTruthy();
   });
 });
@@ -115,7 +115,7 @@ describe("idempotency", () => {
     const again = await send(a, { idempotency_key: key, title: "once" });
     expect(again.packet_id).toBe(first.packet_id);
     expect(again.replayed).toBe(true);
-    const inbox = expectOk(await call(a, "handoff_inbox"));
+    const inbox = expectOk(await call(a, "threadpacket_inbox"));
     expect((inbox.packets as any[]).filter((p) => p.title === "once")).toHaveLength(1);
   });
 
@@ -123,7 +123,7 @@ describe("idempotency", () => {
     const a = await alice();
     const key = crypto.randomUUID();
     await send(a, { idempotency_key: key, title: "v1" });
-    const r = await call(a, "handoff_send", { title: "v2", brief: "changed", idempotency_key: key });
+    const r = await call(a, "threadpacket_send", { title: "v2", brief: "changed", idempotency_key: key });
     expect(errorText(r)).toContain("idempotency_conflict");
   });
 
@@ -140,24 +140,24 @@ describe("isolation, revocation, expiry", () => {
     const a = await alice();
     const b = await bob();
     const sent = await send(a, { title: "alice only" });
-    const inboxB = expectOk(await call(b, "handoff_inbox"));
+    const inboxB = expectOk(await call(b, "threadpacket_inbox"));
     expect((inboxB.packets as any[]).map((p) => p.packet_id)).not.toContain(sent.packet_id);
-    expect(errorText(await call(b, "handoff_read", { packet_id: sent.packet_id }))).toContain("not_found");
-    expect(errorText(await call(b, "handoff_revoke", { packet_id: sent.packet_id }))).toContain("not_found");
+    expect(errorText(await call(b, "threadpacket_read", { packet_id: sent.packet_id }))).toContain("not_found");
+    expect(errorText(await call(b, "threadpacket_revoke", { packet_id: sent.packet_id }))).toContain("not_found");
     // Still readable by the owner afterwards.
-    expectOk(await call(a, "handoff_read", { packet_id: sent.packet_id }));
+    expectOk(await call(a, "threadpacket_read", { packet_id: sent.packet_id }));
   });
 
   it("revoke removes the packet from the inbox and from read", async () => {
     const a = await alice();
     const sent = await send(a);
-    const r = expectOk(await call(a, "handoff_revoke", { packet_id: sent.packet_id }));
+    const r = expectOk(await call(a, "threadpacket_revoke", { packet_id: sent.packet_id }));
     expect(r.revoked_at).toBeTruthy();
-    expect(errorText(await call(a, "handoff_read", { packet_id: sent.packet_id }))).toContain("revoked");
-    const inbox = expectOk(await call(a, "handoff_inbox"));
+    expect(errorText(await call(a, "threadpacket_read", { packet_id: sent.packet_id }))).toContain("revoked");
+    const inbox = expectOk(await call(a, "threadpacket_inbox"));
     expect((inbox.packets as any[]).map((p) => p.packet_id)).not.toContain(sent.packet_id);
     // Revoking twice is harmless.
-    expectOk(await call(a, "handoff_revoke", { packet_id: sent.packet_id }));
+    expectOk(await call(a, "threadpacket_revoke", { packet_id: sent.packet_id }));
   });
 
   it("an expired packet is hidden and reads as expired", async () => {
@@ -165,8 +165,8 @@ describe("isolation, revocation, expiry", () => {
     const sent = await send(a, { expires_in_hours: 1 });
     const past = new Date(Date.now() - 60_000).toISOString();
     await env.DB.prepare("UPDATE packets SET expires_at = ? WHERE id = ?").bind(past, sent.packet_id).run();
-    expect(errorText(await call(a, "handoff_read", { packet_id: sent.packet_id }))).toContain("expired");
-    const inbox = expectOk(await call(a, "handoff_inbox"));
+    expect(errorText(await call(a, "threadpacket_read", { packet_id: sent.packet_id }))).toContain("expired");
+    const inbox = expectOk(await call(a, "threadpacket_inbox"));
     expect((inbox.packets as any[]).map((p) => p.packet_id)).not.toContain(sent.packet_id);
   });
 
@@ -175,7 +175,7 @@ describe("isolation, revocation, expiry", () => {
     const sent = await send(a, { expires_in_hours: 2 });
     const ms = Date.parse(String(sent.expires_at)) - Date.parse(String(sent.created_at));
     expect(ms).toBe(2 * 3_600_000);
-    const { body } = await rpc(a, "tools/call", { name: "handoff_send", arguments: { title: "t", brief: "b", idempotency_key: "k2", expires_in_hours: 100000 } });
+    const { body } = await rpc(a, "tools/call", { name: "threadpacket_send", arguments: { title: "t", brief: "b", idempotency_key: "k2", expires_in_hours: 100000 } });
     expect(body.result?.isError ?? body.error).toBeTruthy();
   });
 });

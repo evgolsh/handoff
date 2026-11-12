@@ -1,33 +1,33 @@
 # Deploy and connect
 
-There are three ways to install Handoff, and each one creates the same private server on your Cloudflare account: [from your browser](#from-your-browser) with the Deploy button, [with a coding assistant](#ask-a-coding-assistant), or by [running setup yourself](#run-it-yourself). The [README](../README.md#install) has the short version. Install once for your whole team; teammates and new assistants only sign in.
+There are three ways to install Threadpacket, and each one creates the same private server on your Cloudflare account: [from your browser](#from-your-browser) with the Deploy button, [with a coding assistant](#ask-a-coding-assistant), or by [running setup yourself](#run-it-yourself). The [README](../README.md#your-own-private-server) has the short version. Install once for your whole team; teammates and new assistants only sign in.
 
-Handoff runs on Cloudflare Workers with D1 for members, packets and OAuth state, and Workers KV for files by default. The Worker is its own OAuth 2.1 server; no external identity provider is needed. Default private installs need no payment method or R2 subscription, within Cloudflare's free-plan limits.
+Threadpacket runs on Cloudflare Workers with D1 for members, packets and OAuth state, and Workers KV for files by default. The Worker is its own OAuth 2.1 server; no external identity provider is needed. Default private installs need no payment method or R2 subscription, within Cloudflare's free-plan limits.
 
 ## From your browser
 
-You need a **Cloudflare account** and a **GitHub or GitLab account**. [Deploy to Cloudflare](https://handoff.infraworks.net/deploy) copies the repository to your GitHub or GitLab account, creates the D1 database and KV namespace, and runs `npm run deploy` through Cloudflare's build flow.
+You need a **Cloudflare account** and a **GitHub or GitLab account**. [Deploy to Cloudflare](https://threadpacket.com/deploy) copies the repository to your GitHub or GitLab account, creates the D1 database and KV namespace, and runs `npm run deploy` through Cloudflare's build flow.
 
-1. In the deploy form, set `HANDOFF_SETUP_CODE` to a private random code of 12 or more characters. [`.dev.vars.example`](../.dev.vars.example) describes it.
+1. In the deploy form, set `THREADPACKET_SETUP_CODE` to a private random code of 12 or more characters. [`.dev.vars.example`](../.dev.vars.example) describes it.
 2. After the deploy, open `/console/setup` on your new server. Enter the setup code and your username.
 3. Save the **access code** it shows once. You and your assistants sign in with it. The setup code only creates the first admin.
-4. Add teammates in Members and connect assistants as described [below](#console-members-and-assistant-connections). Nobody deploys again.
+4. Connect your assistant and add teammates as described [below](#console-members-and-assistant-connections). Nobody deploys again.
 
 The setup page works only while there is no admin and the secret has 12 or more characters. Once an admin exists, it redirects to the console login. If the secret is missing, follow the setup page's instructions for adding it in Cloudflare, or use the CLI member and admin commands from a clone configured for this deployment. Do not point an unconfigured fresh clone at existing data.
 
 ## Ask a coding assistant
 
-Claude Code, Codex, Gemini CLI, Hermes or any assistant that can run commands on your computer can install Handoff. Give it the request in the [README](../README.md#ask-a-coding-assistant). It follows [llms-install.md](../llms-install.md), which runs the same setup as [Run it yourself](#run-it-yourself) and checks for an existing deployment first. You approve the Cloudflare login and each assistant connection yourself.
+Claude Code, Codex, Gemini CLI, Hermes or any assistant that can run commands on your computer can install Threadpacket. Give it the request in the [README](../README.md#ask-a-coding-assistant). It follows [llms-install.md](../llms-install.md), which runs the same setup as [Run it yourself](#run-it-yourself) and checks for an existing deployment first. You approve the Cloudflare login and each assistant connection yourself.
 
 ## Run it yourself
 
-Prerequisites: **Node.js 22+**, npm, Git CLI and a Cloudflare account. Wrangler 4.152.0 declares Node `>=22.0.0`. No GitHub account or fork is required to clone this public repository.
+Prerequisites: **Node.js 22+**, npm, **Git** and a **Cloudflare account**. Wrangler declares Node `>=22.0.0`. No GitHub account or fork is required to clone this public repository.
 
 Replace `tim` with your own username, first in the list. Add `tom` only if you want to seed that teammate now:
 
 ```sh
-git clone https://github.com/evgolsh/handoff.git
-cd handoff
+git clone https://github.com/evgolsh/threadpacket.git
+cd threadpacket
 npm install
 npm run setup -- --members=tim,tom
 ```
@@ -39,15 +39,15 @@ For yourself only, use `--members=tim`. Always supply the `--members=...` form: 
 [`scripts/deploy.mjs`](../scripts/deploy.mjs):
 
 1. Checks `npx wrangler whoami`; opens `npx wrangler login` if authentication is needed. You sign in and approve Cloudflare access yourself.
-2. Reuses the configured D1 database if its ID belongs to the selected account. Otherwise it reuses or creates that account's database named `handoff` and writes its ID into `wrangler.jsonc`.
-3. Does the same for the configured `FILES` KV namespace, falling back to `handoff-FILES`. An explicitly configured R2 bucket takes a separate path; R2 is not needed for the default install.
+2. Reuses the configured D1 database if its ID belongs to the selected account. Otherwise it reuses or creates that account's database named `threadpacket` and writes its ID into `wrangler.jsonc`.
+3. Does the same for the configured `FILES` KV namespace, falling back to `threadpacket-FILES`. An explicitly configured R2 bucket takes a separate path; R2 is not needed for the default install.
 4. Applies D1 migrations, builds static assets and deploys the Worker.
 5. **Only if the members table is empty**, seeds the requested usernames and grants the first valid seeded username admin access.
 6. Prints the deployment's `/mcp`, `/connect` and `/console` URLs, and any newly created access codes **once**.
 
-Save codes privately in a password manager. Open the printed `/console` URL and sign in with your first username and code. **Do not use `/console/setup` or set `HANDOFF_SETUP_CODE` for this CLI flow**: the admin already exists.
+Save codes privately in a password manager. Open the printed `/console` URL and sign in with your first username and code. **Do not use `/console/setup` or set `THREADPACKET_SETUP_CODE` for this CLI flow**: the admin already exists.
 
-For an account with Workers ready, Cloudflare login/consent is normally the only Cloudflare browser step; resource provisioning is automated. **Fresh accounts may also need Workers onboarding and a `workers.dev` subdomain.** Setup captures Wrangler's deploy output, so interactive subdomain-registration prompts may not be visible. If deployment reports this requirement or stops there, complete Workers onboarding in Cloudflare, then retry from the same clone with its saved bindings. Do not assume a fully unattended cold-account install. Account creation, account selection and consent remain your responsibility; an assistant cannot approve these on your behalf.
+For an account with Workers ready, Cloudflare login/consent is normally the only Cloudflare browser step; resource provisioning is automated. **Fresh accounts may need Workers onboarding and a `workers.dev` subdomain.** Setup captures Wrangler's deploy output, so interactive subdomain-registration prompts may not be visible. If deployment reports this requirement or stops there, complete Workers onboarding in Cloudflare, then retry from the same clone with its saved bindings. Do not assume a fully unattended cold-account install. Account creation, account selection and consent remain your responsibility; an assistant cannot approve these on your behalf.
 
 ### Remote terminal or headless coding assistant
 
@@ -59,11 +59,11 @@ npx wrangler whoami
 npm run setup -- --members=tim
 ```
 
-Open the URL and complete the device-code approval yourself. The installed Wrangler 4.152.0 supports `--device` (verify with `npx wrangler login --help` if using a different version). Setup itself does not select device login; it uses normal `wrangler login` when unauthenticated. `--browser=false` suppresses browser launch but does not replace the localhost callback with device authentication.
+Open the URL and complete the device-code approval yourself. Setup itself does not select device login; it uses normal `wrangler login` when unauthenticated. `--browser=false` suppresses browser launch but does not replace the localhost callback with device authentication.
 
 ### Existing deployments and reruns
 
-**Stop before setup if this account already has a Worker named `handoff`, or resources named `handoff` / `handoff-FILES`, unless you intend to reuse that deployment.** Setup is not an isolated-instance wizard and does not ask before redeploying an existing Worker. Check the selected account, Worker name and bindings first. If you have several Cloudflare accounts, resolve which one Wrangler will use before provisioning anything.
+**Stop before setup if this account already has a Worker named `threadpacket`, or resources named `threadpacket` / `threadpacket-FILES`, unless you intend to reuse that deployment.** Setup is not an isolated-instance wizard and does not ask before redeploying an existing Worker. Check the selected account, Worker name and bindings first. If you have several Cloudflare accounts, resolve which one Wrangler will use before provisioning anything.
 
 - Setup writes resource IDs into `wrangler.jsonc`. Keep that clone and its config; do not replace the bindings with the repository's example values.
 - `--members` is initial seeding, not member synchronization. With existing members it adds nobody, resets no codes and grants no new admin. Use Members, `member:add`, or `admin` instead.
@@ -73,16 +73,15 @@ Open the URL and complete the device-code approval yourself. The installed Wrang
 
 ## Console, members and assistant connections
 
-The **Handoff console** at your deployment's `/console` manages people, connections and service health. The **Cloudflare dashboard** manages the underlying account, resources, billing, domains and build settings. Everyday Handoff use does not require opening Cloudflare.
+The **Threadpacket console** at your deployment's `/console` manages people, connections and service health. The **Cloudflare dashboard** manages the underlying account, resources, billing, domains and build settings. Everyday Threadpacket use does not require opening Cloudflare.
 
-In the Handoff console:
+In the Threadpacket console:
 
-1. Open **Members** to add a teammate or manage codes. The first member, seeded by setup or created at `/console/setup`, is the admin; ordinary members can connect assistants but cannot sign in to the admin console.
-2. Open **Assistant setup** (`/connect`). Teammates use the same page; they need no admin access.
-3. Add **your own deployment URL ending in `/mcp`**, sign in with your Handoff username and code, and approve access in each assistant. All of one person's assistants use that person's same username. Different people get different usernames and codes on the same deployment.
-4. Send a self-handoff in one assistant and read it in a second connected as you. Then send to a teammate's username. The [README](../README.md#after-you-install) has prompts.
+1. Open **Assistant setup** (`/connect`). Add **your own deployment URL ending in `/mcp`**, sign in with your Threadpacket username and code, and approve access in each assistant. All of one person's assistants use that person's same username. Different people get different usernames and codes on the same deployment.
+2. Open **Members** (or ask your assistant "invite tom to Threadpacket") to add a teammate or manage codes. The first member, seeded by setup or created at `/console/setup`, is the admin; ordinary members can connect assistants and open `/packets` without admin console access.
+3. Send yourself a packet in one assistant and read it in a second connected as you. Then send a packet to a teammate's username. The [README](../README.md#after-you-install-a-private-server) has prompts.
 
-The Connect page records tested hosts and limitations. Do not infer universal MCP-host or file-transfer compatibility. Each host controls its own connector availability and approval prompts; Handoff cannot automate those approvals.
+The Connect page records tested hosts and limitations. Do not infer universal MCP-host or file-transfer compatibility. Each host controls its own connector availability and approval prompts; Threadpacket cannot automate those approvals.
 
 Terminal alternatives, from the deployment clone:
 
@@ -91,26 +90,26 @@ npm run member:add -- tom
 npm run admin -- tim
 ```
 
-`member:add` creates a new member **or rotates an existing member's code**. A reset invalidates the old code and signs out that member's assistants; resetting your own code also ends your console session. Give each person only their own code privately. `admin` grants console access to an existing member; `npm run admin -- tim --revoke` removes it. See [Console](CONSOLE.md) for the actions and access rules.
+`member:add` creates a new member **or rotates an existing member's code**. A reset invalidates the old code and signs out that member's assistants; resetting your own code ends your console session too. Give each person only their own code privately. `admin` grants console access to an existing member; `npm run admin -- tim --revoke` removes it. See [Console](CONSOLE.md) for the actions and access rules.
 
 ### Host-specific notes
 
-Use `/connect` on your deployment for copyable steps and status. For Claude Code, the command is `claude mcp add --transport http --scope user handoff YOUR_URL/mcp`, followed by `/mcp` and **Authenticate**; replace `YOUR_URL` with your actual HTTPS origin. The [install guide for coding assistants](../llms-install.md#4-connect-assistants) includes CLI commands for other hosts.
+Use `/connect` on your deployment for copyable steps and status. For Claude Code, the command is `claude mcp add --transport http --scope user threadpacket YOUR_URL/mcp`, followed by `/mcp` and **Authenticate**; replace `YOUR_URL` with your actual HTTPS origin. The [install guide for coding assistants](../llms-install.md#4-connect-assistants) includes CLI commands for other hosts.
 
-- Claude web/desktop file uploads also need your server hostname in Claude's Settings > Capabilities > allowed domains. Without that, uploads can fail with 403 even when text handoffs work.
+- Claude web/desktop file uploads need your server hostname in Claude's Settings > Capabilities > allowed domains. Without that, uploads fail with 403 even when text packets work.
 - ChatGPT's custom MCP server/plugin availability depends on the plan or workspace. Follow the Connect page for the ChatGPT and Codex app route, rather than assuming the Codex CLI command configures the app.
-- Repository plugin manifests may point at the project's hosted endpoint. Replace that with your own `/mcp` URL before using them for a private install; see [the plugin package](../plugin/README.md).
+- Repository plugin manifests point at `https://threadpacket.com/mcp`. Replace that with your own `/mcp` URL before using them for a private install; see [the plugin package](../plugin/README.md).
 
 ## Configuration
 
 ### Files
 
-Default files live in Workers KV (`FILES`). Cloudflare's free allowance includes 1 GB storage and 1,000 writes per day; KV's 25 MiB value limit matches Handoff's per-file limit. Free-plan quotas still apply.
+Default files live in Workers KV (`FILES`). Cloudflare's free allowance includes 1 GB storage and 1,000 writes per day; KV's 25 MiB value limit matches Threadpacket's per-file limit. Free-plan quotas still apply.
 
 R2 is optional for larger workloads, not part of onboarding. It requires enabling R2 with a payment method. To use it, create a bucket and bind it as `BLOBS` instead of, or alongside, KV:
 
 ```jsonc
-"r2_buckets": [{ "binding": "BLOBS", "bucket_name": "handoff-attachments" }]
+"r2_buckets": [{ "binding": "BLOBS", "bucket_name": "threadpacket-attachments" }]
 ```
 
 `FILE_STORE=kv` or `FILE_STORE=r2` selects explicitly. If unset, the Worker uses R2 when bound, otherwise KV. Switching stores does not migrate existing files: copy them deliberately or let their packets expire first. The common adapter contract is `BlobStore` in [`src/store/blobs.ts`](../src/store/blobs.ts).
@@ -125,8 +124,8 @@ By default `PUBLIC_URL` is unset and the Worker uses the request's origin as its
 | `FILE_STORE` | Select `kv` or `r2`. |
 | `MAX_ATTACHMENT_BYTES` | Per-file limit, default 25 MiB. |
 | `IMPORT_HOST_ALLOWLIST` | Allow server-side file imports from specified hosts; empty disables imports. |
-| `HANDOFF_UPDATE_CHECK=off` | Disable the daily update check. |
-| `HANDOFF_ENV=dev` | Local development only, never production. |
+| `THREADPACKET_UPDATE_CHECK=off` | Disable the daily update check. |
+| `THREADPACKET_ENV=dev` | Local development only, never production. |
 
 For ChatGPT file imports, an `import_rejected` error may name the uncontacted host because imports are disabled. Review that host before adding it, or a deliberate `*.` parent-domain pattern, to `IMPORT_HOST_ALLOWLIST` and redeploying. Do not broadly allow arbitrary hosts just to make a test pass.
 
@@ -136,7 +135,7 @@ The Worker publishes OAuth metadata, supports RFC 7591 client registration and H
 
 The signing key is generated on first use and stored in D1 (`oauth_keys`) unless `OAUTH_SIGNING_JWK` supplies an ES256 private JWK. Replacing the key or changing the public origin invalidates existing assistant authentication.
 
-Deploy applies D1 migrations before the Worker. New databases start from `migrations/0001_schema.sql`; later changes use subsequent numbered migrations. Older installations can retain their historical migration records. Do not delete migration history to force a retry.
+Deploy applies D1 migrations before the Worker. New databases start from `migrations/0001_schema.sql`; later changes use subsequent numbered migrations. Older installations retain their historical migration records. Do not delete migration history to force a retry.
 
 ## Updates and recovery
 
@@ -153,15 +152,15 @@ For a lost access code, reset it in Members or run `npm run member:add -- tim` f
 
 ### Optional destructive removal
 
-Only when you intend to permanently remove the deployment, run `npm run teardown` from its configured clone. It deletes the named Worker, D1 database and KV namespace or R2 bucket from the authenticated account. Members, packets and files are lost. It asks you to type the Worker name; Wrangler also asks before deleting the Worker. Already-missing resources are skipped; other failures stop the run. Review the account and all targets before confirming. This is not required for updates, new members or code resets.
+Only when you intend to permanently remove the deployment, run `npm run teardown` from its configured clone. It deletes the named Worker, D1 database and KV namespace or R2 bucket from the authenticated account. Members, packets and files are lost. It asks you to type the Worker name; Wrangler asks before deleting the Worker too. Already-missing resources are skipped; other failures stop the run. Review the account and all targets before confirming. This is not required for updates, new members or code resets.
 
 ## Operations
 
 - Cleanup runs hourly at minute 17: staged/failed uploads older than 24 hours, ready unattached files after 7 days, packets expired or revoked over 7 days ago, and expired tickets. Each run is bounded to 5 batches of 200 rows per kind; backlog continues on the next run. Ops can trigger cleanup too.
-- The daily update check sends a random instance ID, version and coarse usage buckets, as described in [the README](../README.md#update-check). `HANDOFF_UPDATE_CHECK=off` disables it. `UPDATE_CHECK_URL` changes the receiver; `UPDATE_CHECK_RECEIVER=1` is for an intentional receiving deployment.
-- `HANDOFF_MODE=control` belongs to the project's hosted service (handoff.infraworks.net), adding team signup, invitations by link, team consoles and operator views. Leave it unset for a private installation.
+- The daily update check sends a random instance ID, version and coarse usage buckets, as described in [the README](../README.md#update-check). `THREADPACKET_UPDATE_CHECK=off` disables it. `UPDATE_CHECK_URL` changes the receiver; `UPDATE_CHECK_RECEIVER=1` is for an intentional receiving deployment.
+- `THREADPACKET_MODE=control` belongs to the project's hosted service (threadpacket.com), adding team signup, invitations by link, team consoles and operator views. Leave it unset for a private installation.
 - Invocation logs are disabled because URLs can contain upload/download tickets. Application errors use route templates, not signed URLs. Console activity does not expose briefs, filenames, codes or tokens.
-- Limits include 25 MiB per file, 10 files per packet and 50 unattached files per account. The Worker has no general per-request rate limiter. If serving through a Cloudflare zone you control, consider a WAF rate-limiting rule for `/mcp` and `/v1/*`, for example 120 requests per minute per IP, subject to your plan. Zone-level WAF configuration is not a required CLI setup step and does not imply coverage of a bare `workers.dev` URL.
+- Limits include 25 MiB per file, 10 files per packet and 50 unattached files per account. The Worker has no general per-request rate limiter. If serving through a Cloudflare zone you control, consider a WAF rate-limiting rule for `/mcp` and `/v1/*`, for example 120 requests per minute per IP, subject to your plan.
 - Cloudflare's bot filter can return 403/error 1010 to some default HTTP clients before the Worker runs. If no Worker event appears, check this before diagnosing member authentication.
 
 For read-only deployment checks, replace `YOUR_URL` below with the actual HTTPS origin:
@@ -172,4 +171,4 @@ curl YOUR_URL/.well-known/oauth-authorization-server
 curl -i -X POST YOUR_URL/mcp
 ```
 
-The metadata should name your own origin; an unauthenticated MCP POST should return 401 with a `WWW-Authenticate` header referencing resource metadata. A GET on `/mcp` returns 405: the Worker keeps no session and sends no server-initiated messages, and that answer stops MCP clients from reopening an event stream every second. These checks alone do not prove an authenticated handoff works.
+The metadata should name your own origin; an unauthenticated MCP POST should return 401 with a `WWW-Authenticate` header referencing resource metadata. A GET on `/mcp` returns 405: the Worker keeps no session and sends no server-initiated messages, and that answer stops MCP clients from reopening an event stream every second. These checks alone do not prove an authenticated packet round trip works.

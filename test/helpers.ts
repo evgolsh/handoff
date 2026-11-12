@@ -2,7 +2,7 @@ import { SignJWT, importJWK } from "jose";
 import { SELF } from "cloudflare:test";
 import privateJwk from "./fixtures/test-private-jwk.json";
 
-export const ORIGIN = "https://handoff.test";
+export const ORIGIN = "https://threadpacket.test";
 /** The Worker is its own OAuth issuer. */
 export const ISSUER = ORIGIN;
 export const AUDIENCE = `${ORIGIN}/mcp`;
@@ -21,7 +21,7 @@ export interface TokenOpts {
 
 export async function token(sub: string, opts: TokenOpts = {}): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  let jwt = new SignJWT({ scope: opts.scope ?? "handoff", client_id: opts.clientId ?? "test-client" })
+  let jwt = new SignJWT({ scope: opts.scope ?? "threadpacket", client_id: opts.clientId ?? "test-client" })
     .setProtectedHeader({ alg: "ES256", kid: opts.kid ?? "test-key-1" })
     .setIssuer(opts.iss ?? ISSUER)
     .setAudience(opts.aud ?? AUDIENCE)
@@ -82,7 +82,7 @@ export function errorText(r: ToolResult): string {
 
 export async function send(bearer: string, overrides: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
   return expectOk(
-    await call(bearer, "handoff_send", {
+    await call(bearer, "threadpacket_send", {
       title: "Smart-invoice: next step",
       brief: "Purpose: ship the VAT fix.\nDecision: keep Hono.\nNext: run the tests.",
       idempotency_key: crypto.randomUUID(),

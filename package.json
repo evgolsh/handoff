@@ -1,9 +1,9 @@
 {
-  "name": "handoff",
-  "version": "0.2.1",
+  "name": "threadpacket",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Handoff: a hosted MCP service that carries a prepared brief and original attachments from one AI assistant to another.",
+  "description": "Threadpacket sends a packet from one person's AI assistant to another person's assistant: a brief of the work so far, with the original files.",
   "scripts": {
     "dev": "wrangler dev",
     "build": "node scripts/assets.mjs",
@@ -35,7 +35,7 @@
       "FILES": {
         "description": "Workers KV namespace for the original files sent with a packet (PDF, PNG, JPEG, Markdown, plain text). Created for you; on the free plan."
       },
-      "HANDOFF_SETUP_CODE": {
+      "THREADPACKET_SETUP_CODE": {
         "description": "A code you choose, 12 characters or more (for example from `openssl rand -base64 18`). After deploying, open `/console/setup` on your Worker and enter it to become the admin. It works only while no admin exists."
       }
     }

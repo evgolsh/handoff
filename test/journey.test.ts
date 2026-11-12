@@ -10,7 +10,7 @@ import { ORIGIN, call, expectOk, token } from "./helpers";
  * up. Each page they see uses their names and points to their next step, and none mixes in the private server's
  * tim and tom.
  */
-const ctl = { ...env, HANDOFF_MODE: "control" };
+const ctl = { ...env, THREADPACKET_MODE: "control" };
 const uid = () => crypto.randomUUID().slice(0, 6);
 const ip = () => `203.0.113.${Math.floor(Math.random() * 250) + 1}-${uid()}`;
 const fetchAs = (path: string, init: RequestInit = {}) =>
@@ -36,30 +36,29 @@ const cards = (html: string) => [...html.matchAll(/<p class="eyebrow">\d · ([^<
 async function signIn(team: string, handle: string, code: string): Promise<string> {
   const res = await fetchAs("/login", form({ team, handle, access_code: code }));
   expect(res.status).toBe(303);
-  expect(res.headers.get("location")).toBe("/assets");
+  expect(res.headers.get("location")).toBe("/packets");
   return (res.headers.get("set-cookie") ?? "").split(";")[0]!;
 }
 
 describe("the hosted story: joe and anna", () => {
-  it("joe starts from his assistant, invites anna and hands off; anna picks it up", async () => {
+  it("joe starts from his assistant, invites anna and sends a packet; anna picks it up", async () => {
     // The hosted service is open once it has an operator.
     await env.DB.batch([
       env.DB.prepare("INSERT OR IGNORE INTO members (handle, code_salt, code_hash, created_at) VALUES ('operator', 's', 'h', ?)").bind(new Date().toISOString()),
       env.DB.prepare("INSERT OR IGNORE INTO admin_members (handle) VALUES ('operator')"),
     ]);
 
-    // The homepage: Get started leads to Assistant setup, and the hosted part tells joe and anna's story.
+    // The homepage: Get started leads to Assistant setup, and the live packet pane tells joe and anna's story.
     const home = await text("/");
     expect(home).toContain('<a class="site-button primary" href="/connect">Get started');
-    // (The use cases further down are other scenarios with their own people, such as tim and tom's small team.)
-    hostedStory(home.slice(0, home.indexOf('id="use-cases"')), "/ (hero and How it works)");
+    hostedStory(home.slice(0, home.indexOf('class="courier-window pane-install"')), "/ (hero and live packet pane)");
 
     // Assistant setup, signed out: a new person creates the team when they sign in.
     const setup = await text("/connect");
-    expect(setup).toContain("New to Handoff? You create your team when you sign in.");
+    expect(setup).toContain("New to Threadpacket? Create your team when you sign in.");
     expect(setup).toContain("<strong>Create a team</strong> if you&#39;re new");
-    expect(cards(setup)).toEqual(["Invite your partner", "Send a handoff", "Pick up a handoff"]);
-    expect(setup).toContain("“Hand this off to anna.”");
+    expect(cards(setup)).toEqual(["Invite your partner", "Send a packet", "Pick up a packet"]);
+    expect(setup).toContain("“Send a packet to anna.”");
     hostedStory(setup, "/connect");
 
     // joe's assistant opens the sign-in page; he creates the team there and the same sign-in finishes.
@@ -68,7 +67,7 @@ describe("the hosted story: joe and anna", () => {
     const { client_id } = (await reg.json()) as { client_id: string };
     const verifier = `verifier-${crypto.randomUUID()}-${crypto.randomUUID()}`;
     const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
-    const oauth = { client_id, redirect_uri: redirectUri, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "handoff" };
+    const oauth = { client_id, redirect_uri: redirectUri, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "threadpacket" };
     const authorize = await text(`/authorize?${new URLSearchParams(oauth)}`);
     expect(authorize).toContain('id="new-team"');
     hostedStory(authorize, "/authorize");
@@ -77,41 +76,41 @@ describe("the hosted story: joe and anna", () => {
     expect(created.status).toBe(200);
     const createdPage = await created.text();
     hostedStory(createdPage, "/authorize (team created)");
-    const joeCode = /hf-[A-Za-z0-9_-]{16}/.exec(createdPage)![0];
+    const joeCode = /tp-[A-Za-z0-9_-]{16}/.exec(createdPage)![0];
     const fields = Object.fromEntries([...createdPage.matchAll(/<input type="hidden" name="([a-z_]+)" value="([^"]*)">/g)].map((m) => [m[1]!, m[2]!]));
     expect((await fetchAs("/authorize", form(fields))).status).toBe(302);
 
-    // In the browser, joe's Assistant setup shows what an admin does next: invite, then hand off.
+    // In the browser, joe's Assistant setup shows what an admin does next: invite, then send a packet.
     const joe = await signIn(team, "joe", joeCode);
     const joeSetup = await text("/connect", joe);
-    expect(cards(joeSetup)).toEqual(["Invite your partner", "Send a handoff"]);
-    expect(joeSetup).toContain("“Invite my partner to Handoff.”");
+    expect(cards(joeSetup)).toEqual(["Invite your partner", "Send a packet"]);
+    expect(joeSetup).toContain("“Invite my partner to Threadpacket.”");
     hostedStory(joeSetup, "/connect (joe)");
 
     // joe's assistant invites anna; her link names joe and tells her what to say.
     const joeToken = await token(`${team}/joe`);
-    const invite = expectOk(await call(joeToken, "handoff_invite", { username: "anna" }));
+    const invite = expectOk(await call(joeToken, "threadpacket_invite", { username: "anna" }));
     const path = new URL(invite.invite_url as string).pathname;
     const preview = await text(path);
     expect(preview).toContain("joe invited you.");
     hostedStory(preview, "/invite (preview)");
     const opened = await fetchAs(path, { method: "POST" });
     const invitePage = await opened.text();
-    expect(invitePage).toContain("“Continue the handoff from joe.”");
+    expect(invitePage).toContain("“Continue the packet from joe.”");
     hostedStory(invitePage, "/invite (opened)");
-    const annaCode = /hf-[A-Za-z0-9_-]{16}/.exec(invitePage)![0];
+    const annaCode = /tp-[A-Za-z0-9_-]{16}/.exec(invitePage)![0];
 
-    // joe hands off; anna's Assistant setup puts picking it up first, and Assets and her assistant both have it.
-    expectOk(await call(joeToken, "handoff_send", { title: "Tax letter", brief: "Call the tax office on Monday.", to: "anna", idempotency_key: crypto.randomUUID() }));
+    // joe sends a packet; anna's Assistant setup puts picking it up first, and Packets and her assistant both have it.
+    expectOk(await call(joeToken, "threadpacket_send", { title: "Tax letter", brief: "Call the tax office on Monday.", to: "anna", idempotency_key: crypto.randomUUID() }));
     const anna = await signIn(team, "anna", annaCode);
     const annaSetup = await text("/connect", anna);
-    expect(cards(annaSetup)).toEqual(["Pick up a handoff", "Send a handoff"]);
+    expect(cards(annaSetup)).toEqual(["Pick up a packet", "Send a packet"]);
     expect(annaSetup).not.toContain("Invite my partner");
     hostedStory(annaSetup, "/connect (anna)");
-    const assets = await text("/assets", anna);
-    expect(assets).toContain("Tax letter");
-    expect(assets).toContain("joe");
-    const inbox = expectOk(await call(await token(`${team}/anna`), "handoff_inbox", {}));
+    const packets = await text("/packets", anna);
+    expect(packets).toContain("Tax letter");
+    expect(packets).toContain("joe");
+    const inbox = expectOk(await call(await token(`${team}/anna`), "threadpacket_inbox", {}));
     expect(JSON.stringify(inbox.packets)).toContain('"from":"joe"');
 
     // The browser route reads the same: /join uses the hosted example names.

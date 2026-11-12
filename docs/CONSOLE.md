@@ -2,108 +2,49 @@
 
 `PUBLIC_URL/console` is the admin console: server-rendered pages, with small scripts for copying sign-in details. Code: `src/console/`.
 
-The left menu is the same on the console and on Assets: Assets first, then Assistant setup, then the console pages
-for an admin. A private install has Overview, Members, Assistants and Ops. On the hosted service (`HANDOFF_MODE=control`,
-handoff.infraworks.net), a team admin has Your team, Members and Connections, all limited to that team. The
-operator has Overview and Ops for the whole deployment, Tenants for every team, and Members and Assistants
-for the accounts without a team.
+The left menu is the same on the console and on Packets: Packets first, then Assistant setup, then the console pages for an admin. A private install has Overview, Members, Assistants and Ops. On the hosted service (`THREADPACKET_MODE=control`, threadpacket.com), a team admin has Your team, Members and Connections, all limited to that team. The operator has Overview and Ops for the whole deployment, Tenants for every team, and Members and Assistants for the accounts without a team.
 
 ## Who can open it
 
-Members whose username is in `admin_members`. Everyone signs in at `/login` with their username and access code
-(and team, on the hosted service), and gets one session for every page: Assets at `/assets`, Assistant setup at
-`/connect`, and for an admin the console. The console checks the admin grant on every request and sends a member
-without it to Assets. A page that needs a session sends the browser to `/login?next=<that page>` and back again;
-`next` only takes a path on this site. A session lasts 30 days and is renewed while used. Sign out (`POST /logout`)
-ends the browser's sessions. The operator grants admin in a terminal:
+Members whose username is in `admin_members`. Everyone signs in at `/login` with their username and access code, and gets one session for every page: Packets at `/packets`, Assistant setup at `/connect`, and for an admin the console. The console checks the admin grant on every request and sends a member without it to Packets. A page that needs a session sends the browser to `/login?next=<that page>` and back again; `next` only takes a path on this site. A session lasts 30 days and is renewed while used. Sign out (`POST /logout`) ends the browser's sessions. The operator grants admin in a terminal:
 
 ```sh
 npm run admin -- tim              # grant (the member must exist: npm run member:add -- tim)
 npm run admin -- tim --revoke     # revoke; the console closes on their next request
 ```
 
-On the hosted service add `--hosted` (it uses `wrangler.hosted.jsonc`). A lost operator code:
-`npm run member:add -- <username> --hosted` prints a new one.
+On the hosted service add `--hosted` (it uses `wrangler.hosted.jsonc`). A lost operator code: `npm run member:add -- <username> --hosted` prints a new one.
 
-`npm run setup` (scripts/deploy.mjs) makes the first member it seeds an admin. A server deployed with the
-Deploy to Cloudflare button has no admin: `/console/setup` takes the `HANDOFF_SETUP_CODE` secret and a username
-once, makes that member the admin, signs them in and shows the code (docs/DEPLOY.md). Later, sign in at `/login`.
+`npm run setup` (scripts/deploy.mjs) makes the first member it seeds an admin. A server deployed with the Deploy to Cloudflare button has no admin: `/console/setup` takes the `THREADPACKET_SETUP_CODE` secret and a username once, makes that member the admin, signs them in and shows the code (docs/DEPLOY.md). Later, sign in at `/login`.
 
-On the control center, `/join` creates a team and makes its creator that team's admin. It asks for a username;
-the team name is optional. Without one the team is named after the username (dots and underscores become hyphens,
-and a number is added when that name is taken), so someone on their own never has to think of a team. A typed
-name that is taken is an error. The browser is signed in to the new team, which becomes its active account, and
-the access code is shown once. If the session cannot be started, the code is still shown and Continue to setup
-opens `/login`. The normal flow is Create team → Save sign-in → Connect. Members added in the console can connect
-assistants but cannot open the console. The assistant sign-in page (`/authorize`) has the same Create a team form.
+On the control center, `/join` creates a team and makes its creator that team's admin. It asks for a username; the team name is optional. Without one the team is named after the username (dots and underscores become hyphens, and a number is added when that name is taken), so someone on their own never has to think of a team. A typed name that is taken is an error. The browser is signed in to the new team, which becomes its active account, and the access code is shown once. If the session cannot be started, the code is still shown and Continue to setup opens `/login`. The normal flow is Create team → Save access code → Connect. Members added in the console can connect assistants but cannot open the console. The assistant sign-in page (`/authorize`) has the same Create a team form.
 
-Everyone signs in with a username and access code, on `/login` and on the assistant sign-in page alike; there is
-no team field. The code says which account it is: `members.code_lookup` keeps the first 16 bits of the code's
-sha256, which with the username narrows the members to a few, and the salted PBKDF2 hash decides. So the same
-username can exist in several teams, and each code signs in to its own team. A code set before lookups existed
-(migration 0006) is found by its username and gets its lookup at its next sign-in. Someone in two teams has one
-code per team. The team shows after sign-in, in the account menu.
+Everyone signs in with a username and access code, on `/login` and on the assistant sign-in page alike; there is no team field. The code says which account it is: `members.code_lookup` keeps the first 16 bits of the code's sha256, which with the username narrows the members to a few, and the salted PBKDF2 hash decides. So the same username can exist in several teams, and each code signs in to its own team. Someone in two teams has one code per team. The team shows after sign-in, in the account menu.
 
-A browser can be signed in to up to five accounts, one per team on the hosted service. The account menu at the
-bottom of the left menu lists them: one click (`POST /switch`) makes another the active one, "Sign in to another
-team" opens `/login?add=1`, and "Sign out of all" ends every session of the browser. Signing in again as the same
-member replaces that member's session. Signing in for an assistant on this site's own page also signs the browser
-in; a sign-in form posted from another site answers the assistant but starts no browser session. The assistant
-sign-in page uses `referrer-policy: same-origin` for this: with `no-referrer` the browser would send `Origin: null`.
+A browser can be signed in to up to five accounts, one per team on the hosted service. The account menu at the bottom of the left menu lists them: one click (`POST /switch`) makes another the active one, "Sign in to another team" opens `/login?add=1`, and "Sign out of all" ends every session of the browser. Signing in again as the same member replaces that member's session. Signing in for an assistant on this site's own page signs the browser in too; a sign-in form posted from another site answers the assistant without starting a browser session. The assistant sign-in page uses `referrer-policy: same-origin` for this: with `no-referrer` the browser would send `Origin: null`.
 
-`/connect` is the public setup guide. Signed in, it is a page of the app, with the left menu and the username to
-sign in with. The public pages' header shows Dashboard (to `/assets`) instead of Sign in when the browser has a
-session.
+`/connect` is the public setup guide. Signed in, it is a page of the app, with the left menu and the username to sign in with. The public pages' header shows Dashboard (to `/packets`) instead of Sign in when the browser has a session.
 
-Layout: public and sign-in pages share one header and one width (`--gutter`, at most 1440px), so their content
-starts at the header's left edge. Signed-in pages share the left menu, which is sticky and as tall as the window so
-the account menu stays bottom-left, one content width (at most 1120px, left-aligned) and one title block
-(`.app-head`: a 28px title, a one-line lead, actions on the right).
+Layout: public and sign-in pages share one header and one width (`--gutter`, at most 1440px), so their content starts at the header's left edge. Signed-in pages share the left menu, which is sticky and as tall as the window so the account menu stays bottom-left, one content width (at most 1120px, left-aligned) and one title block (`.app-head`: a 28px title, a one-line lead, actions on the right).
 
 ## Pages
 
-- **Your team** (team admins on the control center): starts with connecting an assistant, followed by invitations,
-  connection management, and counts of members, connected assistants and active handoffs. No deployment health,
-  keys, storage or cleanup. Ops and Tenants redirect here. The page with a new or reset code also shows the
-  server address, team and username.
-- **Connect an assistant**: an assistant picker with setup steps, copyable commands, and first-handoff prompts.
-  Compatibility details, sources and privacy information are expandable; required setup warnings stay visible.
-- **Members / Connections** (team admins): compact member and connection lists. Create invitation provides a
-  copy button containing the server, username, one-time code and setup link. Reset/remove and disconnect
-  still open confirmation pages. Connection diagnostics are under Sign-in troubleshooting.
-- **Overview**: status of the Worker (deployed version), D1 and the file store, KV or R2 (answer time), sign-in (members, admins,
-  assistants connected, signing key) and the last cleanup; handoffs sent per day over 14 days; latency by
-  tool (p50, p95, max) and tool calls ok / failed over 7 days; refused tokens and wrong sign-in codes; calls
-  per member; recent activity.
-- **Members**: each member with a liveness dot (seen within an hour, within 7 days, longer ago, never), last
-  seen, last sign-in, assistants signed in now, calls over 7 days, and live packets sent and addressed to
-  them. Add a member, reset a code, remove a member.
-- **Assistants**: each assistant signed in as each member: the name it gave when it registered, the name and
-  version it announced at MCP initialize, the host its sign-in returns to (`127.0.0.1` or `localhost` = an app
-  on that computer), first and last seen, calls, connected or signed out. Disconnect one assistant. Also:
-  refused tokens by reason, wrong sign-in codes by username, and registrations never used.
-- **Ops**: deployment (version, address, issuer, signing key, limits), database counts and applied
-  migrations, files in storage by state, cleanup runs with a **Run cleanup now** button, recent problems
-  (tool errors, refused tokens, wrong codes, failed cleanups), and the console's own record of who did what.
+- **Your team** (team admins on the control center): starts with connecting an assistant, followed by invitations, connection management, and counts of members, connected assistants and active packets. No deployment health, keys, storage or cleanup. Ops and Tenants redirect here. The page with a new or reset code shows the server address, team and username.
+- **Connect an assistant**: an assistant picker with setup steps, copyable commands, and first-packet prompts. Compatibility details, sources and privacy information are expandable; required setup warnings stay visible.
+- **Members / Connections** (team admins): compact member and connection lists. Create invitation provides a copy button containing the server, username, one-time code and setup link. Reset/remove and disconnect open confirmation pages. Connection diagnostics are under Sign-in troubleshooting.
+- **Overview**: status of the Worker (deployed version), D1 and the file store, KV or R2 (answer time), sign-in (members, admins, assistants connected, signing key) and the last cleanup; packets sent per day over 14 days; latency by tool (p50, p95, max) and tool calls ok / failed over 7 days; refused tokens and wrong sign-in codes; calls per member; recent activity.
+- **Members**: each member with a liveness dot (seen within an hour, within 7 days, longer ago, never), last seen, last sign-in, assistants signed in now, calls over 7 days, and live packets sent and addressed to them. Add a member, reset a code, remove a member.
+- **Assistants**: each assistant signed in as each member: the name it gave when it registered, the name and version it announced at MCP initialize, the host its sign-in returns to (`127.0.0.1` or `localhost` = an app on that computer), first and last seen, calls, connected or signed out. Disconnect one assistant. Lists refused tokens by reason, wrong sign-in codes by username, and registrations never used.
+- **Ops**: deployment (version, address, issuer, signing key, limits), database counts and applied migrations, files in storage by state, cleanup runs with a **Run cleanup now** button, recent problems (tool errors, refused tokens, wrong codes, failed cleanups), and the console's own record of who did what.
 
-There is no packet viewer: the console never shows a title, a brief, a file name, a code or a token. A new
-access code is the one exception: it is shown once, on the page right after Add or Reset.
+There is no packet viewer in `/console`: the admin console never shows a title, a brief, a file name, a code or a token. A new access code is the one exception: it is shown once, on the page right after Add or Reset.
 
 ## What the actions do
 
-- **Add member**: creates the username with a new code (`hf-` and 96 random bits), shown once. `team` and `all`
-  are reserved: they address every member in `handoff_send`.
-- **Reset code**: a new code, shown once. The old code stops, and every assistant of that member is signed out
-  at once: their refresh tokens are revoked, and access tokens issued before the reset are refused. Resetting
-  your own code ends your console session too. `npm run member:add -- <existing username>` does the same.
-- **Remove member**: deletes the member and their admin grant, signs out all their assistants, and revokes the
-  live packets they sent or that were addressed to them, so a member added later with the same username cannot
-  read them. Packets to the whole team stay. You cannot remove yourself.
-- **Delete team** (team admins on the control center, at the bottom of Your team): asks first, then removes every
-  member of the team with their sessions, invitations and admin grants, signs out all their assistants, revokes
-  every live packet the team sent or received, claims its unsent files for the next cleanup, and frees the team
-  name. Revoked packets and their files are deleted by the cleanup within 7 days. This is how a team is deleted:
-  the operator does not delete teams on request or recover lost access codes.
+- **Add member**: creates the username with a new code (`tp-` and 96 random bits), shown once. `team` and `all` are reserved: they address every member in `threadpacket_send`.
+- **Reset code**: a new code, shown once. The old code stops, and every assistant of that member is signed out at once: their refresh tokens are revoked, and access tokens issued before the reset are refused. Resetting your own code ends your console session too. `npm run member:add -- <existing username>` does the same.
+- **Remove member**: deletes the member and their admin grant, signs out all their assistants, and revokes the live packets they sent or that were addressed to them, so a member added later with the same username cannot read them. Packets to the whole team stay. You cannot remove yourself.
+- **Delete team** (team admins on the control center, at the bottom of Your team): asks first, then removes every member of the team with their sessions, invitations and admin grants, signs out all their assistants, revokes every live packet the team sent or received, claims its unsent files for the next cleanup, and frees the team name. Revoked packets and their files are deleted by the cleanup within 7 days. This is how a team is deleted: the operator does not delete teams on request or recover lost access codes.
 - **Disconnect** (Assistants): signs out one assistant of one member at once. Signing in again works.
 - **Run cleanup now**: the hourly cleanup, run immediately.
 
@@ -111,60 +52,27 @@ Each action asks first on a page of its own, except Add and Run cleanup.
 
 ## How it is kept safe
 
-- Session: one per account for the whole site (Assets, Assistant setup and the console). The
-  `__Host-handoff-session` cookie (Secure, HttpOnly, SameSite=Strict, Path=/) holds a random token per account,
-  the active one first, at most five. D1 keeps only each token's sha256, bound to the member's code hash, so a code
-  reset ends the session. A session ends after 30 days without use (renewed at most once a day); the cookie lives
-  400 days because D1 decides, and the sign-in page clears a cookie whose sessions all ended. The console checks
-  the admin grant and the code hash on every request.
-- Changes are form POSTs that must carry this origin's `Origin` header and the session's CSRF value
-  (sha256 of the session token, in a hidden field). Pages use `referrer-policy: same-origin`: with
-  `no-referrer` a browser sends `Origin: null` and the check would refuse the form.
+- Session: one per account for the whole site (Packets, Assistant setup and the console). The `__Host-threadpacket-session` cookie (Secure, HttpOnly, SameSite=Strict, Path=/) holds a random token per account, the active one first, at most five. D1 keeps only each token's sha256, bound to the member's code hash, so a code reset ends the session. A session ends after 30 days without use (renewed at most once a day); the cookie lives 400 days because D1 decides, and the sign-in page clears a cookie whose sessions all ended. The console checks the admin grant and the code hash on every request.
+- Changes are form POSTs that must carry this origin's `Origin` header and the session's CSRF value (sha256 of the session token, in a hidden field). Pages use `referrer-policy: same-origin`: with `no-referrer` a browser sends `Origin: null` and the check would refuse the form.
 - Sign-in (`/login`): at most 10 attempts per 10 minutes per client IP (only a hash of the IP is stored).
-- Pages: `no-store`, `noindex`, and a CSP with `default-src 'none'`, `form-action 'self'` and
-  `frame-ancestors 'none'`. Setup and new-code pages allow only their nonce script; other console pages allow
-  no script. Copying requires a button click, and codes never enter browser storage or URLs.
+- Pages: `no-store`, `noindex`, and a CSP with `default-src 'none'`, `form-action 'self'` and `frame-ancestors 'none'`. Setup and new-code pages allow only their nonce script; other console pages allow no script. Copying requires a button click, and codes never enter browser storage or URLs.
 
 ## Where the numbers come from
 
-The `events` table records, per request: tool calls (tool name, member, client, outcome
-code, time taken), MCP initialize (the client's announced name and version), refused tokens (the reason),
-sign-ins at `/authorize` (ok or wrong code), token grants, cleanup runs, and console actions. No arguments,
-titles, briefs, file names, codes or tokens. Events from requests without a valid token (refused tokens,
-wrong codes) are capped at 60 per minute per Worker isolate, so a flood cannot fill the table. Events are
-kept 30 days.
+The `events` table records, per request: tool calls (tool name, member, client, outcome code, time taken), MCP initialize (the client's announced name and version), refused tokens (the reason), sign-ins at `/authorize` (ok or wrong code), token grants, cleanup runs, web logins, Packets actions, and console actions. No arguments, titles, briefs, file names, codes or tokens. Events from requests without a valid token (refused tokens, wrong codes) are capped at 60 per minute per Worker isolate, so a flood cannot fill the table. Events are kept 30 days.
 
-`access_revocations` holds the revocations of the last 9 hours: an access token for that
-member and client issued at or before the revocation is refused (`src/auth/verify.ts`). Access tokens live
-8 hours, so older rows do nothing and cleanup removes them.
+`access_revocations` holds the revocations of the last 9 hours: an access token for that member and client issued at or before the revocation is refused (`src/auth/verify.ts`). Access tokens live 8 hours, so older rows do nothing and cleanup removes them.
 
-Cleanup (hourly, and from Ops) also removes: expired sign-in codes, refresh tokens that expired or were
-revoked more than 7 days ago, client registrations that never got a token within 7 days, ended console
-sessions and login limits.
+Cleanup (hourly, and from Ops) removes expired sign-in codes, refresh tokens that expired or were revoked more than 7 days ago, client registrations that never got a token within 7 days, ended console sessions and login limits.
 
 ## Local run
 
 ```sh
+cp .dev.vars.local.example .dev.vars
 npm run db:migrate:local
 npm run member:add -- me --local
 npm run admin -- me --local
-npm run dev                         # .dev.vars sets PUBLIC_URL=http://localhost:8787
+npm run dev                         # http://localhost:8787
 ```
 
-Open `http://localhost:8787/console`. `PUBLIC_URL` must be the origin you open, or the console refuses forms.
-
-## Tests
-
-`test/console.test.ts`: sign-in page without script and with `same-origin` referrer policy; signed-out
-redirects; admin-only sign-in; cookie flags and a hashed session token; refusal of another origin; the
-10-attempt limit; CSRF; add (code once, hashed, taken and reserved usernames refused); reset (new code works,
-old fails, assistants signed out); own reset ends the session; remove (signed out, packets revoked, not
-yourself); activity recorded and shown without titles, briefs, codes or tokens; disconnect of one assistant
-only; wrong sign-in code recorded; refresh refused for a removed member; cleanup from Ops prunes old events
-and unused registrations and keeps used ones.
-
-`test/control-center.test.ts`: sign-up from a signed-out browser and from another team's or the operator's
-session; the team link on the sign-in page; the code still shown when the session fails; team counts; a
-teammate's sign-in details; a teammate refused at the console; operator-only pages; the operator's Members
-and Assistants list only accounts without a team; authenticated setup and its CSP; login continuation,
-failed sign-in and refusal of arbitrary redirect targets; complete copyable credentials without code-bearing URLs.
+Open `http://localhost:8787/console`. `PUBLIC_URL` (if set) must match the origin you open, or the console refuses forms.

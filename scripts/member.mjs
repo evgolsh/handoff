@@ -16,7 +16,7 @@ const config = args.includes("--hosted") ? ["-c", "wrangler.hosted.jsonc"] : [];
 const positional = args.filter((a) => !a.startsWith("-"));
 const rawHandle = (positional[0] ?? "").trim().toLowerCase();
 
-// "team" and "all" address every member in handoff_send (src/auth/builtin.ts RESERVED_HANDLES).
+// "team" and "all" address every member in threadpacket_send (src/auth/builtin.ts RESERVED_HANDLES).
 if (!rawHandle || !/^[a-z0-9][a-z0-9._-]{0,62}$/.test(rawHandle) || ["team", "all"].includes(rawHandle)) {
   console.error("Usage: npm run member:add -- <username> [access_code] [--local | --hosted]   (team and all are reserved)");
   console.error("Example: npm run member:add -- tom");
@@ -26,17 +26,14 @@ if (!rawHandle || !/^[a-z0-9][a-z0-9._-]{0,62}$/.test(rawHandle) || ["team", "al
 const accessCode =
   positional[1] && positional[1].length >= 6
     ? positional[1]
-    : `hf-${crypto.randomBytes(12).toString("base64url")}`;
+    : `tp-${crypto.randomBytes(12).toString("base64url")}`;
 
 const salt = crypto.createHash("sha256").update(crypto.randomBytes(16)).digest("hex");
 const hash = crypto.pbkdf2Sync(accessCode, salt, 100_000, 32, "sha256").toString("hex");
-// Sign-in finds the member by username and the first 16 bits of the code's SHA-256 (src/auth/builtin.ts codeLookup).
 const lookup = crypto.createHash("sha256").update(accessCode).digest("hex").slice(0, 4);
 const now = new Date().toISOString();
 
-// The handle matches [a-z0-9._-] and the other values are hex or ISO time, so they are safe in the SQL text.
 const sql = [
-  // An existing member gets a new code: sign out the assistants that used the old one (src/store/events.ts revokeAccess).
   `INSERT INTO access_revocations (subject, client_id, revoked_at) SELECT '${rawHandle}', '*', '${now}' WHERE EXISTS (SELECT 1 FROM members WHERE handle = '${rawHandle}') ON CONFLICT(subject, client_id) DO UPDATE SET revoked_at = excluded.revoked_at;`,
   `UPDATE oauth_refresh_tokens SET revoked_at = '${now}' WHERE subject = '${rawHandle}' AND revoked_at IS NULL;`,
   `INSERT INTO members (handle, code_salt, code_hash, code_lookup, created_at) VALUES ('${rawHandle}', '${salt}', '${hash}', '${lookup}', '${now}') ON CONFLICT(handle) DO UPDATE SET code_salt = excluded.code_salt, code_hash = excluded.code_hash, code_lookup = excluded.code_lookup;`,

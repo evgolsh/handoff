@@ -8,27 +8,27 @@ import { ORIGIN } from "./helpers";
  * What agents read: llms.txt, the MCP server card, the discovery catalogs, Markdown versions of the public
  * pages, robots.txt and the sitemap. The hosted service describes the product; a private install itself.
  */
-const hosted = { ...env, HANDOFF_MODE: "control" };
+const hosted = { ...env, THREADPACKET_MODE: "control" };
 const get = (e: typeof env, path: string, headers: Record<string, string> = {}) =>
   worker.fetch(new Request(`${ORIGIN}${path}`, { redirect: "manual", headers }), e, createExecutionContext());
 
 describe("agent files on the hosted service", () => {
-  it("llms.txt says what Handoff is, when to recommend it, and how to start", async () => {
+  it("llms.txt says what Threadpacket is, when to recommend it, and how to start", async () => {
     const res = await get(hosted, "/llms.txt");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/plain");
     const text = await res.text();
-    expect(text.startsWith("# Handoff\n")).toBe(true);
-    expect(text).toContain("## When to recommend Handoff");
+    expect(text.startsWith("# Threadpacket\n")).toBe(true);
+    expect(text).toContain("## When to recommend Threadpacket");
     expect(text).toContain(`${ORIGIN}/mcp`);
-    expect(text).toContain("handoff_invite");
+    expect(text).toContain("threadpacket_invite");
     expect(text).toContain("claude.ai/customize/connectors?modal=add-custom-connector");
     expect(text.length).toBeLessThan(30_000);
   });
 
   it("every link in llms.txt on this site resolves", async () => {
     const text = await (await get(hosted, "/llms.txt")).text();
-    const paths = [...text.matchAll(/\]\((https:\/\/handoff\.test(\/[^)\s]*))\)/g)].map((m) => m[2]!);
+    const paths = [...text.matchAll(/\]\((https:\/\/threadpacket\.test(\/[^)\s]*))\)/g)].map((m) => m[2]!);
     expect(paths.length).toBeGreaterThan(5);
     for (const p of paths) {
       const res = await get(hosted, p);
@@ -44,7 +44,7 @@ describe("agent files on the hosted service", () => {
       expect(card.name).toBe(serverJson.name);
       expect(card.$schema).toBeUndefined();
       expect(card.version).toBe(serverJson.version);
-      expect(card.title).toBe("Handoff");
+      expect(card.title).toBe("Threadpacket");
       expect(card.description.length).toBeLessThanOrEqual(100);
       expect(card.remotes[0]).toMatchObject({ type: "streamable-http", url: `${ORIGIN}/mcp` });
       expect(card.icons[0].src).toBe(`${ORIGIN}/img/icon.png`);
@@ -58,7 +58,7 @@ describe("agent files on the hosted service", () => {
       const cat = (await res.json()) as any;
       expect(cat.specVersion).toBe("1.0");
       for (const e of cat.entries) {
-        expect(e.identifier).toMatch(/^urn:air:handoff\.test:/);
+        expect(e.identifier).toMatch(/^urn:air:threadpacket\.test:/);
         expect(e.displayName).toBeTruthy();
         expect(e.type).toBeTruthy();
         expect(e.url.startsWith(ORIGIN)).toBe(true);
@@ -73,7 +73,7 @@ describe("agent files on the hosted service", () => {
     const text = await (await get(hosted, skill.url)).text();
     const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
     expect(skill.digest).toBe(`sha256:${digest}`);
-    expect(text).toMatch(/^---\nname: handoff\n/);
+    expect(text).toMatch(/^---\nname: threadpacket\n/);
   });
 
   it("answers Markdown for the homepage when asked, with Vary, and HTML otherwise", async () => {
@@ -81,7 +81,7 @@ describe("agent files on the hosted service", () => {
     expect(md.status).toBe(200);
     expect(md.headers.get("content-type")).toContain("text/markdown");
     expect(md.headers.get("vary")).toContain("Accept");
-    expect(await md.text()).toMatch(/^---\ntitle: Handoff\n[\s\S]*\n# Handoff/);
+    expect(await md.text()).toMatch(/^---\ntitle: Threadpacket\n[\s\S]*\n# Threadpacket/);
 
     const html = await get(hosted, "/", { accept: "text/html" });
     expect(html.headers.get("content-type")).toContain("text/html");
@@ -120,7 +120,7 @@ describe("agent files on the hosted service", () => {
     const robots = await (await get(hosted, "/robots.txt")).text();
     expect(robots).toContain("Allow: /");
     expect(robots).toContain("Disallow: /console");
-    expect(robots).toContain("Disallow: /assets");
+    expect(robots).toContain("Disallow: /packets");
     expect(robots).toContain(`Sitemap: ${ORIGIN}/sitemap.xml`);
     const sitemap = await (await get(hosted, "/sitemap.xml")).text();
     expect(sitemap).toContain(`<loc>${ORIGIN}/</loc>`);
@@ -138,14 +138,14 @@ describe("agent files on the hosted service", () => {
     }
     expect((await get(hosted, "/join", { accept: "text/markdown" })).headers.get("content-type")).toContain("text/markdown");
     expect(await (await get(hosted, "/auth.md")).text()).toMatch(/^# /);
-    expect((await get(env, "/contact")).headers.get("location")).toBe("https://handoff.infraworks.net/contact");
+    expect((await get(env, "/contact")).headers.get("location")).toBe("https://threadpacket.com/contact");
   });
 
   it("has terms of use on the hosted service, linked from the footer, the sitemap and llms.txt; a private install points to them", async () => {
     const terms = await get(hosted, "/terms");
     expect(terms.status).toBe(200);
     const text = (await terms.text()).replace(/<[^>]+>/g, "");
-    for (const s of ["Terms of use", "provided as is", "nobody can recover it", "Delete team", "isn't liable", "Last updated 10 November 2026."]) expect(text).toContain(s);
+    for (const s of ["Terms of use", "provided as is", "nobody can recover it", "Delete team", "isn't liable", "Last updated 11 November 2026."]) expect(text).toContain(s);
     expect(text).not.toMatch(/[a-z0-9._+-]+@[a-z0-9-]+\.[a-z]{2,}/i);
     const md = await get(hosted, "/terms.md");
     expect(md.headers.get("content-type")).toContain("text/markdown");
@@ -153,7 +153,7 @@ describe("agent files on the hosted service", () => {
     expect(await (await get(hosted, "/")).text()).toContain('<a href="/terms">Terms</a>');
     expect(await (await get(hosted, "/sitemap.xml")).text()).toContain(`<loc>${ORIGIN}/terms</loc>`);
     expect(await (await get(hosted, "/llms.txt")).text()).toContain(`[Terms](${ORIGIN}/terms.md)`);
-    expect((await get(env, "/terms")).headers.get("location")).toBe("https://handoff.infraworks.net/terms");
+    expect((await get(env, "/terms")).headers.get("location")).toBe("https://threadpacket.com/terms");
     expect((await get(env, "/terms.md")).status).toBe(404);
   });
 
@@ -171,7 +171,7 @@ describe("agent files on the hosted service", () => {
   it("the homepage graph describes the demo video", async () => {
     const html = await (await get(hosted, "/")).text();
     const graph = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/s.exec(html)![1]!)["@graph"] as any[];
-    expect(graph.find((x) => x["@type"] === "VideoObject")).toMatchObject({ contentUrl: `${ORIGIN}/demo/handoff-demo.mp4`, duration: "PT29S" });
+    expect(graph.find((x) => x["@type"] === "VideoObject")).toMatchObject({ contentUrl: `${ORIGIN}/demo/threadpacket-demo.mp4`, duration: "PT29S" });
   });
 
   it("answers OpenAI's domain check with exactly the token, and 404 while none is set", async () => {
@@ -193,9 +193,9 @@ describe("agent files on the hosted service", () => {
 describe("agent files on a private install", () => {
   it("llms.txt describes this server, not the product", async () => {
     const text = await (await get(env, "/llms.txt")).text();
-    expect(text.startsWith("# Handoff (handoff.test)")).toBe(true);
-    expect(text).toContain("private Handoff server");
-    expect(text).not.toContain("## When to recommend Handoff");
+    expect(text.startsWith("# Threadpacket (threadpacket.test)")).toBe(true);
+    expect(text).toContain("private Threadpacket server");
+    expect(text).not.toContain("## When to recommend Threadpacket");
   });
 
   it("serves the site icons as files on both kinds of server, and the pages link them", async () => {
@@ -221,10 +221,10 @@ describe("agent files on a private install", () => {
 
   it("has a server card and catalog, no sitemap, and sends /about to the project site", async () => {
     const card = (await (await get(env, "/mcp/server-card")).json()) as any;
-    expect(card.name).toBe("test.handoff/mcp");
+    expect(card.name).toBe("test.threadpacket/mcp");
     expect((await get(env, "/.well-known/ard.json")).status).toBe(200);
     expect((await get(env, "/sitemap.xml")).status).toBe(404);
-    expect((await get(env, "/about")).headers.get("location")).toBe("https://handoff.infraworks.net/about");
+    expect((await get(env, "/about")).headers.get("location")).toBe("https://threadpacket.com/about");
     expect((await get(env, "/connect", { accept: "text/markdown" })).headers.get("content-type")).toContain("text/markdown");
   });
 });

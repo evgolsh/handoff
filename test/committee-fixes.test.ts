@@ -38,7 +38,7 @@ describe("2.1: only OAuth access tokens are accepted", () => {
   });
 
   it("accepts an access token that names its client", async () => {
-    const bearer = await signed({ client_id: "client_test_1", scope: "handoff offline_access", jti: "j1" });
+    const bearer = await signed({ client_id: "client_test_1", scope: "threadpacket offline_access", jti: "j1" });
     expect((await rpc(bearer, "tools/list")).status).toBe(200);
   });
 });
@@ -48,8 +48,8 @@ describe("2.3: replaying a key whose packet is gone", () => {
     const a = await alice();
     const key = crypto.randomUUID();
     const sent = await send(a, { idempotency_key: key, title: "to revoke" });
-    expectOk(await call(a, "handoff_revoke", { packet_id: sent.packet_id }));
-    const text = errorText(await call(a, "handoff_send", { title: "to revoke", brief: "Purpose: ship the VAT fix.\nDecision: keep Hono.\nNext: run the tests.", idempotency_key: key }));
+    expectOk(await call(a, "threadpacket_revoke", { packet_id: sent.packet_id }));
+    const text = errorText(await call(a, "threadpacket_send", { title: "to revoke", brief: "Purpose: ship the VAT fix.\nDecision: keep Hono.\nNext: run the tests.", idempotency_key: key }));
     expect(text).toContain("revoked");
     expect(text).toContain(String(sent.packet_id));
     expect(text).toContain("new idempotency_key");
@@ -60,7 +60,7 @@ describe("2.3: replaying a key whose packet is gone", () => {
     const key = crypto.randomUUID();
     const sent = await send(a, { idempotency_key: key, title: "to expire" });
     await env.DB.prepare("UPDATE packets SET expires_at = ? WHERE id = ?").bind(new Date(Date.now() - 60_000).toISOString(), sent.packet_id).run();
-    const text = errorText(await call(a, "handoff_send", { title: "to expire", brief: "Purpose: ship the VAT fix.\nDecision: keep Hono.\nNext: run the tests.", idempotency_key: key }));
+    const text = errorText(await call(a, "threadpacket_send", { title: "to expire", brief: "Purpose: ship the VAT fix.\nDecision: keep Hono.\nNext: run the tests.", idempotency_key: key }));
     expect(text).toContain("expired");
     expect(text).toContain("new idempotency_key");
   });

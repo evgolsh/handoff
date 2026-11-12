@@ -2,56 +2,45 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createExecutionContext, env, SELF } from "cloudflare:test";
 import worker from "../src/index";
 import { ORIGIN } from "./helpers";
-
-/** The homepage is served by the control center (HANDOFF_MODE=control); a private install sends / to /connect. */
-const control = { ...env, HANDOFF_MODE: "control" };
-const home = (path = "/") => worker.fetch(new Request(`${ORIGIN}${path}`), control, createExecutionContext());
 import { FONT_FILES } from "../src/http/style";
 import { DEPLOY_PATH, INSTALL_URL, GITHUB_URL } from "../src/http/header";
 
-describe("connect page", () => {
+/** The homepage is served by the control center (THREADPACKET_MODE=control); a private install sends / to /connect. */
+const control = { ...env, THREADPACKET_MODE: "control" };
+const home = (path = "/") => worker.fetch(new Request(`${ORIGIN}${path}`), control, createExecutionContext());
+
+describe("connect and homepage (Courier Hybrid)", () => {
   beforeEach(async () => {
-    // An instance is active once an admin exists in admin_members.
     await env.DB.batch([
       env.DB.prepare("INSERT OR IGNORE INTO members (handle, code_salt, code_hash, created_at) VALUES ('tim', 's', 'h', '2026-10-27T00:00:00Z')"),
       env.DB.prepare("INSERT OR IGNORE INTO admin_members (handle) VALUES ('tim')"),
     ]);
   });
 
-  it("/connect shows the server address and setup steps for each host on an active instance", async () => {
+  it("/connect shows the stamped MCP server bar and setup steps for each host on an active instance", async () => {
     const res = await SELF.fetch(`${ORIGIN}/connect`);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
     expect(html).toContain(`data-copy="${ORIGIN}/mcp"`);
-    expect(html).toContain(`claude mcp add --transport http --scope user handoff ${ORIGIN}/mcp`);
-    expect(html).toContain(`hermes mcp add handoff --url ${ORIGIN}/mcp --auth oauth`);
-    expect(html).toContain(`codex mcp add handoff --url ${ORIGIN}/mcp`);
-    for (const host of ["Claude Code", "Hermes", "Claude", "Codex", "ChatGPT"]) expect(html).toContain(`<span class="tab-name">${host}</span>`);
-    // Each guide's badge says how far it was tested, with the meaning on hover. The tabs name the assistant only:
-    // a dot on a tab reads as "connected".
+    expect(html).toContain(`claude mcp add --transport http --scope user threadpacket ${ORIGIN}/mcp`);
+    expect(html).toContain(`hermes mcp add threadpacket --url ${ORIGIN}/mcp --auth oauth`);
+    expect(html).toContain(`codex mcp add threadpacket --url ${ORIGIN}/mcp`);
+    for (const host of ["Claude Code", "Hermes", "Claude", "Codex", "ChatGPT"]) {
+      expect(html).toContain(`<span class="tab-name">${host}</span>`);
+    }
     const tags = [...html.matchAll(/<span class="badge" title="([^"]+)"><span class="dot [a-z]+" aria-hidden="true"><\/span>([^<]+)<\/span>/g)].map((m) => [m[2], m[1]]);
-    expect(tags).toEqual(Array(5).fill(["Tested", "Tested: sign-in and sending worked with Handoff."]));
+    expect(tags).toEqual(Array(5).fill(["Tested", "Tested: sign-in and sending worked with Threadpacket."]));
     expect(html).not.toMatch(/role="tab"[^>]*>(?:(?!<\/button>).)*class="dot/s);
-    expect(html).not.toContain("About these guides");
-    // Every tab has the assistant's mark: the Claude logo, the OpenAI logo, or Hermes's (a CSS mask image).
     expect(html.match(/<span class="tab-logo [a-z-]+" aria-hidden="true">/g)?.length).toBe(5);
     expect(html).toContain('<span class="tab-logo hermes" aria-hidden="true"></span>');
     expect(html).toMatch(/\.tab-logo\.hermes \{[^}]*mask:url\("data:image\/png;base64,/);
-    expect(html).toContain("Add it once: the connector follows your Claude account to every computer.");
-    expect(html).toContain("Tested with Handoff in the Claude desktop app on Windows: sign-in, send, and files once the server is an allowed domain (below).");
-    expect(html).toContain("Add it once: the connection follows your ChatGPT account to chatgpt.com and the Codex app, on every computer.");
-    expect(html).toContain(`<p class="warn">To attach files, add <code>${new URL(ORIGIN).host}</code> to the allowed domains`);
-    expect(html).not.toContain("not yet tested");
-    // Codex names the routes that were tested; download links are said to be bearer links.
-    expect(html).toContain("Tested with Handoff in the Codex app on macOS and Windows: sign-in, send, read and files.");
-    expect(html).toContain("works for anyone who has it, for 10 minutes");
-    for (const filler of ["One inbox. All your assistants.", "Setup instructions for each assistant.", "Plan in one AI. Build in another.", "with clear limits", "own sandbox", "Also tested in the Codex app"]) {
-      expect(html).not.toContain(filler);
-    }
+    expect(html).toContain(`<p class="warn-box">To attach files, add <code>${new URL(ORIGIN).host}</code> to the allowed domains`);
+    expect(html).toContain("for 10 minutes");
+    expect(html).not.toContain("—");
   });
 
-  it("allows only its own nonce script", async () => {
+  it("allows only its own nonce script on /connect", async () => {
     const res = await SELF.fetch(`${ORIGIN}/connect`);
     const csp = res.headers.get("content-security-policy") ?? "";
     const nonce = /script-src 'nonce-([^']+)'/.exec(csp)?.[1];
@@ -77,8 +66,8 @@ describe("connect page", () => {
     expect(html).not.toMatch(/https:\/\/fonts\.|googleapis/);
   });
 
-  it("a signed-in browser's public pages lead to the Dashboard, not to Sign in, and no shared cache keeps either version", async () => {
-    const cookie = `__Host-handoff-session=${"s".repeat(43)}`;
+  it("a signed-in browser's public pages lead to Dashboard, not Sign in, and no shared cache keeps either version", async () => {
+    const cookie = `__Host-threadpacket-session=${"s".repeat(43)}`;
     for (const path of ["/", "/privacy", "/terms", "/about", "/contact"]) {
       const out = await home(path);
       expect(out.headers.get("cache-control"), path).toBe("private, no-cache");
@@ -86,32 +75,25 @@ describe("connect page", () => {
       const res = await worker.fetch(new Request(`${ORIGIN}${path}`, { headers: { cookie } }), control, createExecutionContext());
       const html = await res.text();
       expect(html, path).not.toContain(">Sign in</a>");
-      expect(html, path).toContain('href="/assets">');
+      expect(html, path).toContain('href="/packets">');
     }
     const signedIn = await (await worker.fetch(new Request(`${ORIGIN}/`, { headers: { cookie } }), control, createExecutionContext())).text();
-    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Dashboard</a>');
-    expect(signedIn).toContain('<a class="site-button primary" href="/assets">Dashboard <span aria-hidden="true">→</span></a>');
-    expect(signedIn).not.toContain("Open Assets");
-    expect(signedIn).not.toContain('class="site-button primary" href="/join">');
-    // A private install's pages say the same.
+    expect(signedIn).toContain('<a class="site-button primary" href="/packets">Dashboard</a>');
+    expect(signedIn).toContain('<a class="site-button primary" href="/packets">Dashboard <span aria-hidden="true">→</span></a>');
     const priv = await (await SELF.fetch(`${ORIGIN}/privacy`, { headers: { cookie } })).text();
     expect(priv).not.toContain(">Sign in</a>");
-    expect(priv).toContain('href="/assets">Dashboard</a>');
-    // Old paths are gone.
-    for (const path of ["/b", "/admin"]) expect((await home(path)).status, path).toBe(404);
+    expect(priv).toContain('href="/packets">Dashboard</a>');
+    for (const path of ["/b", "/admin", "/assets"]) expect((await home(path)).status, path).toBe(404);
   });
 
-  it("the sign-in page uses the same fonts and the light and dark palette", async () => {
+  it("the sign-in page uses the same fonts and light/dark palette", async () => {
     const html = await (await SELF.fetch(`${ORIGIN}/authorize`)).text();
     expect(html).toContain("/fonts/ibm-plex-sans-latin-400-normal.woff2");
     expect(html).toContain("prefers-color-scheme: dark");
   });
 
-  it("the control center's homepage leads with the hosted service, offers a private server second, and has /use-cases as an alias", async () => {
+  it("the Courier Hybrid homepage presents the live packet workspace and CSS-switched self-host tab with zero scripts", async () => {
     const connectHtml = await (await SELF.fetch(`${ORIGIN}/connect`)).text();
-    // A private install's "/" is its Connect page: use cases and "About" live on the control center.
-    expect(connectHtml).toContain('href="https://handoff.infraworks.net/#use-cases"');
-    expect(connectHtml).not.toContain('href="/#use-cases"');
     expect(connectHtml).not.toContain('<a href="/">Home</a>');
 
     const res = await home();
@@ -120,83 +102,35 @@ describe("connect page", () => {
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("media-src 'self'");
-    // The only script is JSON-LD, which browsers do not run.
     expect(csp).not.toContain("script-src");
 
     const html = await res.text();
-    expect(html).toContain("Hand your work to <span>someone else’s assistant.</span>");
-    expect(html).toContain("No AI inside: Handoff makes no model calls and needs no API keys.");
-    // The example: joe hands off from Claude, anna continues in ChatGPT.
-    expect(html).toContain("ChatGPT</b><span>anna</span>");
-    expect(html).toContain("<span>Send a handoff</span><b>Car insurance renewal</b>");
-    expect(html).toContain('<p class="msg-user">Continue the handoff from joe.</p>');
-    // How it works starts from the assistant, as README and llms.txt do: connect, create the team on the sign-in
-    // page, invite, hand off.
-    expect(html).toContain('id="how"');
-    const steps = [...html.matchAll(/<span class="how-n">\d+<\/span><h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
-    expect(steps).toEqual(["Add Handoff to your assistant", "Create your team", "Invite your partner", "Hand off"]);
-    // The step cards end with their text: no link pinned under some of them, none that sends a visitor to sign in.
-    // The browser route is one note under the cards.
-    const how = html.slice(html.indexOf('id="how"'), html.indexOf('id="use-cases"'));
-    expect(how).not.toMatch(/<\/p><a [^>]*>[^<]*<\/a><\/li>/);
-    expect(how).not.toContain('href="/assets"');
-    expect(how).toContain('<p class="examples-note">Prefer to start in the browser? <a href="/join">Create a team →</a></p>');
-    // The FAQ links the guide for assistants instead of printing its address.
-    expect(html).toMatch(/from <a href="https:\/\/[^"]+\/llms\.txt">[^<]+\/llms\.txt<\/a>\./);
-    expect(html).toContain("invite anna to Handoff");
-    expect(html).toContain('id="faq"');
-    // The hosted story ends with its questions; the private server follows, with the install demo inside it.
-    const at = (marker: string) => html.indexOf(marker);
-    for (const [a, b] of <[string, string][]>[['id="how"', 'id="use-cases"'], ['id="use-cases"', 'id="faq"'], ['id="faq"', 'id="install"'], ['id="install"', 'id="walkthrough"'], ['id="walkthrough"', "What runs where"]]) {
-      expect(at(a), `${a} before ${b}`).toBeLessThan(at(b));
-    }
-    // Use case 01 tells its own story, not the hero's car insurance renewal.
-    const cases = html.slice(at('id="use-cases"'), at('id="faq"'));
-    expect(cases).not.toMatch(/renewal|insurer/);
-    expect(cases).toContain("tax-letter.pdf");
-    expect(html).toContain("Hand off your first task today.");
-    expect(html).toContain("What runs where");
-    expect(html).not.toContain("noindex");
-    expect(html).not.toContain("—");
-    expect(html).not.toMatch(/playground/i);
-    // The hosted service is the first call to action, and it starts at Assistant setup; a private server is the
-    // second. No second way into /connect competes with it.
-    expect(html).toContain('<a class="site-button primary" href="/connect">Get started <span aria-hidden="true">→</span></a><a class="site-button" href="#how">How it works');
+    expect(html).toContain("From your AI to theirs.");
+    expect(html).toContain("No email required · Zero personal data");
+    expect(html).toContain("No Email, No Personal Data");
+    expect(html).toContain("Packet // joe (Claude) → anna (ChatGPT)");
+    expect(html).toContain("Car insurance renewal");
+    expect(html).toContain("“Continue the packet from joe.”");
+    expect(html).toContain("renewal-offer.pdf");
+    expect(html).toContain('<a class="site-button primary" href="/connect">Get started <span aria-hidden="true">→</span></a>');
     expect(html).toContain('<a class="site-button primary" href="/connect">Get started</a>');
-    expect(html).not.toMatch(/[Gg]et started free/);
-    // Three equal ways to install a private server: the Deploy button, a coding assistant, or the commands.
-    // The browser route uses Cloudflare's own button graphic, served from this origin (the CSP allows no other).
     expect(html).toContain(`class="deploy-button" href="${DEPLOY_PATH}"`);
     expect(html).toContain('<img src="/img/deploy-to-cloudflare.svg" width="184" height="39" alt="Deploy to Cloudflare">');
-    expect(html).toContain("HANDOFF_SETUP_CODE");
-    expect(html).toContain('id="install"');
+    expect(html).toContain("THREADPACKET_SETUP_CODE");
     expect(html).toContain("npm run setup -- --members=tim,tom");
-    expect(html).toContain("Ask a coding assistant");
-    expect(html).toContain("Claude Code, Codex, Gemini CLI, Hermes or any assistant");
-    expect(html).toContain("Node.js 22+");
-    expect(html).toContain("/console/setup</code> on your new server");
-    expect(html).toContain("A file on your phone? Upload it in Assets.");
     expect(html.match(/href="\/deploy"/g)).toHaveLength(1);
-    // The homepage is the brand link: no "Use cases" item in the menu or footer.
-    expect(html).not.toContain(">Use cases</a>");
-    // Signed out, the header's way into setup is Get started; Assistant setup joins it once signed in.
-    expect(html).not.toContain('<a class="nav-link nav-secondary" href="/connect">Assistant setup</a>');
-    // Everyone signs in at /login; an admin's console is in the app's left menu.
     expect(html).toContain('<a class="nav-link nav-secondary" href="/login">Sign in</a>');
-    expect(html).not.toContain(">Manage team</a>");
-    expect(html).toContain("Handoff · Your notes and files, from your assistant to theirs.");
     expect(html).toContain('href="/llms.txt"');
     expect(html).toContain('href="/privacy"');
     expect(html).toContain(`href="${GITHUB_URL}"`);
+    expect(html).not.toContain("noindex");
+    expect(html).not.toContain("—");
+    expect(html).not.toMatch(/playground/i);
     expect(html).toBe(await (await home("/use-cases")).text());
-    // Browsers autoplay only muted video; playsinline keeps iPhones from opening it full screen. The video has no sound.
-    expect(html).toContain('<video autoplay muted loop playsinline controls src="/demo/handoff-demo.mp4"');
-    for (const id of ["household-last-mile", "micro-team-relay", "adversarial-review", "home-server-to-laptop", "pm-designer-to-engineer"]) {
-      expect(html).toContain(`id="${id}"`);
-    }
+    expect(html).toContain('src="/demo/threadpacket-demo.mp4"');
     expect(html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, "")).not.toContain("<script");
 
-    const vid = await SELF.fetch(`${ORIGIN}/demo/handoff-demo.mp4`);
+    const vid = await SELF.fetch(`${ORIGIN}/demo/threadpacket-demo.mp4`);
     expect(vid.status).toBe(200);
     expect(new Uint8Array(await vid.arrayBuffer()).slice(4, 8)).toEqual(new TextEncoder().encode("ftyp"));
   });

@@ -10,7 +10,7 @@ import { newTicketToken, nowIso, sha256Hex } from "../domain/ids";
  * A session lasts 30 days and is renewed while used. The cookie itself lives longer (400 days, the most browsers
  * keep), because D1 decides when a session ends; the sign-in page clears a cookie whose sessions all ended.
  */
-export const COOKIE = "__Host-handoff-session";
+export const COOKIE = "__Host-threadpacket-session";
 export const SESSION_SECONDS = 30 * 24 * 60 * 60;
 const COOKIE_SECONDS = 400 * 24 * 60 * 60;
 /** Renew a session's 30 days at most once a day. */

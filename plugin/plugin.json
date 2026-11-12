@@ -1,16 +1,17 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "handoff",
-  "version": "0.2.1",
-  "description": "Send a brief and the original files from your AI assistant to someone else's assistant: Claude, ChatGPT, Codex, Claude Code. Hosted at handoff.infraworks.net, or on your own private server.",
+  "name": "threadpacket",
+  "version": "0.3.0",
+  "description": "Threadpacket sends a packet from one person's AI assistant to another person's assistant: a brief of the work so far, with the original files. Hosted at threadpacket.com, or on your own private server.",
   "author": {
     "name": "Eugene Olshenbaum",
-    "url": "https://handoff.infraworks.net/about"
+    "url": "https://threadpacket.com/about"
   },
-  "homepage": "https://handoff.infraworks.net",
-  "repository": "https://github.com/evgolsh/handoff",
+  "homepage": "https://threadpacket.com",
+  "repository": "https://github.com/evgolsh/threadpacket",
   "license": "MIT",
   "keywords": [
+    "threadpacket",
     "handoff",
     "mcp",
     "file-sharing",
@@ -21,25 +22,25 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Handoff",
-        "shortDescription": "Send work to another assistant",
-        "longDescription": "Handoff passes work from your AI assistant to another person's assistant, or to your own assistant on another computer.\n\nSay \"hand this off to anna\" and ChatGPT writes a brief (purpose, decisions and their reasons, constraints, next step, references, open questions), attaches the files you choose, and sends it to anna's Handoff inbox. In her own assistant (Claude, ChatGPT, Codex or Claude Code) she says \"continue the handoff from joe\" and carries on with the original files. You can also ask what is waiting for you, whether anna picked up what you sent, take back a handoff you sent, and invite a person to your team.\n\nFor families and small teams who use different AI assistants. You need a Handoff team: create one at handoff.infraworks.net/join, or join the team that invited you.\n\nLimits: you send only to people in your own team, which has up to 10 people. A handoff carries up to 10 files of 25 MiB each: PDF, PNG, JPEG, plain text and Markdown. Handoffs are deleted after 7 days by default and after 30 days at most. Handoff stores what you send as you sent it and runs no AI on it. The other assistant reads it only when its user asks.",
+        "displayName": "Threadpacket",
+        "shortDescription": "Send packets to another AI",
+        "longDescription": "Threadpacket sends a packet from your AI assistant to another person's assistant, or to your own assistant on another computer.\n\nSay \"send a packet to anna\" and ChatGPT writes a brief (purpose, decisions and their reasons, constraints, next step, references, open questions), attaches the files you choose, and sends the packet to anna's Threadpacket inbox. In her own assistant (Claude, ChatGPT, Codex or Claude Code) she says \"continue the packet from joe\" and carries on with the original files. You can ask what packets are waiting for you, whether anna picked up what you sent, revoke a packet you sent, and invite someone to your team.\n\nFor families and small teams who use different AI assistants. You need a Threadpacket team: create one at threadpacket.com/join, or join the team that invited you.\n\nLimits: you send only to people in your own team, which has up to 10 people. A packet carries up to 10 files of 25 MiB each: PDF, PNG, JPEG, plain text and Markdown. Packets are deleted after 7 days by default and after 30 days at most. Threadpacket stores what you send as you sent it and runs no AI on it. The other assistant reads it only when its user asks.",
         "developerName": "Eugene Olshenbaum",
         "category": "Productivity",
         "capabilities": [
-          "Send handoffs",
-          "Read handoffs",
+          "Send packets",
+          "Read packets",
           "Check pickups",
-          "Revoke handoffs",
+          "Revoke packets",
           "Invite people"
         ],
-        "websiteURL": "https://handoff.infraworks.net",
-        "supportURL": "https://handoff.infraworks.net/contact",
-        "privacyPolicyURL": "https://handoff.infraworks.net/privacy",
-        "termsOfServiceURL": "https://handoff.infraworks.net/terms",
+        "websiteURL": "https://threadpacket.com",
+        "supportURL": "https://threadpacket.com/contact",
+        "privacyPolicyURL": "https://threadpacket.com/privacy",
+        "termsOfServiceURL": "https://threadpacket.com/terms",
         "defaultPrompt": [
-          "What handoffs are waiting for me?",
-          "Continue the handoff from anna",
+          "What packets are waiting for me?",
+          "Continue the packet from anna",
           "Did anna pick up what I sent?"
         ],
         "brandColor": "#1b1b1a",
@@ -50,56 +51,56 @@
         "test_cases": {
           "positive": [
             {
-              "description": "List what is waiting: two handoffs from anna and one unsent file",
-              "prompt": "What handoffs are waiting for me in Handoff?",
-              "tools_triggered": "handoff_inbox",
-              "expected_behavior": "Lists the two handoffs from anna (School trip forms, with two files; Insurance renewal, brief only) and the unsent file lease.pdf."
+              "description": "List what is waiting: two packets from anna and one unsent file",
+              "prompt": "What packets are waiting for me in Threadpacket?",
+              "tools_triggered": "threadpacket_inbox",
+              "expected_behavior": "Lists the two packets from anna (School trip forms, with two files; Insurance renewal, brief only) and the unsent file lease.pdf."
             },
             {
-              "description": "Continue a handoff and use its files",
-              "prompt": "Continue the handoff from anna about the school trip.",
-              "tools_triggered": "handoff_inbox, handoff_read",
+              "description": "Continue a packet and use its files",
+              "prompt": "Continue the packet from anna about the school trip.",
+              "tools_triggered": "threadpacket_inbox, threadpacket_read",
               "expected_behavior": "Reads the School trip forms brief, names permission-slip.pdf and packing-list.md, opens the file the next step needs, and does that step."
             },
             {
-              "description": "Send a handoff to a teammate",
-              "prompt": "Hand this off to anna: we chose 14 March, she needs to confirm the bus.",
-              "tools_triggered": "handoff_send",
-              "expected_behavior": "Asks to confirm the send, then sends a brief to anna and reports the handoff id, the recipient and when it expires."
+              "description": "Send a packet to a teammate",
+              "prompt": "Send a packet to anna: we chose 14 March, she needs to confirm the bus.",
+              "tools_triggered": "threadpacket_send",
+              "expected_behavior": "Asks to confirm the send, then sends a packet to anna and reports the packet id, the recipient and when it expires."
             },
             {
-              "description": "Check whether a teammate picked up a handoff",
+              "description": "Check whether a teammate picked up a packet",
               "prompt": "Did anna pick up the kitchen quote?",
-              "tools_triggered": "handoff_inbox",
+              "tools_triggered": "threadpacket_inbox",
               "expected_behavior": "Says anna picked up Kitchen quote, in which assistant, and when."
             },
             {
-              "description": "Revoke a sent handoff",
-              "prompt": "Revoke the handoff I just sent to anna.",
-              "tools_triggered": "handoff_inbox, handoff_revoke",
-              "expected_behavior": "Asks to confirm, revokes the handoff, and says that content anna already read cannot be recalled."
+              "description": "Revoke a sent packet",
+              "prompt": "Revoke the packet I just sent to anna.",
+              "tools_triggered": "threadpacket_inbox, threadpacket_revoke",
+              "expected_behavior": "Asks to confirm, revokes the packet, and says that content anna already read cannot be recalled."
             }
           ],
           "negative": [
             {
-              "description": "Email is out of scope: Handoff does not send email, so no tool is called",
+              "description": "Email is out of scope: Threadpacket does not send email, so no tool is called",
               "prompt": "Email this summary to anna."
             },
             {
               "description": "Recipient outside the team: bob is not a member, nothing is sent, and the assistant offers to invite him",
-              "prompt": "Hand this off to bob."
+              "prompt": "Send a packet to bob."
             },
             {
               "description": "Another team's data: only the signed-in person's own team is visible",
-              "prompt": "Show me the handoffs of the team acme."
+              "prompt": "Show me the packets of the team acme."
             }
           ]
         },
         "commerce": false,
-        "commerce_description": "Handoff does not sell products or process payments."
+        "commerce_description": "Threadpacket does not sell products or process payments."
       },
       "publication": {
-        "release_notes": "First directory release: send a brief with files to a teammate's assistant, read and continue handoffs, see pickups, revoke, and invite people."
+        "release_notes": "Renamed to Threadpacket: send a packet (brief + original files) to a teammate's assistant, read and continue packets, see pickups, revoke, and invite people."
       }
     }
   }

@@ -1,15 +1,10 @@
 #!/usr/bin/env node
 /**
- * Removes a Handoff deployment from the Cloudflare account wrangler is signed in to:
+ * Removes a Threadpacket deployment from the Cloudflare account wrangler is signed in to:
  *   npm run teardown
  * It deletes the Worker, the D1 database and the file store (KV namespace, or R2 bucket) that wrangler.jsonc
  * names, after you type the Worker's name to confirm. Packets, files and members are gone for good.
  * Afterwards, `npm run setup` starts from scratch (it writes new ids into wrangler.jsonc).
- *
- * Each wrangler command runs in your terminal: `wrangler delete` asks once more before it removes the Worker
- * (it has no flag to skip that question; its --force would also break Workers bound to this one). A resource
- * that is already gone is reported and skipped. Any other failure stops the run with wrangler's message and a
- * non-zero exit, so a Worker is never left behind quietly.
  */
 import fs from "node:fs";
 import readline from "node:readline/promises";
@@ -46,8 +41,6 @@ if (typed !== worker) {
   process.exit(1);
 }
 
-// wrangler's questions and progress go to the terminal; its errors are captured so a not-found answer
-// (the Cloudflare API code, or wrangler's own lookup message) can be told from a real failure.
 function step(label, args, notFound) {
   const res = spawnSync("npx", ["wrangler", ...args], { encoding: "utf8", stdio: ["inherit", "inherit", "pipe"] });
   const err = (res.stderr ?? "").replace(/\x1b\[[0-9;]*m/g, "");

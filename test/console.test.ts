@@ -81,7 +81,7 @@ describe("sign-in", () => {
     expect(html).toContain('autocomplete="username"');
     expect(html).toContain('autocomplete="current-password"');
 
-    for (const path of ["/console/overview", "/console/members", "/console/assistants", "/console/ops", "/assets", "/assets/handoff/pk_1"]) {
+    for (const path of ["/console/overview", "/console/members", "/console/assistants", "/console/ops", "/packets", "/packets/pk_1"]) {
       const r = await SELF.fetch(`${ORIGIN}${path}`, { redirect: "manual" });
       expect(r.status).toBe(303);
       expect(r.headers.get("location")).toBe(`/login?next=${encodeURIComponent(path)}`);
@@ -96,11 +96,11 @@ describe("sign-in", () => {
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/console/members");
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toMatch(/^__Host-handoff-session=[A-Za-z0-9_-]{40,};/);
+    expect(setCookie).toMatch(/^__Host-threadpacket-session=[A-Za-z0-9_-]{40,};/);
     // The cookie outlives the session (400 days, the most browsers keep): D1 decides when the session ends, after
     // 30 days unless it is used.
     for (const flag of ["Path=/", "Secure", "HttpOnly", "SameSite=Strict", "Max-Age=34560000"]) expect(setCookie).toContain(flag);
-    const raw = /^__Host-handoff-session=([^;]+)/.exec(setCookie)![1]!;
+    const raw = /^__Host-threadpacket-session=([^;]+)/.exec(setCookie)![1]!;
     const stored = await env.DB.prepare("SELECT token_hash FROM member_sessions WHERE handle = ?").bind(a.handle).all<{ token_hash: string }>();
     expect(stored.results.map((r) => r.token_hash)).toContain(await sha256Hex(raw));
     expect(JSON.stringify(stored.results)).not.toContain(raw);
@@ -120,7 +120,7 @@ describe("sign-in", () => {
     const cookie = (member.headers.get("set-cookie") ?? "").split(";")[0]!;
     const shut = await SELF.fetch(`${ORIGIN}/console/overview`, { redirect: "manual", headers: { cookie } });
     expect(shut.status).toBe(303);
-    expect(shut.headers.get("location")).toBe("/assets");
+    expect(shut.headers.get("location")).toBe("/packets");
     const wrong = await post("/login", { handle: a.handle, access_code: "wrong-code-123" });
     expect(wrong.status).toBe(401);
     expect(wrong.headers.get("set-cookie")).toBeNull();
@@ -130,7 +130,7 @@ describe("sign-in", () => {
     const a = await admin();
     for (const next of ["https://evil.example/x", "//evil.example/x", "/\\evil.example/x", "/login", "javascript:alert(1)", ""]) {
       const res = await post("/login", { handle: a.handle, access_code: a.code, next });
-      expect(res.headers.get("location")).toBe("/assets");
+      expect(res.headers.get("location")).toBe("/packets");
     }
     const page = await (await SELF.fetch(`${ORIGIN}/login?next=${encodeURIComponent("//evil.example")}`)).text();
     expect(page).not.toContain('name="next"');
@@ -160,9 +160,9 @@ describe("sign-in", () => {
     const out = await b.submit("/logout");
     expect(out.status).toBe(303);
     expect(out.headers.get("location")).toBe("/");
-    expect(out.headers.get("set-cookie")).toMatch(/^__Host-handoff-session=; .*Max-Age=0/);
+    expect(out.headers.get("set-cookie")).toMatch(/^__Host-threadpacket-session=; .*Max-Age=0/);
     expect((await b.get("/console/overview")).status).toBe(303);
-    expect((await b.get("/assets")).headers.get("location")).toBe("/login?next=%2Fassets");
+    expect((await b.get("/packets")).headers.get("location")).toBe("/login?next=%2Fpackets");
   });
 });
 
@@ -176,7 +176,7 @@ describe("console members", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const code = codeOn(await res.text());
-    expect(code).toMatch(/^hf-[A-Za-z0-9_-]{16}$/);
+    expect(code).toMatch(/^tp-[A-Za-z0-9_-]{16}$/);
     expect(await verifyMemberCode(env.DB, handle, code!)).toBe(handle);
     expect(await signInMember(env.DB, handle, code!)).toBe(handle);
     // D1 keeps a hash, and no console page shows the code again.
@@ -193,8 +193,8 @@ describe("console members", () => {
     const handle = `reset-${uid()}`;
     await upsertMember(env.DB, handle, "old-code-for-reset");
     const before = await token(handle);
-    expectOk(await call(before, "handoff_inbox"));
-    await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at) VALUES (?, 'c1', ?, 'handoff', ?)")
+    expectOk(await call(before, "threadpacket_inbox"));
+    await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at) VALUES (?, 'c1', ?, 'threadpacket', ?)")
       .bind(`h-${uid()}`, handle, new Date(Date.now() + 86_400_000).toISOString())
       .run();
 
@@ -208,7 +208,7 @@ describe("console members", () => {
     expect(await signInMember(env.DB, handle, code)).toBe(handle);
     expect(await signInMember(env.DB, handle, "old-code-for-reset")).toBeNull();
 
-    const refused = await rpc(before, "tools/call", { name: "handoff_inbox", arguments: {} });
+    const refused = await rpc(before, "tools/call", { name: "threadpacket_inbox", arguments: {} });
     expect(refused.status).toBe(401);
     expect(refused.body.error_description).toContain("revoked");
     const live = await env.DB.prepare("SELECT COUNT(*) AS n FROM oauth_refresh_tokens WHERE subject = ? AND revoked_at IS NULL").bind(handle).first<{ n: number }>();
@@ -236,7 +236,7 @@ describe("console members", () => {
     expect(res.headers.get("location")).toBe(`/console/members?did=removed&member=${handle}`);
     expect(await env.DB.prepare("SELECT 1 FROM members WHERE handle = ?").bind(handle).first()).toBeNull();
     expect((await env.DB.prepare("SELECT revoked_at FROM packets WHERE id = ?").bind(p.packet_id).first<{ revoked_at: string | null }>())?.revoked_at).toBeTruthy();
-    expect((await rpc(t, "tools/call", { name: "handoff_inbox", arguments: {} })).status).toBe(401);
+    expect((await rpc(t, "tools/call", { name: "threadpacket_inbox", arguments: {} })).status).toBe(401);
 
     expect((await b.get(`/console/members/${a.handle}/remove`)).status).toBe(400);
     expect((await b.submit(`/console/members/${a.handle}/remove`)).status).toBe(400);
@@ -261,8 +261,8 @@ describe("console assistants and activity", () => {
     const secretTitle = `Title-${uid()}`;
     const secretBrief = `Brief-${uid()}`;
     await send(ta, { title: secretTitle, brief: secretBrief });
-    await call(ta, "handoff_read", { packet_id: "pk_aaaaaaaaaaaaaaaaaaaa" });
-    expectOk(await call(tb, "handoff_inbox"));
+    await call(ta, "threadpacket_read", { packet_id: "pk_aaaaaaaaaaaaaaaaaaaa" });
+    expectOk(await call(tb, "threadpacket_inbox"));
 
     await eventually(async () =>
       (await env.DB.prepare("SELECT COUNT(*) AS n FROM events WHERE subject = ? AND kind IN ('tool', 'initialize')").bind(handle).first<{ n: number }>())!.n >= 4,
@@ -271,9 +271,9 @@ describe("console assistants and activity", () => {
     expect(outcomes.results).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "initialize", name: "hermes-agent", outcome: "ok", client_id: clientA }),
-        expect.objectContaining({ kind: "tool", name: "handoff_send", outcome: "ok" }),
-        expect.objectContaining({ kind: "tool", name: "handoff_read", outcome: "not_found" }),
-        expect.objectContaining({ kind: "tool", name: "handoff_inbox", outcome: "ok", client_id: clientB }),
+        expect.objectContaining({ kind: "tool", name: "threadpacket_send", outcome: "ok" }),
+        expect.objectContaining({ kind: "tool", name: "threadpacket_read", outcome: "not_found" }),
+        expect.objectContaining({ kind: "tool", name: "threadpacket_inbox", outcome: "ok", client_id: clientB }),
       ]),
     );
 
@@ -285,22 +285,22 @@ describe("console assistants and activity", () => {
       expect(html).not.toContain("activity-code-1");
       expect(html).not.toContain("<script");
     }
-    expect(pages[0]).toContain("handoff_send");
+    expect(pages[0]).toContain("threadpacket_send");
     expect(pages[1]).toContain("Hermes Agent");
     expect(pages[1]).toContain("hermes-agent 0.9.1");
     expect(pages[1]).toContain("127.0.0.1:8765");
     expect(pages[3]).toContain("not_found");
 
     // Disconnect client A: its token is refused at once; client B goes on.
-    await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at) VALUES (?, ?, ?, 'handoff', ?)")
+    await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at) VALUES (?, ?, ?, 'threadpacket', ?)")
       .bind(`h-${uid()}`, clientA, handle, new Date(Date.now() + 86_400_000).toISOString())
       .run();
     const confirm = await b.page(`/console/assistants/disconnect?member=${handle}&client=${clientA}`);
     expect(confirm).toContain("Disconnect Hermes Agent?");
     const res = await b.submit("/console/assistants/disconnect", { member: handle, client: clientA });
     expect(res.status).toBe(303);
-    expect((await rpc(ta, "tools/call", { name: "handoff_inbox", arguments: {} })).status).toBe(401);
-    expectOk(await call(tb, "handoff_inbox"));
+    expect((await rpc(ta, "tools/call", { name: "threadpacket_inbox", arguments: {} })).status).toBe(401);
+    expectOk(await call(tb, "threadpacket_inbox"));
     const refresh = await env.DB.prepare("SELECT revoked_at FROM oauth_refresh_tokens WHERE subject = ? AND client_id = ?").bind(handle, clientA).first<{ revoked_at: string | null }>();
     expect(refresh?.revoked_at).toBeTruthy();
 
@@ -329,7 +329,7 @@ describe("console assistants and activity", () => {
     const ev = await env.DB.prepare("SELECT outcome FROM events WHERE kind = 'sign_in' AND subject = ? ORDER BY id DESC").bind(handle).first<{ outcome: string }>();
     expect(ev?.outcome).toBe("bad_code");
 
-    await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at) VALUES (?, ?, ?, 'handoff', ?)")
+    await env.DB.prepare("INSERT INTO oauth_refresh_tokens (token_hash, client_id, subject, scope, expires_at) VALUES (?, ?, ?, 'threadpacket', ?)")
       .bind(await sha256Hex("hr_refresh-of-removed"), client_id, handle, new Date(Date.now() + 86_400_000).toISOString())
       .run();
     await env.DB.prepare("DELETE FROM members WHERE handle = ?").bind(handle).run();
@@ -354,7 +354,7 @@ describe("console ops", () => {
     const b = await signIn(a);
     const old = new Date(Date.now() - 40 * 86_400_000).toISOString();
     const stale = `stale-${uid()}`;
-    await env.DB.prepare("INSERT INTO events (ts, kind, name, outcome) VALUES (?, 'tool', 'handoff_inbox', 'ok')").bind(old).run();
+    await env.DB.prepare("INSERT INTO events (ts, kind, name, outcome) VALUES (?, 'tool', 'threadpacket_inbox', 'ok')").bind(old).run();
     await env.DB.prepare("INSERT INTO oauth_clients (client_id, redirect_uris, client_name, created_at) VALUES (?, '[]', 'never used', ?)").bind(stale, old).run();
     const used = `used-${uid()}`;
     await env.DB.prepare("INSERT INTO oauth_clients (client_id, redirect_uris, client_name, created_at, last_used_at) VALUES (?, '[]', 'used once', ?, ?)").bind(used, old, old).run();

@@ -70,7 +70,7 @@ async function authorizePage(clientId: string, redirectUri: string): Promise<str
     code_challenge: await challenge(),
     code_challenge_method: "S256",
     state: "st",
-    scope: "handoff offline_access",
+    scope: "threadpacket offline_access",
   });
   const res = await SELF.fetch(`${ORIGIN}/authorize?${q}`);
   expect(res.status).toBe(200);
@@ -109,7 +109,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
         code_challenge: await challenge(),
         code_challenge_method: "S256",
         state: "st",
-        scope: "handoff offline_access",
+        scope: "threadpacket offline_access",
         handle,
         access_code: "cc-passcode-2026",
       }),
@@ -161,7 +161,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
         code_challenge: await challenge(),
         code_challenge_method: "S256",
         state: "st",
-        scope: "handoff offline_access",
+        scope: "threadpacket offline_access",
         handle,
         access_code: "gpt-passcode-2026",
       }),
@@ -182,7 +182,7 @@ describe("client metadata documents (an https client_id, as Claude Code uses)", 
       method: "POST",
       redirect: "manual",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: "code", code_challenge: await challenge(), code_challenge_method: "S256", state: "st", scope: "handoff offline_access", handle, access_code: "gpt-passcode-2026" }),
+      body: new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: "code", code_challenge: await challenge(), code_challenge_method: "S256", state: "st", scope: "threadpacket offline_access", handle, access_code: "gpt-passcode-2026" }),
     });
     const code2 = new URL(signIn2.headers.get("location")!).searchParams.get("code")!;
     const tokenRes = await SELF.fetch(`${ORIGIN}/oauth/token`, {

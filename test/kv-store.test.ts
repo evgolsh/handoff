@@ -55,7 +55,7 @@ describe("Workers KV as the file store", () => {
   it("stores an upload in KV with its type and size, serves it back by download ticket, and cleanup deletes it", async () => {
     const bearer = await alice();
     const id = await upload(bearer, PDF);
-    const sent = await rpc(bearer, "handoff_send", { title: "KV test", brief: "Files live in KV on this server.", attachment_ids: [id], idempotency_key: crypto.randomUUID() });
+    const sent = await rpc(bearer, "threadpacket_send", { title: "KV test", brief: "Files live in KV on this server.", attachment_ids: [id], idempotency_key: crypto.randomUUID() });
     const packetId = sent.packet_id as string;
 
     // The bytes are in the KV namespace, under the attachment's key, with the metadata the download needs.
@@ -66,7 +66,7 @@ describe("Workers KV as the file store", () => {
     expect(new Uint8Array(stored.value!)).toEqual(PDF);
     expect(await env.BLOBS.list().then((l) => l.objects.length)).toBe(0);
 
-    const read = await rpc(bearer, "handoff_read", { packet_id: packetId, attachment_id: id, representation: "original" });
+    const read = await rpc(bearer, "threadpacket_read", { packet_id: packetId, attachment_id: id, representation: "original" });
     const dl = await fetchKv(read.download_url as string);
     expect(dl.status).toBe(200);
     expect(dl.headers.get("content-type")).toBe("application/pdf");

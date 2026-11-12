@@ -1,18 +1,19 @@
 {
-  "name": "handoff",
-  "displayName": "Handoff",
-  "version": "0.2.1",
-  "description": "Send a brief and the original files from your AI assistant to someone else's assistant: Claude, ChatGPT, Codex, Claude Code. Hosted at handoff.infraworks.net, or on your own private server.",
+  "name": "threadpacket",
+  "displayName": "Threadpacket",
+  "version": "0.3.0",
+  "description": "Threadpacket sends a packet from one person's AI assistant to another person's assistant: a brief of the work so far, with the original files. Hosted at threadpacket.com, or on your own private server.",
   "author": {
     "name": "Eugene Olshenbaum",
-    "url": "https://handoff.infraworks.net/about"
+    "url": "https://threadpacket.com/about"
   },
   "license": "MIT",
-  "homepage": "https://handoff.infraworks.net",
-  "repository": "https://github.com/evgolsh/handoff",
-  "privacyPolicyUrl": "https://handoff.infraworks.net/privacy",
+  "homepage": "https://threadpacket.com",
+  "repository": "https://github.com/evgolsh/threadpacket",
+  "privacyPolicyUrl": "https://threadpacket.com/privacy",
   "icon": "./assets/icon.png",
   "keywords": [
+    "threadpacket",
     "handoff",
     "mcp",
     "file-sharing",

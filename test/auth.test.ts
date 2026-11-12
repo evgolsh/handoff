@@ -14,7 +14,7 @@ describe("protected resource metadata", () => {
       expect(meta.authorization_servers).toEqual([ORIGIN]);
       expect(ISSUER).toBe(ORIGIN);
       expect(meta.bearer_methods_supported).toEqual(["header"]);
-      expect(meta.scopes_supported).toEqual(["handoff", "offline_access"]);
+      expect(meta.scopes_supported).toEqual(["threadpacket", "offline_access"]);
     }
   });
 });
@@ -31,7 +31,7 @@ describe("bearer token checks on /mcp", () => {
     const res = await post({});
     expect(res.status).toBe(401);
     const www = res.headers.get("www-authenticate") ?? "";
-    expect(www).toContain('resource_metadata="https://handoff.test/.well-known/oauth-protected-resource"');
+    expect(www).toContain('resource_metadata="https://threadpacket.test/.well-known/oauth-protected-resource"');
     expect(www).toMatch(/^Bearer /);
   });
 
@@ -65,18 +65,18 @@ describe("bearer token checks on /mcp", () => {
     const { status, body } = await rpc(await alice(), "tools/list");
     expect(status).toBe(200);
     expect(body.result.tools.map((t: any) => t.name).sort()).toEqual(
-      ["handoff_inbox", "handoff_invite", "handoff_read", "handoff_revoke", "handoff_send", "handoff_upload_url"].sort(),
+      ["threadpacket_inbox", "threadpacket_invite", "threadpacket_read", "threadpacket_revoke", "threadpacket_send", "threadpacket_upload_url"].sort(),
     );
   });
 
   it("never lets the owner come from request input", async () => {
     // Bob has a packet; Alice asks for Bob's inbox by argument. The owner is the token's subject, so she sees only hers.
     const bobPacket = await rpc(await token("user_bob"), "tools/call", {
-      name: "handoff_send",
+      name: "threadpacket_send",
       arguments: { title: "bob's", brief: "b", idempotency_key: crypto.randomUUID() },
     });
     const bobId = bobPacket.body.result.structuredContent.packet_id;
-    const { body } = await rpc(await alice(), "tools/call", { name: "handoff_inbox", arguments: { owner_id: "user_bob", owner: "user_bob", user_id: "user_bob" } });
+    const { body } = await rpc(await alice(), "tools/call", { name: "threadpacket_inbox", arguments: { owner_id: "user_bob", owner: "user_bob", user_id: "user_bob" } });
     const ids = (body.result.structuredContent.packets as any[]).map((p) => p.packet_id);
     expect(ids).not.toContain(bobId);
   });
@@ -104,7 +104,7 @@ describe("authorize page", () => {
     });
     const { client_id } = (await reg.json()) as { client_id: string };
     const html = await (await SELF.fetch(`${ORIGIN}/authorize?client_id=${client_id}&redirect_uri=${encodeURIComponent("http://localhost:33418/callback")}&response_type=code&code_challenge=abc&code_challenge_method=S256`)).text();
-    expect(html).toContain("<strong>Claude Code &lt;b&gt;</strong> asks to use Handoff as you");
+    expect(html).toContain("<strong>Claude Code &lt;b&gt;</strong> asks to use Threadpacket as you");
     expect(html).toContain("<code>localhost:33418</code>");
     expect(html).toContain('<form method="post" action="/authorize" class="flow-panel">');
   });
@@ -120,7 +120,7 @@ describe("authorize page", () => {
     const { client_id } = (await reg.json()) as { client_id: string };
     const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
     const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
-    const oauth = { client_id, redirect_uri: redirectUri, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "handoff offline_access" };
+    const oauth = { client_id, redirect_uri: redirectUri, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "s1", scope: "threadpacket offline_access" };
     const html = await (await SELF.fetch(`${ORIGIN}/authorize?${new URLSearchParams(oauth)}`)).text();
     expect(html).toContain("<code>cursor://anysphere.cursor-mcp</code>");
 

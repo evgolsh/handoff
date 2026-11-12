@@ -1,26 +1,26 @@
 // Fills a directory reviewer's team with the sample set its review cases use (.quorum/DIRECTORIES.md):
 //   from anna to joe: "School trip forms" (permission-slip.pdf, packing-list.md) and "Insurance renewal" (brief only);
 //   from joe to anna: "Kitchen quote", picked up by anna;
-//   in joe's Assets: the unsent file lease.pdf.
+//   in joe's Packets: the unsent file lease.pdf.
 // It signs in as joe and as anna over the public OAuth flow and then uses only the MCP tools, as an assistant
-// does. Handoffs live 720 hours, the longest the hosted service allows.
+// does. Packets live 720 hours, the longest the hosted service allows.
 //
-// Running it again adds nothing that is there already. A handoff with less than 7 days left is revoked and sent
+// Running it again adds nothing that is there already. A packet with less than 7 days left is revoked and sent
 // again, and lease.pdf is uploaded again once the hourly cleanup has removed it (7 days after its upload), so
 // running it every day keeps the set complete. The access codes come from the environment and are never printed.
 //
-//   HANDOFF_URL=http://127.0.0.1:8798 REVIEW_TEAM=smiths JOE_CODE=… ANNA_CODE=… node scripts/seed-review.mjs
+//   THREADPACKET_URL=http://127.0.0.1:8787 REVIEW_TEAM=smiths JOE_CODE=… ANNA_CODE=… node scripts/seed-review.mjs
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-const BASE = (process.env.HANDOFF_URL ?? "").replace(/\/+$/, "");
+const BASE = (process.env.THREADPACKET_URL ?? "").replace(/\/+$/, "");
 const TEAM = process.env.REVIEW_TEAM ?? "";
 const CODES = { joe: process.env.JOE_CODE ?? "", anna: process.env.ANNA_CODE ?? "" };
 const HOURS = 720;
 const REFRESH_MS = 7 * 24 * 3_600_000;
-const CLIENT_NAME = "Handoff sample data";
+const CLIENT_NAME = "Threadpacket sample data";
 
 if (!/^https?:\/\/[^/]+$/.test(BASE) || !TEAM || !CODES.joe || !CODES.anna) {
-  console.error("Set HANDOFF_URL (the server's origin), REVIEW_TEAM, JOE_CODE and ANNA_CODE.");
+  console.error("Set THREADPACKET_URL (the server's origin), REVIEW_TEAM, JOE_CODE and ANNA_CODE.");
   process.exit(2);
 }
 
@@ -116,7 +116,7 @@ async function signIn(handle) {
     code_challenge: b64url(createHash("sha256").update(verifier).digest()),
     code_challenge_method: "S256",
     state,
-    scope: "handoff",
+    scope: "threadpacket",
     handle,
     access_code: CODES[handle],
   });
@@ -158,7 +158,7 @@ async function tool(token, name, args = {}) {
 /** Uploads one sample file the way the tool tells an assistant to, and returns its attachment id. */
 async function upload(token, filename) {
   const f = FILES[filename];
-  const slot = await tool(token, "handoff_upload_url", { filename, mime_type: f.type });
+  const slot = await tool(token, "threadpacket_upload_url", { filename, mime_type: f.type });
   const put = await fetch(slot.upload_url, { method: "PUT", headers: slot.headers, body: f.bytes });
   if (!put.ok) throw new Error(`upload of ${filename} failed: ${put.status}`);
   return slot.attachment_id;
@@ -170,19 +170,19 @@ async function seed() {
 
   for (const item of SET) {
     const sender = tokens[item.from];
-    const { packets } = await tool(sender, "handoff_inbox", { limit: 50 });
+    const { packets } = await tool(sender, "threadpacket_inbox", { limit: 50 });
     const live = packets.filter((p) => p.title === item.title && p.from === item.from && p.to === item.to);
     const fresh = live.find((p) => Date.parse(p.expires_at) - Date.now() > REFRESH_MS);
     let packetId = fresh?.packet_id;
     for (const old of live.filter((p) => p !== fresh)) {
-      await tool(sender, "handoff_revoke", { packet_id: old.packet_id });
+      await tool(sender, "threadpacket_revoke", { packet_id: old.packet_id });
       const ending = Date.parse(old.expires_at) - Date.now() <= REFRESH_MS;
       report.push(`revoked "${item.title}" (${old.packet_id}): ${ending ? "fewer than 7 days left" : "a second copy"}`);
     }
     if (!packetId) {
       const ids = [];
       for (const f of item.files) ids.push(await upload(sender, f));
-      const sent = await tool(sender, "handoff_send", {
+      const sent = await tool(sender, "threadpacket_send", {
         title: item.title,
         brief: item.brief,
         to: item.to,
@@ -196,10 +196,10 @@ async function seed() {
       report.push(`kept "${item.title}" (${packetId}), expires ${fresh.expires_at}`);
     }
     // A recipient's first read is the pickup the sender sees; a later read records nothing new.
-    if (item.pickedUp) await tool(tokens[item.to], "handoff_read", { packet_id: packetId });
+    if (item.pickedUp) await tool(tokens[item.to], "threadpacket_read", { packet_id: packetId });
   }
 
-  const { unsent_files: unsent = [] } = await tool(tokens.joe, "handoff_inbox", { limit: 1 });
+  const { unsent_files: unsent = [] } = await tool(tokens.joe, "threadpacket_inbox", { limit: 1 });
   if (unsent.some((f) => f.filename === "lease.pdf")) report.push("kept joe's unsent file lease.pdf");
   else report.push(`uploaded joe's unsent file lease.pdf (${await upload(tokens.joe, "lease.pdf")})`);
 

@@ -54,7 +54,7 @@ describe("plugin manifests", () => {
 
   it("each host gets the transport type it accepts, on the same server", () => {
     // Anthropic's directory accepts http, sse or ws for a remote server; the Agent Plugins format names streamable-http.
-    expect(claudeMcp.mcpServers.handoff).toEqual({ type: "http", url: serverJson.remotes[0]!.url });
-    expect(agentMcp.mcpServers.handoff).toEqual({ type: "streamable-http", url: serverJson.remotes[0]!.url });
+    expect(claudeMcp.mcpServers.threadpacket).toEqual({ type: "http", url: serverJson.remotes[0]!.url });
+    expect(agentMcp.mcpServers.threadpacket).toEqual({ type: "streamable-http", url: serverJson.remotes[0]!.url });
   });
 });

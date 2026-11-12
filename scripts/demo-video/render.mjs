@@ -1,13 +1,8 @@
-// Renders the homepage walkthrough, docs/handoff-demo.mp4, in four steps: install Handoff from a terminal,
-// connect ChatGPT, hand off a brief and two files from Cowork, and continue in ChatGPT.
+// Renders the homepage walkthrough, docs/threadpacket-demo.mp4, in four steps: install Threadpacket from a terminal,
+// connect ChatGPT, send a packet with a brief and two files from Cowork, and continue in ChatGPT.
 //
-//   npm run video                          render docs/handoff-demo.mp4 (needs Google Chrome and ffmpeg)
+//   npm run video                          render docs/threadpacket-demo.mp4 (needs Google Chrome and ffmpeg)
 //   npm run video -- --still=18            write the frame at 18 s to a PNG and print its path
-//
-// The scene is one HTML page animated with CSS. Headless Chrome pauses every animation, sets it to each
-// frame's time and takes a screenshot, so two renders give the same frames. Fonts, colours and icons come
-// from the site's own modules; the terminal shows what npm run setup prints. Set CHROME to use another
-// Chrome binary.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -17,22 +12,17 @@ import { CLAUDE_ICON, OPENAI_ICON } from "../../src/http/assistant-icons.ts";
 import { BASE_CSS, BRAND_ICON, FILE_ICON } from "../../src/http/style.ts";
 
 const W = 960, H = 540, SCALE = 2, FPS = 30, DURATION = 29;
-const OUT = "docs/handoff-demo.mp4";
+const OUT = "docs/threadpacket-demo.mp4";
 const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const URL_ = "https://handoff.acme.workers.dev";
+const URL_ = "https://threadpacket.acme.workers.dev";
 
-// When each thing happens, in seconds.
 const T = {
-  // 1. Install
   install: 0, cmd1: 0.3, cmd2: 1.5, cmd3: 2.1, out1: 3.1, out2: 3.5, out3: 3.9, out4: 4.3, out5: 4.7,
   live: 5.5, codes: 6.5, installOut: 8.4,
-  // 2. Connect
   connect: 8.6, dialog: 8.8, name: 9.2, url: 9.6, oauth: 10.7, create: 11.1,
   signin: 11.5, user: 11.9, code: 12.3, allow: 12.9, connected: 13.4, connectOut: 14.4,
-  // 3. Send
   send: 14.6, timAsks: 15.0, sendTool: 15.9, brief1: 16.2, brief2: 16.5, sent: 17.3, sentReply: 17.7, files1: 18.2,
   path: 19.0, travel: 19.2,
-  // 4. Continue
   cont: 20.7, tomAsks: 20.9, read: 21.7, readDone: 22.5, files2: 22.8, same: 23.2, reply: 23.7,
 };
 
@@ -40,13 +30,11 @@ const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, 
 const FILES = ["vat-q3-summary.pdf", "flagged-invoices.md"];
 const at = (s) => `--in:${s}s`;
 const io = (a, b) => `--in:${a}s;--out:${b}s`;
-// Monospace text typed out one character at a time.
 const type = (text, start, perSecond = 45) =>
   `<span class="type" style="${at(start)};--n:${text.length};--d:${(text.length / perSecond).toFixed(2)}s">${esc(text)}</span>`;
 const line = (start, html) => `<div class="in" style="${at(start)}">${html}</div>`;
 const fileTags = (start) =>
   `<ul class="file-tags">${FILES.map((f, i) => `<li class="in" style="${at(start + i * 0.2)}">${FILE_ICON}${f}</li>`).join("")}</ul>`;
-// The assistant's reply appears word by word. A word in backticks is a file name.
 const words = (text, start, step = 0.055) =>
   text
     .split(" ")
@@ -171,24 +159,24 @@ const steps = STEPS.map(
     `<span class="tab"><i class="fade" style="${io(from, to)}"></i><span class="off" style="${io(from, to)}"><b>${i + 1}</b>${name}</span><span class="on fade" style="${io(from, to)}"><b>${i + 1}</b>${name}</span></span>`,
 ).join("");
 
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Handoff walkthrough</title>
+const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Threadpacket walkthrough</title>
 <style>${BASE_CSS}${CSS}</style></head><body>
-<header class="bar"><span class="brand">${BRAND_ICON}Handoff</span><nav class="steps">${steps}</nav><span class="url">handoff.infraworks.net</span></header>
+<header class="bar"><span class="brand">${BRAND_ICON}Threadpacket</span><nav class="steps">${steps}</nav><span class="url">threadpacket.com</span></header>
 
 <p class="caption io" style="${io(T.install + 0.01, T.installOut)}">Install once on your own Cloudflare account. Free plan, no card.</p>
 <section class="scene io" style="${io(T.install + 0.01, T.installOut)}">
   <div class="term">
     <div class="term-top"><i></i><i></i><i></i><span>tim’s terminal</span></div>
     <div class="term-body">${[
-      line(T.cmd1, `<span class="p">$</span> ${type("git clone https://github.com/evgolsh/handoff.git && cd handoff", T.cmd1, 60)}`),
+      line(T.cmd1, `<span class="p">$</span> ${type("git clone https://github.com/evgolsh/threadpacket.git && cd threadpacket", T.cmd1, 65)}`),
       line(T.cmd2, `<span class="p">$</span> ${type("npm install", T.cmd2, 30)}`),
       line(T.cmd3, `<span class="p">$</span> ${type("npm run setup -- --members=tim,tom", T.cmd3, 45)}`),
       line(T.out1, `<span class="dim">Signing in to Cloudflare...</span>`),
-      line(T.out2, `Database:  handoff`),
-      line(T.out3, `Files:     KV namespace handoff-FILES`),
+      line(T.out2, `Database:  threadpacket`),
+      line(T.out3, `Files:     KV namespace threadpacket-FILES`),
       line(T.out4, `Schema:    ready`),
       line(T.out5, `<span class="dim">Deploying...</span>`),
-      line(T.live, `\n<span class="ok">Handoff is live at ${URL_}</span>`),
+      line(T.live, `\n<span class="ok">Threadpacket is live at ${URL_}</span>`),
       line(T.live + 0.2, `  Server address for assistants:  <span class="hi">${URL_}/mcp</span>`),
       line(T.live + 0.4, `  Setup for each assistant:       ${URL_}/connect`),
       line(T.live + 0.6, `  Console:                        ${URL_}/console`),
@@ -204,16 +192,16 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
   <div class="connect">
     <div class="dialog in" style="${at(T.dialog)}">
       <div class="dialog-top">${OPENAI_ICON}ChatGPT: Add custom MCP server</div>
-      <div class="field"><label>Name</label><div class="input">${type("Handoff", T.name, 25)}</div></div>
-      <div class="field"><label>Server URL</label><div class="input">${type(`${URL_}/mcp`, T.url, 40)}</div></div>
+      <div class="field"><label>Name</label><div class="input">${type("Threadpacket", T.name, 28)}</div></div>
+      <div class="field"><label>Server URL</label><div class="input">${type(`${URL_}/mcp`, T.url, 42)}</div></div>
       <div class="field"><label>Authentication</label><div class="input"><span class="in" style="${at(T.oauth)}">OAuth</span></div></div>
-      <div class="row"><span class="connected in" style="${at(T.connected)}">✓ Handoff connected</span><span class="btn press" style="${at(T.create)}">Create</span></div>
+      <div class="row"><span class="connected in" style="${at(T.connected)}">✓ Threadpacket connected</span><span class="btn press" style="${at(T.create)}">Create</span></div>
     </div>
     <div class="signin-wrap in" style="${at(T.signin)}">
-      <div class="brand">${BRAND_ICON}<span>Handoff</span></div>
-      <p class="tagline">Hand your work to someone else’s assistant.</p>
+      <div class="brand">${BRAND_ICON}<span>Threadpacket</span></div>
+      <p class="tagline">Send your work to someone else’s assistant.</p>
       <div class="signin">
-        <p class="meta"><strong>ChatGPT</strong> asks to use Handoff as you. After you sign in it returns to <code>chatgpt.com</code>.</p>
+        <p class="meta"><strong>ChatGPT</strong> asks to use Threadpacket as you. After you sign in it returns to <code>chatgpt.com</code>.</p>
         <div class="field"><label>Username</label><div class="input">${type("tom", T.user, 12)}</div></div>
         <div class="field"><label>Access code</label><div class="input">${type("••••••••••••••", T.code, 40)}</div></div>
         <span class="btn press" style="${at(T.allow)}">Sign in and allow</span>
@@ -222,15 +210,15 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
   </div>
 </section>
 
-<p class="caption io" style="${io(T.send, T.cont - 0.2)}">tim sorts out the Q3 VAT in Cowork, then hands it to tom with the files.</p>
+<p class="caption io" style="${io(T.send, T.cont - 0.2)}">tim sorts out the Q3 VAT in Cowork, then sends a packet to tom with the files.</p>
 <p class="caption io" style="${io(T.cont, DURATION + 1)}">tom continues in ChatGPT with tim’s notes and the original files.</p>
 <section class="scene in" style="${at(T.send)}">
   <div class="stage">
     <div class="chat">
       <div class="chat-app"><b class="app">${CLAUDE_ICON}Cowork</b><span>tim, on a Mac</span></div>
-      <p class="msg-user in" style="${at(T.timAsks)}">Hand this off to tom. He’ll finish the VAT reply.</p>
+      <p class="msg-user in" style="${at(T.timAsks)}">Send a packet to tom. He’ll finish the VAT reply.</p>
       <div class="in" style="${at(T.sendTool)}">
-        <p class="tool-step">${toolState(T.sendTool, T.sent)}<span>Send a handoff</span></p>
+        <p class="tool-step">${toolState(T.sendTool, T.sent)}<span>Send a packet</span></p>
         <div class="brief"><b class="in" style="${at(T.brief1)}">Q3 VAT for the bakery</b><p class="in" style="${at(T.brief2)}">Fix the two flagged invoices, each one separately. Then check the dates and draft the reply.</p></div>
       </div>
       <p class="msg-assistant">${words("Sent to tom with both files.", T.sentReply)}</p>
@@ -238,14 +226,14 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
       <p class="composer">Reply to Claude</p>
     </div>
     <div class="path">
-      <p class="path-label in" style="${at(T.path)}">BRIEF +<br>ORIGINAL FILES</p>
+      <p class="path-label in" style="${at(T.path)}">A PACKET<br>BRIEF + FILES</p>
       <div class="track in" style="${at(T.path)}"><i></i><span class="token" style="${at(T.travel)}">${BRAND_ICON}${FILE_ICON}${FILE_ICON}</span><b>→</b></div>
       <p class="path-note in" style="${at(T.path + 0.3)}">Stored on your<br>Cloudflare account</p>
     </div>
     <div class="chat">
       <div class="chat-app"><b class="app">${OPENAI_ICON}ChatGPT</b><span>tom, on Windows</span></div>
-      <p class="msg-user in" style="${at(T.tomAsks)}">Continue the handoff from tim.</p>
-      <p class="tool-step in" style="${at(T.read)}">${toolState(T.read, T.readDone)}<span>Read a handoff</span><b class="in" style="${at(T.readDone)}">Q3 VAT for the bakery, 2 files</b></p>
+      <p class="msg-user in" style="${at(T.tomAsks)}">Continue the packet from tim.</p>
+      <p class="tool-step in" style="${at(T.read)}">${toolState(T.read, T.readDone)}<span>Read a packet</span><b class="in" style="${at(T.readDone)}">Q3 VAT for the bakery, 2 files</b></p>
       <div class="files-row">${fileTags(T.files2)}<span class="same in" style="${at(T.same)}">✓ Byte for byte</span></div>
       <p class="msg-assistant">${words("The brief says to fix the two flagged invoices separately. I’ll check their dates in `vat-q3-summary.pdf` first, then draft the reply.", T.reply)}</p>
       <p class="composer">Ask anything</p>
@@ -263,20 +251,28 @@ if (!existsSync(CHROME)) fail(`Chrome not found at ${CHROME}. Set CHROME to its 
 const still = process.argv.find((a) => a.startsWith("--still="))?.slice("--still=".length);
 if (still === undefined && spawnSync("ffmpeg", ["-version"]).status !== 0) fail("ffmpeg not found (macOS: brew install ffmpeg).");
 
-// Serve the page, the fonts and the Deploy button image from one local origin.
 const server = createServer((req, res) => {
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
-  if (path === "/") return res.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(html);
+  if (path === "/") {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    return res.end(html);
+  }
   const font = path.match(/^\/fonts\/([\w.-]+\.woff2)$/);
-  if (font) return res.writeHead(200, { "content-type": "font/woff2" }).end(readFileSync(join("public/fonts", font[1])));
-  if (path === "/img/deploy-to-cloudflare.svg")
-    return res.writeHead(200, { "content-type": "image/svg+xml" }).end(readFileSync("docs/deploy-to-cloudflare.svg"));
-  res.writeHead(404).end();
+  if (font) {
+    res.writeHead(200, { "content-type": "font/woff2" });
+    return res.end(readFileSync(join("public/fonts", font[1])));
+  }
+  if (path === "/img/deploy-to-cloudflare.svg") {
+    res.writeHead(200, { "content-type": "image/svg+xml" });
+    return res.end(readFileSync("docs/deploy-to-cloudflare.svg"));
+  }
+  res.writeHead(404);
+  res.end();
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 
-const profile = mkdtempSync(join(tmpdir(), "handoff-video-chrome-"));
+const profile = mkdtempSync(join(tmpdir(), "threadpacket-video-chrome-"));
 const chrome = spawn(
   CHROME,
   ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--hide-scrollbars", "--no-first-run",
@@ -294,7 +290,6 @@ const browserUrl = await new Promise((resolve, reject) => {
 });
 const page = await (await fetch(`http://127.0.0.1:${new URL(browserUrl).port}/json/new?about:blank`, { method: "PUT" })).json();
 
-// A minimal Chrome DevTools Protocol client.
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => {
   ws.onopen = resolve;
@@ -339,7 +334,6 @@ try {
     ...["400 1em 'IBM Plex Sans'", "500 1em 'IBM Plex Sans'", "600 1em 'IBM Plex Sans'", "400 1em 'IBM Plex Mono'", "500 1em 'IBM Plex Mono'"].map((f) => document.fonts.load(f)),
     ...[...document.images].map((i) => i.decode()),
   ]).then(() => true)`);
-  // Pause every animation and set it to one moment; wait two frames so the screenshot shows it.
   await evaluate(`window.seek = (ms) => {
     for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms; }
     return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))));
@@ -351,11 +345,11 @@ try {
   };
 
   if (still !== undefined) {
-    const out = join(tmpdir(), `handoff-demo-${still}s.png`);
+    const out = join(tmpdir(), `threadpacket-demo-${still}s.png`);
     writeFileSync(out, await frame(Number(still)));
     console.log(out);
   } else {
-    const dir = mkdtempSync(join(tmpdir(), "handoff-video-frames-"));
+    const dir = mkdtempSync(join(tmpdir(), "threadpacket-video-frames-"));
     const total = Math.round(DURATION * FPS);
     for (let i = 0; i < total; i++) {
       writeFileSync(join(dir, `${String(i).padStart(5, "0")}.png`), await frame(i / FPS));

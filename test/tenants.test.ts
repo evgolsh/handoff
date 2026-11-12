@@ -50,17 +50,17 @@ describe("tenants are isolated by their qualified identities", () => {
     const sent = await send(await acmeTim(), { to: "tom", title: "For acme's tom" });
     expect(sent).toMatchObject({ from: "tim", to: "tom" });
 
-    const tomInbox = expectOk(await call(await acmeTom(), "handoff_inbox")) as { packets: Array<Record<string, unknown>> };
+    const tomInbox = expectOk(await call(await acmeTom(), "threadpacket_inbox")) as { packets: Array<Record<string, unknown>> };
     expect(tomInbox.packets.map((p) => p.packet_id)).toContain(sent.packet_id);
     expect(tomInbox.packets.find((p) => p.packet_id === sent.packet_id)).toMatchObject({ from: "tim", to: "tom" });
-    const view = expectOk(await call(await acmeTom(), "handoff_read", { packet_id: sent.packet_id }));
+    const view = expectOk(await call(await acmeTom(), "threadpacket_read", { packet_id: sent.packet_id }));
     expect(view).toMatchObject({ from: "tim", to: "tom", title: "For acme's tom" });
 
     // beta's tom has the same handle and a different identity: not found, not listed.
-    const otherInbox = expectOk(await call(await betaTom(), "handoff_inbox")) as { packets: Array<Record<string, unknown>> };
+    const otherInbox = expectOk(await call(await betaTom(), "threadpacket_inbox")) as { packets: Array<Record<string, unknown>> };
     expect(otherInbox.packets.map((p) => p.packet_id)).not.toContain(sent.packet_id);
-    expect(errorText(await call(await betaTom(), "handoff_read", { packet_id: sent.packet_id }))).toContain("not_found");
-    expect(errorText(await call(await betaTom(), "handoff_revoke", { packet_id: sent.packet_id }))).toContain("not_found");
+    expect(errorText(await call(await betaTom(), "threadpacket_read", { packet_id: sent.packet_id }))).toContain("not_found");
+    expect(errorText(await call(await betaTom(), "threadpacket_revoke", { packet_id: sent.packet_id }))).toContain("not_found");
   });
 
   it("a team packet reaches the sender's tenant only", async () => {
@@ -69,17 +69,17 @@ describe("tenants are isolated by their qualified identities", () => {
     const row = await env.DB.prepare("SELECT recipient FROM packets WHERE id = ?").bind(sent.packet_id).first<{ recipient: string }>();
     expect(row?.recipient).toBe("beta/*");
 
-    const betaInbox = expectOk(await call(await betaTom(), "handoff_inbox")) as { packets: Array<Record<string, unknown>> };
+    const betaInbox = expectOk(await call(await betaTom(), "threadpacket_inbox")) as { packets: Array<Record<string, unknown>> };
     expect(betaInbox.packets.map((p) => p.packet_id)).toContain(sent.packet_id);
-    const acmeInbox = expectOk(await call(await acmeTom(), "handoff_inbox")) as { packets: Array<Record<string, unknown>> };
+    const acmeInbox = expectOk(await call(await acmeTom(), "threadpacket_inbox")) as { packets: Array<Record<string, unknown>> };
     expect(acmeInbox.packets.map((p) => p.packet_id)).not.toContain(sent.packet_id);
-    expect(errorText(await call(await acmeTom(), "handoff_read", { packet_id: sent.packet_id }))).toContain("not_found");
+    expect(errorText(await call(await acmeTom(), "threadpacket_read", { packet_id: sent.packet_id }))).toContain("not_found");
     // Only the sender revokes a team packet, within the tenant.
-    expect(errorText(await call(await betaTom(), "handoff_revoke", { packet_id: sent.packet_id }))).toContain("only its sender");
+    expect(errorText(await call(await betaTom(), "threadpacket_revoke", { packet_id: sent.packet_id }))).toContain("only its sender");
   });
 
   it("a handle that exists only in another tenant is not a member here", async () => {
-    const r = await call(await betaTom(), "handoff_send", { title: "t", brief: "b", to: "tim", idempotency_key: crypto.randomUUID() });
+    const r = await call(await betaTom(), "threadpacket_send", { title: "t", brief: "b", to: "tim", idempotency_key: crypto.randomUUID() });
     expect(errorText(r)).toContain("not a member");
   });
 
@@ -87,7 +87,7 @@ describe("tenants are isolated by their qualified identities", () => {
     const tim = await acmeTim();
     const up = await uploadBytes(tim, "acme.pdf", PDF, "application/pdf");
     const sent = await send(tim, { to: "tom", attachment_ids: [up.attachment_id] });
-    const ok = expectOk(await call(await acmeTom(), "handoff_read", { packet_id: sent.packet_id, attachment_id: up.attachment_id, representation: "original" }));
+    const ok = expectOk(await call(await acmeTom(), "threadpacket_read", { packet_id: sent.packet_id, attachment_id: up.attachment_id, representation: "original" }));
     expect((await SELF.fetch(String(ok.download_url))).status).toBe(200);
     const denied = await SELF.fetch(`${ORIGIN}/v1/attachments/${up.attachment_id}/original`, { headers: { authorization: `Bearer ${await betaTom()}` } });
     expect(denied.status).toBe(404);

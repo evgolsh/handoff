@@ -25,7 +25,7 @@ function scopesOf(payload: JWTPayload): string[] {
 export async function verifyBearer(cfg: Config, token: string, db: D1Database): Promise<Principal> {
   const devSubject = cfg.devTokens.get(token);
   if (devSubject !== undefined) {
-    return { subject: devSubject, scopes: ["handoff"], clientId: "dev", token };
+    return { subject: devSubject, scopes: ["threadpacket"], clientId: "dev", token };
   }
   let payload: JWTPayload;
   try {
