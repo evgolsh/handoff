@@ -15,7 +15,7 @@ export function joinPage(cfg: Config, opts: { error?: string; team?: string; han
     <div class="flow-card">
       <div class="stamp-bar"><span>New team // Threadpacket, hosted</span><span>No email required</span></div>
       <form method="post" action="/join" class="flow-panel" autocomplete="off">
-        <div><h1>Create a team.</h1><p class="flow-sub">No email or personal data. Pick a username to get your access code.</p></div>
+        <div><h1>Create a team.</h1><p class="flow-sub">No email or phone number. Pick a username to get your access code.</p></div>
         ${opts.error ? `<div class="flash" role="alert">${esc(opts.error)}</div>` : ""}
         <div><label class="lbl" for="handle">Your name</label><input id="handle" name="handle" class="field" required autofocus maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,62}" autocapitalize="none" spellcheck="false" placeholder="joe" value="${esc(opts.handle ?? "")}" ${NOT_A_SIGN_IN}></div>
         <div><label class="lbl" for="team">Team or family name <span class="muted">(optional)</span></label><input id="team" name="team" class="field" maxlength="32" pattern="[a-z0-9][a-z0-9\\-]{1,30}[a-z0-9]" autocapitalize="none" spellcheck="false" placeholder="smiths" value="${esc(opts.team ?? "")}" aria-describedby="team-help"><p class="field-help" id="team-help">Leave blank to use your username.</p></div>

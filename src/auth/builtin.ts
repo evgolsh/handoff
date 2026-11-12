@@ -50,7 +50,7 @@ export function normalizeHandle(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-/** "team" and "all" address every member in handoff_send, so no member may have them as a handle. */
+/** "team" and "all" address every member in threadpacket_send, so no member may have them as a handle. */
 export const RESERVED_HANDLES = new Set(["team", "all"]);
 
 export function isValidHandle(handle: string): boolean {
@@ -342,7 +342,7 @@ export function builtinAuthorizePage(cfg: Config, params: AuthorizeParams, clien
   // The hosted service: a new person creates their team here and continues with the same request.
   const newTeam = control
     ? `<section class="flow-panel" id="new-team" aria-labelledby="new-team-title">
-      <div><h2 id="new-team-title">New to Threadpacket?</h2><p class="flow-note">No email or personal data required. Pick a username and get an access code.</p></div>
+      <div><h2 id="new-team-title">New to Threadpacket?</h2><p class="flow-note">No email or phone number. Pick a username and get an access code.</p></div>
       ${create.error ? `<div class="flash" role="alert">${esc(create.error)}</div>` : ""}
       <form method="post" action="/authorize" class="flow-stack">
         ${hiddenParams(params)}

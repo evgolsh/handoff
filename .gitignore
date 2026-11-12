@@ -6,6 +6,6 @@ dist/
 .DS_Store
 public/
 .quorum/
-# The hosted service's config (handoff.infraworks.net); the public config is wrangler.jsonc. Its old name: wrangler.playground.jsonc.
+# The hosted service's config (threadpacket.com); the public config is wrangler.jsonc. Its old name: wrangler.playground.jsonc.
 wrangler.hosted.jsonc
 wrangler.playground.jsonc

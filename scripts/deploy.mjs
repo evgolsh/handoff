@@ -16,6 +16,7 @@ import { execFileSync } from "node:child_process";
 const run = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: "utf8", stdio: ["inherit", "pipe", "pipe"], ...opts });
 
+/** Runs a wrangler step quietly; on failure, prints what wrangler said and stops. */
 function quiet(label, cmd, args) {
   try {
     return run(cmd, args);
@@ -41,6 +42,8 @@ function ensureD1AndStore() {
   const idMatch = /("database_id"\s*:\s*")([^"]*)(")/.exec(raw);
   const configuredId = idMatch?.[2] ?? "";
 
+  // The D1 database: the one wrangler.jsonc names if it is in your account; otherwise yours named "threadpacket",
+  // created if needed, and its id written into wrangler.jsonc (a clone carries the id of the repository's owner).
   let list = [];
   try {
     list = JSON.parse(run("npx", ["wrangler", "d1", "list", "--json"]));
@@ -62,6 +65,9 @@ function ensureD1AndStore() {
     console.log(`Database:  threadpacket (${dbId})`);
   }
 
+  // The file store. Default: a Workers KV namespace (free plan, no payment method): the one wrangler.jsonc names if
+  // it is in your account, otherwise yours titled "threadpacket-FILES", created if needed, with its id written into
+  // wrangler.jsonc. If wrangler.jsonc binds an R2 bucket instead (BLOBS), that bucket is created if needed.
   const kvMatch = /("binding"\s*:\s*"FILES"\s*,\s*"id"\s*:\s*")([^"]*)(")/.exec(raw);
   if (kvMatch) {
     let spaces = [];
@@ -133,9 +139,12 @@ function seedMembersIfEmpty(handles) {
 ensureWranglerAuth();
 ensureD1AndStore();
 
+// The schema. wrangler prints every migration file it applies; one line is enough here.
 const migrated = quiet("Preparing the database", "npx", ["wrangler", "d1", "migrations", "apply", "DB", "--remote"]);
 console.log(migrated.includes("No migrations to apply") ? "Schema:    up to date" : "Schema:    ready");
 
+// The static files (fonts, demo) are built, not committed: a fresh clone has no public/ folder, and wrangler
+// refuses to deploy without it. npm run deploy does this through its predeploy script.
 quiet("Building the static files", "node", ["scripts/assets.mjs"]);
 
 console.log("Deploying...");

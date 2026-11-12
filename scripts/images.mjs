@@ -31,7 +31,7 @@ const og = `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}
     <div class="brand">${BRAND_ICON}<span>Threadpacket</span></div>
     <h1>From your AI to theirs.</h1>
     <p>Send a prepared brief and original files from your assistant to someone else’s.</p>
-    <div class="pills"><span>No email required</span><span>Zero personal data</span><span>7-day auto-delete</span></div>
+    <div class="pills"><span>No email required</span><span>No phone number</span><span>7-day auto-delete</span></div>
   </div>
 </div></div></body></html>`;
 

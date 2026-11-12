@@ -433,7 +433,7 @@ export function connectPage(cfg: Config, nonce: string, opts: { needsSetup?: boo
   <div class="meta-foot">
     <span>File on your phone? Upload it in <a href="/packets">Packets</a>.${!control ? ` <a href="${CONTROL_CENTER_URL}/" target="_blank" rel="noopener">About Threadpacket ↗</a>` : ""}</span>
   </div>
-  <details class="privacy"><summary>Zero personal data, limits &amp; expiry</summary>
+  <details class="privacy"><summary>Privacy, limits &amp; expiry</summary>
     <dl class="kv">
       <dt>Identity</dt><dd>Username and access code only. No email address, phone number, real name, or Google login.</dd>
       <dt>Files</dt><dd>PDF, PNG, JPEG, text and Markdown, up to ${cfg.maxAttachmentBytes / 1048576} MiB each; ${cfg.maxAttachmentsPerPacket} files per packet.</dd>

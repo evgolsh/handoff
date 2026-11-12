@@ -106,8 +106,8 @@ describe("connect and homepage (Courier Hybrid)", () => {
 
     const html = await res.text();
     expect(html).toContain("From your AI to theirs.");
-    expect(html).toContain("No email required · Zero personal data");
-    expect(html).toContain("No Email, No Personal Data");
+    expect(html).toContain("No email required · No phone number");
+    expect(html).toContain("No email, no phone");
     expect(html).toContain("Packet // joe (Claude) → anna (ChatGPT)");
     expect(html).toContain("Car insurance renewal");
     expect(html).toContain("“Continue the packet from joe.”");

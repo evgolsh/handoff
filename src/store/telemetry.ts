@@ -39,7 +39,7 @@ export async function mcpCallsIn(req: Request): Promise<McpCall[]> {
 }
 
 /**
- * Records each call with its outcome: "ok", the Handoff error code a tool returned ("not_found: ..."),
+ * Records each call with its outcome: "ok", the error code a tool returned ("not_found: ..."),
  * "error" for another tool error, or "rpc_error" when the request itself failed.
  */
 export async function recordMcpCalls(db: D1Database, p: Principal, calls: McpCall[], res: Response, ms: number): Promise<void> {

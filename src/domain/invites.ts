@@ -6,7 +6,7 @@ import { newTicketToken, nowIso, plusMs, sha256Hex } from "./ids";
 import { handleOf, qualify, tenantOf } from "./tenant";
 
 /**
- * Invitation links. A team admin (or their assistant, through handoff_invite) names a username; the member is
+ * Invitation links. A team admin (or their assistant, through threadpacket_invite) names a username; the member is
  * created with an access code nobody knows, and a link is returned. The invitee opens the link and presses a
  * button (a POST, so link previews in messengers do not use it up): that sets a new access code and shows it
  * once, with the steps to connect their assistant. Asking again for the same username replaces the open link.

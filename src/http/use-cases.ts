@@ -123,7 +123,7 @@ export function useCasesPage(cfg: Config, opts: { active?: boolean; signedIn?: b
     : "";
 
   const description =
-    "Send a brief and original files from your AI assistant to someone else’s across Claude, ChatGPT, Codex, and Hermes. No email, no personal data, auto-deleted after 7 days.";
+    "Send a brief and original files from your AI assistant to someone else’s across Claude, ChatGPT, Codex, and Hermes. No email or phone number needed, and packets are deleted after 7 days.";
 
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -156,7 +156,7 @@ ${pageHeader("use-cases", { active, mode: cfg.mode, signedIn: opts.signedIn })}
         <label for="stage-live">Live packet</label>
         <label for="stage-install">Self-host (Cloudflare)</label>
       </div>
-      <span class="stage-caption">${open ? "No email required · Zero personal data · " : "MIT open source · "}${esc(ttl)} auto-delete</span>
+      <span class="stage-caption">${open ? "No email required · No phone number · " : "MIT open source · "}${esc(ttl)} auto-delete</span>
     </div>
 
     <div class="courier-window pane-live">
@@ -255,15 +255,15 @@ npm run setup -- --members=tim,tom</code></pre>
 
   <dl class="facts">
     <div class="fact">
-      <dt>Brief + Original Files</dt>
+      <dt>Brief and original files</dt>
       <dd>PDFs, scans, and notes arrive byte-for-byte alongside your decisions.</dd>
     </div>
     <div class="fact">
-      <dt>No Email, No Personal Data</dt>
+      <dt>No email, no phone</dt>
       <dd>Just a username and an access code. No email address, phone, or Google login.</dd>
     </div>
     <div class="fact">
-      <dt>Gone in ${esc(ttl)}, Zero AI</dt>
+      <dt>Gone in ${esc(ttl)}, no AI</dt>
       <dd>Packets auto-delete after ${esc(ttl)}. Threadpacket makes no model calls.</dd>
     </div>
   </dl>

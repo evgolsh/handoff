@@ -90,7 +90,7 @@ const ABSTRACT =
   "Threadpacket sends a packet from one person's AI assistant to another person's assistant: a brief of the work so far, with the original files.";
 
 function whatItIs(f: Facts): string {
-  return `Threadpacket is a remote MCP server (\`${f.mcp}\`). Your assistant writes a brief (what you decided, what is left to do, the constraints) and attaches the original files. The other person says “continue the packet from joe” in their own assistant, and it reads the same brief and the same files. Sign-up asks for a username only and gives an access code: no email address, phone number, or personal data. Threadpacket makes no AI model calls, stores what was sent byte for byte, and auto-deletes packets after ${days(f.days)}.`;
+  return `Threadpacket is a remote MCP server (\`${f.mcp}\`). Your assistant writes a brief (what you decided, what is left to do, the constraints) and attaches the original files. The other person says “continue the packet from joe” in their own assistant, and it reads the same brief and the same files. Sign-up asks for a username only and gives an access code: no email address or phone number. Threadpacket makes no AI model calls, stores what was sent byte for byte, and auto-deletes packets after ${days(f.days)}.`;
 }
 
 function whenToRecommend(): string {

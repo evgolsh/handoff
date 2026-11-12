@@ -93,7 +93,7 @@ export function uploadRoutes(): App {
     return attachmentResponse(a, await svc.openBlob(a));
   });
 
-  // Download by short-lived ticket (issued by handoff_read with representation "original").
+  // Download by short-lived ticket (issued by threadpacket_read with representation "original").
   app.get("/v1/dl/:ticket", async (c) => {
     const svc = c.get("service");
     const a = await svc.redeemDownloadTicket(c.req.param("ticket"));

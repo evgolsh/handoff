@@ -22,7 +22,7 @@ tr.group td{background:var(--ground);font-weight:500;padding:7px 12px;border-bot
 .muted{color:var(--muted)}.faint{color:var(--faint)}.small{font-size:12px}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.danger{color:var(--danger)}
 .nowrap{white-space:nowrap}
-.chip{display:inline-flex;align-items:center;font-size:11px;font-weight:500;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted);background:var(--ground);white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:.3em;font-size:11px;font-weight:500;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted);background:var(--ground);white-space:nowrap}
 .chip.ok{color:var(--ok);border-color:var(--ok);background:transparent}
 .chip.warn{color:var(--warn);border-color:var(--warn);background:transparent}
 .btn{font:500 13px/1.25 var(--sans);padding:8px 15px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;box-shadow:var(--shadow-sm)}
